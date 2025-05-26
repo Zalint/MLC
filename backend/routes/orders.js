@@ -22,6 +22,9 @@ const {
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
+// DEBUG: Route temporaire pour diagnostiquer les problèmes de rôles
+router.get('/debug-role', OrderController.debugUserRole);
+
 // Routes accessibles à tous les utilisateurs authentifiés
 router.get('/', validatePagination, OrderController.getAllOrders);
 router.get('/last', OrderController.getLastUserOrders);

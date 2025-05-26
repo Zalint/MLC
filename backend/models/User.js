@@ -199,6 +199,14 @@ class User {
 
   // Vérifier si l'utilisateur est un manager ou admin
   isManagerOrAdmin() {
+    console.log('🔍 isManagerOrAdmin called for user:', {
+      username: this.username,
+      role: this.role,
+      roleType: typeof this.role,
+      isManager: this.role === 'MANAGER',
+      isAdmin: this.role === 'ADMIN',
+      result: this.role === 'MANAGER' || this.role === 'ADMIN'
+    });
     return this.role === 'MANAGER' || this.role === 'ADMIN';
   }
 

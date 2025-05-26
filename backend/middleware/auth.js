@@ -34,6 +34,16 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    console.log('🔍 Auth middleware - User loaded:', {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      roleType: typeof user.role,
+      isActive: user.is_active,
+      userConstructor: user.constructor.name,
+      hasIsManagerOrAdminMethod: typeof user.isManagerOrAdmin === 'function'
+    });
+
     // Ajouter l'utilisateur à la requête
     req.user = user;
     next();

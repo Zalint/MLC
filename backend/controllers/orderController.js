@@ -40,22 +40,27 @@ class OrderController {
       const limit = parseInt(req.query.limit) || 50;
       const offset = (page - 1) * limit;
 
-      console.log('🔍 getAllOrders - User:', {
+      console.log('🔍 getAllOrders - User Details:', {
         id: req.user.id,
         username: req.user.username,
         role: req.user.role,
-        isManagerOrAdmin: req.user.isManagerOrAdmin()
+        is_active: req.user.is_active,
+        isManagerOrAdmin: req.user.isManagerOrAdmin(),
+        userObjectType: typeof req.user,
+        userConstructor: req.user.constructor.name
       });
 
       let orders;
       
       // Si l'utilisateur n'est pas manager/admin, ne montrer que ses commandes
       if (!req.user.isManagerOrAdmin()) {
-        console.log('🔒 Filtering orders for non-manager user:', req.user.username);
+        console.log('🔒 Filtering orders for non-manager user:', req.user.username, 'with ID:', req.user.id);
         orders = await Order.findByUser(req.user.id, limit, offset);
+        console.log('🔒 Found', orders.length, 'orders for user', req.user.username);
       } else {
         console.log('👑 Showing all orders for manager/admin:', req.user.username);
         orders = await Order.findAll(limit, offset);
+        console.log('👑 Found', orders.length, 'total orders in system');
       }
 
       const total = !req.user.isManagerOrAdmin() 
@@ -65,8 +70,21 @@ class OrderController {
       console.log('📊 Orders result:', {
         totalOrders: orders.length,
         totalInDB: total,
-        userRole: req.user.role
+        userRole: req.user.role,
+        isManagerOrAdmin: req.user.isManagerOrAdmin(),
+        environment: process.env.NODE_ENV || 'development'
       });
+
+      // Additional debugging: log first few orders to see who created them
+      if (orders.length > 0) {
+        console.log('📋 Sample orders (first 3):', orders.slice(0, 3).map(order => ({
+          id: order.id,
+          client_name: order.client_name,
+          created_by: order.created_by,
+          creator_username: order.creator_username,
+          created_at: order.created_at
+        })));
+      }
 
       res.json({
         orders,
@@ -489,6 +507,54 @@ class OrderController {
       console.error('Erreur lors de l\'export Excel:', error);
       res.status(500).json({
         error: 'Erreur lors de l\'export Excel'
+      });
+    }
+  }
+
+  // DEBUG: Endpoint temporaire pour diagnostiquer les problèmes de rôles
+  static async debugUserRole(req, res) {
+    try {
+      console.log('🔍 DEBUG: User role debugging endpoint called');
+      
+      const debugInfo = {
+        user: {
+          id: req.user.id,
+          username: req.user.username,
+          role: req.user.role,
+          roleType: typeof req.user.role,
+          is_active: req.user.is_active,
+          constructor: req.user.constructor.name
+        },
+        methods: {
+          hasIsManagerOrAdmin: typeof req.user.isManagerOrAdmin === 'function',
+          isManagerOrAdminResult: req.user.isManagerOrAdmin ? req.user.isManagerOrAdmin() : 'method not available',
+          hasRole: typeof req.user.hasRole === 'function',
+          isAdmin: typeof req.user.isAdmin === 'function'
+        },
+        environment: {
+          nodeEnv: process.env.NODE_ENV,
+          platform: process.platform
+        },
+        roleChecks: {
+          isManager: req.user.role === 'MANAGER',
+          isAdmin: req.user.role === 'ADMIN',
+          isLivreur: req.user.role === 'LIVREUR',
+          manualManagerOrAdmin: req.user.role === 'MANAGER' || req.user.role === 'ADMIN'
+        }
+      };
+
+      console.log('🔍 DEBUG Info:', debugInfo);
+      
+      res.json({
+        message: 'Debug information for user role',
+        debug: debugInfo
+      });
+
+    } catch (error) {
+      console.error('🚨 DEBUG endpoint error:', error);
+      res.status(500).json({
+        error: 'Debug endpoint error',
+        details: error.message
       });
     }
   }
