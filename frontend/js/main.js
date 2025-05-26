@@ -2588,7 +2588,7 @@ class LivreurManager {
           cursor: pointer; 
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
           transition: all 0.3s ease;
-        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        ">
           ➕ AJOUTER UN NOUVEAU LIVREUR
         </button>
         <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour créer un nouveau livreur</p>
@@ -2648,7 +2648,17 @@ class LivreurManager {
         console.log('🎯 SUPER ADD BUTTON CLICKED!');
         this.createLivreur();
       });
-      console.log('✅ SUPER ADD BUTTON EVENT LISTENER ADDED!');
+      
+      // Add hover effects without inline handlers (CSP compliant)
+      superAddBtn.addEventListener('mouseenter', () => {
+        superAddBtn.style.transform = 'scale(1.05)';
+      });
+      
+      superAddBtn.addEventListener('mouseleave', () => {
+        superAddBtn.style.transform = 'scale(1)';
+      });
+      
+      console.log('✅ SUPER ADD BUTTON EVENT LISTENERS ADDED!');
     }
   }
 
