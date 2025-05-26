@@ -13,6 +13,10 @@ class AuthController {
 
       const { username, password } = req.body;
 
+      // Clear any existing auth cookie first to prevent conflicts
+      console.log('🧹 Clearing any existing auth cookie...');
+      clearAuthCookie(res);
+
       // Rechercher l'utilisateur
       console.log('🔍 Searching for user:', username);
       const user = await User.findByUsername(username);

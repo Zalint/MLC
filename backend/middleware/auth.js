@@ -179,11 +179,43 @@ const setAuthCookie = (res, token) => {
 const clearAuthCookie = (res) => {
   const isProduction = process.env.NODE_ENV === 'production';
   
-  res.clearCookie('auth_token', {
+  // Clear with multiple configurations to ensure complete removal
+  const cookieOptions = [
+    {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'lax' : 'lax',
+      path: '/'
+    },
+    {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'none',
+      path: '/'
+    },
+    {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/'
+    },
+    {
+      path: '/'
+    }
+  ];
+
+  // Clear cookie with all possible configurations
+  cookieOptions.forEach(options => {
+    res.clearCookie('auth_token', options);
+  });
+
+  // Also set an expired cookie to force removal
+  res.cookie('auth_token', '', {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'lax' : 'lax',
-    path: '/'
+    path: '/',
+    expires: new Date(0)
   });
 };
 
