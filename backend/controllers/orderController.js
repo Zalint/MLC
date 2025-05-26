@@ -40,18 +40,33 @@ class OrderController {
       const limit = parseInt(req.query.limit) || 50;
       const offset = (page - 1) * limit;
 
+      console.log('🔍 getAllOrders - User:', {
+        id: req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+        isManagerOrAdmin: req.user.isManagerOrAdmin()
+      });
+
       let orders;
       
-      // Si l'utilisateur est un livreur, ne montrer que ses commandes
-      if (req.user.role === 'LIVREUR') {
+      // Si l'utilisateur n'est pas manager/admin, ne montrer que ses commandes
+      if (!req.user.isManagerOrAdmin()) {
+        console.log('🔒 Filtering orders for non-manager user:', req.user.username);
         orders = await Order.findByUser(req.user.id, limit, offset);
       } else {
+        console.log('👑 Showing all orders for manager/admin:', req.user.username);
         orders = await Order.findAll(limit, offset);
       }
 
-      const total = req.user.role === 'LIVREUR' 
+      const total = !req.user.isManagerOrAdmin() 
         ? await Order.countByUser(req.user.id)
         : await Order.count();
+
+      console.log('📊 Orders result:', {
+        totalOrders: orders.length,
+        totalInDB: total,
+        userRole: req.user.role
+      });
 
       res.json({
         orders,
@@ -85,7 +100,7 @@ class OrderController {
       }
 
       // Vérifier les permissions
-      if (req.user.role === 'LIVREUR' && order.created_by !== req.user.id) {
+      if (!req.user.isManagerOrAdmin() && order.created_by !== req.user.id) {
         return res.status(403).json({
           error: 'Accès non autorisé à cette commande'
         });
@@ -131,8 +146,8 @@ class OrderController {
       
       let orders;
       
-      // Si l'utilisateur est un livreur, filtrer par ses commandes
-      if (req.user.role === 'LIVREUR') {
+      // Si l'utilisateur n'est pas manager/admin, filtrer par ses commandes
+      if (!req.user.isManagerOrAdmin()) {
         const allUserOrders = await Order.findByUser(req.user.id);
         orders = allUserOrders.filter(order => 
           order.created_at.toISOString().split('T')[0] === date
@@ -259,7 +274,7 @@ class OrderController {
       }
 
       // Vérifier les permissions
-      if (req.user.role === 'LIVREUR' && existingOrder.created_by !== req.user.id) {
+      if (!req.user.isManagerOrAdmin() && existingOrder.created_by !== req.user.id) {
         return res.status(403).json({
           error: 'Vous ne pouvez modifier que vos propres commandes'
         });
@@ -301,8 +316,8 @@ class OrderController {
       }
 
       // Vérifications de permissions selon le rôle
-      if (req.user.role === 'LIVREUR') {
-        // Les livreurs ne peuvent supprimer que leurs commandes du jour
+      if (!req.user.isManagerOrAdmin()) {
+        // Les non-managers ne peuvent supprimer que leurs commandes du jour
         if (existingOrder.created_by !== req.user.id) {
           return res.status(403).json({
             error: 'Vous ne pouvez supprimer que vos propres commandes'
@@ -354,8 +369,8 @@ class OrderController {
       const date = req.query.date || new Date().toISOString().split('T')[0];
       const userId = req.user.id;
 
-      // Seuls les livreurs peuvent utiliser cette fonction pour leurs propres commandes
-      if (req.user.role !== 'LIVREUR') {
+      // Seuls les non-managers peuvent utiliser cette fonction pour leurs propres commandes
+      if (req.user.isManagerOrAdmin()) {
         return res.status(403).json({
           error: 'Cette fonction est réservée aux livreurs'
         });
