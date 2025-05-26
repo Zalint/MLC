@@ -151,7 +151,7 @@ const setAuthCookie = (res, token) => {
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: isProduction, // HTTPS en production
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin in production
     maxAge: 24 * 60 * 60 * 1000, // 24 heures
     path: '/'
   });
@@ -159,10 +159,12 @@ const setAuthCookie = (res, token) => {
 
 // Supprimer le cookie d'authentification
 const clearAuthCookie = (res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   res.clearCookie('auth_token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/'
   });
 };
