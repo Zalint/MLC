@@ -24,12 +24,43 @@ const PORT = process.env.BACKEND_PORT || 4000;
 app.use(helmet());
 
 // Configuration CORS
-app.use(cors({
-  origin: `http://localhost:${process.env.FRONTEND_PORT || 3000}`,
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In production, allow Render URLs and localhost for development
+    const allowedOrigins = [
+      `http://localhost:${process.env.FRONTEND_PORT || 3000}`,
+      `https://localhost:${process.env.FRONTEND_PORT || 3000}`,
+      process.env.FRONTEND_URL, // Render frontend URL
+      'https://matix-livreur-frontend.onrender.com', // Your specific frontend URL
+      /\.onrender\.com$/ // Any Render subdomain
+    ].filter(Boolean);
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -56,6 +87,16 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 
 // Route de santé
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    service: 'Matix Livreur API',
+    version: '1.0.0'
+  });
+});
+
+// Route de santé alternative
 app.get('/api/v1/health', (req, res) => {
   res.json({
     status: 'OK',

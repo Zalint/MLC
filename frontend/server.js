@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.FRONTEND_PORT || 3000;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 
 // Middleware de sécurité
 app.use(helmet({
@@ -14,7 +15,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", `http://localhost:${process.env.BACKEND_PORT || 4001}`],
+      connectSrc: ["'self'", BACKEND_URL, "http://localhost:4000", "https://matix-livreur-backend.onrender.com"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -46,7 +47,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🌐 Serveur Frontend démarré sur le port ${PORT}`);
   console.log(`📱 URL: http://localhost:${PORT}`);
-  console.log(`🔗 API Backend: http://localhost:${process.env.BACKEND_PORT || 4000}`);
+  console.log(`🔗 API Backend: ${BACKEND_URL}`);
 });
 
 module.exports = app; 

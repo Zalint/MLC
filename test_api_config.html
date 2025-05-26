@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Configuration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Configuration API</h1>
+    
+    <div id="config-info" class="result info">
+        <h3>Configuration détectée:</h3>
+        <p><strong>Hostname:</strong> <span id="hostname"></span></p>
+        <p><strong>API Base URL:</strong> <span id="api-url"></span></p>
+        <p><strong>Environment:</strong> <span id="environment"></span></p>
+    </div>
+
+    <button onclick="testApiConnection()">🔗 Tester la connexion API</button>
+    <button onclick="testHealthCheck()">❤️ Tester Health Check</button>
+
+    <div id="test-results"></div>
+
+    <script>
+        // Same logic as in main.js
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:4000/api/v1'
+            : 'https://matix-livreur-backend.onrender.com/api/v1';
+
+        // Display configuration
+        document.getElementById('hostname').textContent = window.location.hostname;
+        document.getElementById('api-url').textContent = API_BASE_URL;
+        document.getElementById('environment').textContent = 
+            window.location.hostname === 'localhost' ? 'Development (Local)' : 'Production (Render)';
+
+        function showResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<p><strong>${new Date().toLocaleTimeString()}:</strong> ${message}</p>`;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        async function testApiConnection() {
+            showResult('🔄 Test de connexion en cours...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL.replace('/api/v1', '')}/api/health`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(`✅ Connexion réussie! Service: ${data.service}, Status: ${data.status}`, 'success');
+                } else {
+                    showResult(`❌ Erreur HTTP: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Erreur de connexion: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHealthCheck() {
+            showResult('🔄 Test du health check...', 'info');
+            
+            try {
+                const healthUrl = API_BASE_URL.replace('/api/v1', '/api/health');
+                const response = await fetch(healthUrl);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(`✅ Health check OK! Timestamp: ${data.timestamp}`, 'success');
+                } else {
+                    showResult(`❌ Health check failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Health check error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testApiConnection, 1000);
+        });
+    </script>
+</body>
+</html> 

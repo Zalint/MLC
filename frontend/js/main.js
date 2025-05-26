@@ -1,5 +1,7 @@
 // ===== CONFIGURATION ET CONSTANTES =====
-const API_BASE_URL = `http://localhost:${window.location.hostname === 'localhost' ? '4000' : '4000'}/api/v1`;
+const API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:4000/api/v1'
+  : 'https://matix-livreur-backend.onrender.com/api/v1';
 
 // État global de l'application
 const AppState = {

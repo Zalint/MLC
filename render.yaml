@@ -1,0 +1,66 @@
+services:
+  # Backend API Service
+  - type: web
+    name: matix-livreur-backend
+    env: node
+    plan: starter
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_PORT
+        value: 4000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: DB_HOST
+        fromDatabase:
+          name: matix-livreur-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: matix-livreur-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: matix-livreur-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: matix-livreur-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: matix-livreur-db
+          property: password
+    healthCheckPath: /api/health
+
+  # Frontend Static Service
+  - type: web
+    name: matix-livreur-frontend
+    env: node
+    plan: starter
+    buildCommand: cd frontend && npm install
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_PORT
+        value: 3000
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: matix-livreur-backend
+          property: host
+
+databases:
+  - name: matix-livreur-db
+    databaseName: matix_livreur
+    user: matix_user
+    plan: starter 
