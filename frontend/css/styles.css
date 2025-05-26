@@ -1576,6 +1576,28 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
   background-color: #059669;
 }
 
+/* Force l'affichage des boutons d'action de la page livreurs */
+#add-livreur-btn,
+#show-all-livreurs,
+#show-active-livreurs {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#livreurs-page .page-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: var(--spacing-lg) !important;
+}
+
+#livreurs-page .page-actions {
+  display: flex !important;
+  gap: var(--spacing-sm) !important;
+  align-items: center !important;
+}
+
 /* Responsive pour la page livreurs */
 @media (max-width: 768px) {
   .livreur-header {

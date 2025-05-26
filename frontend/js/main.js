@@ -543,23 +543,129 @@ class AuthManager {
     const managerSummary = document.getElementById('manager-summary-section');
 
     if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN') {
-      if (navUsers) navUsers.classList.remove('hidden');
-      if (navLivreurs) navLivreurs.classList.remove('hidden');
-      if (navExpenses) navExpenses.classList.remove('hidden');
-      if (navMonthlyDashboard) navMonthlyDashboard.classList.remove('hidden');
-      if (navMataMonthlyDashboard) navMataMonthlyDashboard.classList.remove('hidden');
+      if (navUsers) {
+        navUsers.classList.remove('hidden');
+        navUsers.style.display = 'flex';
+      }
+      if (navLivreurs) {
+        navLivreurs.classList.remove('hidden');
+        navLivreurs.style.display = 'flex';
+        navLivreurs.style.visibility = 'visible';
+        navLivreurs.style.opacity = '1';
+        // Force l'affichage du bouton Gestion livreurs pour les managers
+        console.log('🎯 Forçage affichage bouton Gestion livreurs pour manager/admin');
+        console.log('🎯 État du bouton navLivreurs:', {
+          element: navLivreurs,
+          classList: navLivreurs.className,
+          style: navLivreurs.style.cssText,
+          isVisible: navLivreurs.offsetWidth > 0 && navLivreurs.offsetHeight > 0
+        });
+      }
+      if (navExpenses) {
+        navExpenses.classList.remove('hidden');
+        navExpenses.style.display = 'flex';
+      }
+      if (navMonthlyDashboard) {
+        navMonthlyDashboard.classList.remove('hidden');
+        navMonthlyDashboard.style.display = 'flex';
+      }
+      if (navMataMonthlyDashboard) {
+        navMataMonthlyDashboard.classList.remove('hidden');
+        navMataMonthlyDashboard.style.display = 'flex';
+      }
       if (exportExcel) exportExcel.classList.remove('hidden');
       if (statLivreurs) statLivreurs.classList.remove('hidden');
       if (managerSummary) managerSummary.classList.remove('hidden');
+      
+      // Vérification supplémentaire pour forcer l'affichage des éléments manager
+      setTimeout(() => {
+        this.ensureManagerElementsVisible();
+      }, 100);
     } else {
-      if (navUsers) navUsers.classList.add('hidden');
-      if (navLivreurs) navLivreurs.classList.add('hidden');
-      if (navExpenses) navExpenses.classList.add('hidden');
-      if (navMonthlyDashboard) navMonthlyDashboard.classList.add('hidden');
-      if (navMataMonthlyDashboard) navMataMonthlyDashboard.classList.add('hidden');
+      if (navUsers) {
+        navUsers.classList.add('hidden');
+        navUsers.style.display = 'none';
+      }
+      if (navLivreurs) {
+        navLivreurs.classList.add('hidden');
+        navLivreurs.style.display = 'none';
+      }
+      if (navExpenses) {
+        navExpenses.classList.add('hidden');
+        navExpenses.style.display = 'none';
+      }
+      if (navMonthlyDashboard) {
+        navMonthlyDashboard.classList.add('hidden');
+        navMonthlyDashboard.style.display = 'none';
+      }
+      if (navMataMonthlyDashboard) {
+        navMataMonthlyDashboard.classList.add('hidden');
+        navMataMonthlyDashboard.style.display = 'none';
+      }
       if (exportExcel) exportExcel.classList.add('hidden');
       if (statLivreurs) statLivreurs.classList.add('hidden');
       if (managerSummary) managerSummary.classList.add('hidden');
+    }
+  }
+
+  static ensureManagerElementsVisible() {
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      console.log('🎯 Vérification supplémentaire des éléments manager...');
+      
+      const navLivreurs = document.getElementById('nav-livreurs');
+      if (navLivreurs) {
+        // Force l'affichage avec toutes les méthodes possibles
+        navLivreurs.classList.remove('hidden');
+        navLivreurs.style.display = 'flex';
+        navLivreurs.style.visibility = 'visible';
+        navLivreurs.style.opacity = '1';
+        navLivreurs.removeAttribute('hidden');
+        
+        console.log('🎯 État final du bouton Gestion livreurs:', {
+          classList: navLivreurs.className,
+          style: navLivreurs.style.cssText,
+          isVisible: navLivreurs.offsetWidth > 0 && navLivreurs.offsetHeight > 0,
+          computedStyle: window.getComputedStyle(navLivreurs).display
+        });
+      }
+      
+      // Vérifier aussi les autres éléments
+      const elementsToCheck = [
+        'nav-users',
+        'nav-expenses', 
+        'nav-monthly-dashboard',
+        'nav-mata-monthly-dashboard'
+      ];
+      
+      elementsToCheck.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.classList.remove('hidden');
+          element.style.display = 'flex';
+          element.style.visibility = 'visible';
+          element.style.opacity = '1';
+          element.removeAttribute('hidden');
+        }
+      });
+
+      // Forcer l'affichage des boutons d'action de la page livreurs
+      const livreurActionButtons = [
+        'add-livreur-btn',
+        'show-all-livreurs', 
+        'show-active-livreurs'
+      ];
+      
+      livreurActionButtons.forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+          button.classList.remove('hidden');
+          button.style.display = 'inline-flex';
+          button.style.visibility = 'visible';
+          button.style.opacity = '1';
+          button.removeAttribute('hidden');
+          console.log(`🎯 Bouton ${id} forcé à s'afficher`);
+        }
+      });
     }
   }
 }
@@ -2384,10 +2490,75 @@ class LivreurManager {
       AppState.livreurs = response.livreurs || [];
       this.displayLivreurs();
       this.updateStats();
+      
+      // Forcer l'affichage des boutons d'action
+      this.ensureActionButtonsVisible();
     } catch (error) {
       console.error('Erreur lors du chargement des livreurs:', error);
       ToastManager.error('Erreur lors du chargement des livreurs');
     }
+  }
+
+  static ensureActionButtonsVisible() {
+    console.log('🎯 Vérification des boutons d\'action de la page livreurs...');
+    
+    // Vérifier si la page header existe
+    const pageHeader = document.querySelector('#livreurs-page .page-header');
+    if (!pageHeader) {
+      console.error('❌ Page header de la page livreurs non trouvée');
+      return;
+    }
+    
+    // Vérifier si la section page-actions existe
+    let pageActions = document.querySelector('#livreurs-page .page-actions');
+    if (!pageActions) {
+      console.log('🔧 Création de la section page-actions...');
+      pageActions = document.createElement('div');
+      pageActions.className = 'page-actions';
+      pageHeader.appendChild(pageActions);
+    }
+    
+    const actionButtons = [
+      { id: 'add-livreur-btn', text: '➕ Nouveau livreur', class: 'btn btn-primary btn-sm' },
+      { id: 'show-all-livreurs', text: '👁️ Voir tous', class: 'btn btn-secondary btn-sm' },
+      { id: 'show-active-livreurs', text: '✅ Actifs seulement', class: 'btn btn-secondary btn-sm' }
+    ];
+    
+    actionButtons.forEach(buttonConfig => {
+      let button = document.getElementById(buttonConfig.id);
+      
+      if (!button) {
+        console.log(`🔧 Création du bouton ${buttonConfig.id}...`);
+        button = document.createElement('button');
+        button.id = buttonConfig.id;
+        button.className = buttonConfig.class;
+        button.innerHTML = `<span class="icon">${buttonConfig.text.split(' ')[0]}</span> ${buttonConfig.text.substring(2)}`;
+        pageActions.appendChild(button);
+        
+        // Ajouter l'event listener
+        if (buttonConfig.id === 'add-livreur-btn') {
+          button.addEventListener('click', () => this.createLivreur());
+        } else if (buttonConfig.id === 'show-all-livreurs') {
+          button.addEventListener('click', () => this.loadLivreurs(false));
+        } else if (buttonConfig.id === 'show-active-livreurs') {
+          button.addEventListener('click', () => this.loadLivreurs(true));
+        }
+      }
+      
+      // Forcer l'affichage
+      button.classList.remove('hidden');
+      button.style.display = 'inline-flex';
+      button.style.visibility = 'visible';
+      button.style.opacity = '1';
+      button.removeAttribute('hidden');
+      
+      console.log(`✅ Bouton ${buttonConfig.id} rendu visible:`, {
+        element: button,
+        classList: button.className,
+        style: button.style.cssText,
+        isVisible: button.offsetWidth > 0 && button.offsetHeight > 0
+      });
+    });
   }
 
   static updateStats() {
@@ -2403,12 +2574,33 @@ class LivreurManager {
   static displayLivreurs() {
     const container = document.getElementById('livreurs-list');
     
+    // FORCE ADD BUTTON AT THE TOP - IMPOSSIBLE TO MISS!
+    const addButtonHtml = `
+      <div style="background: linear-gradient(135deg, #2563eb, #3b82f6); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);">
+        <button id="super-add-livreur-btn" style="
+          background: #ffffff; 
+          color: #2563eb; 
+          border: none; 
+          padding: 15px 30px; 
+          font-size: 18px; 
+          font-weight: bold; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          transition: all 0.3s ease;
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          ➕ AJOUTER UN NOUVEAU LIVREUR
+        </button>
+        <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour créer un nouveau livreur</p>
+      </div>
+    `;
+    
     if (AppState.livreurs.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucun livreur trouvé</p>';
+      container.innerHTML = addButtonHtml + '<p class="text-center">Aucun livreur trouvé</p>';
       return;
     }
 
-    container.innerHTML = AppState.livreurs.map(livreur => `
+    container.innerHTML = addButtonHtml + AppState.livreurs.map(livreur => `
       <div class="livreur-card ${!livreur.is_active ? 'inactive' : ''}">
         <div class="livreur-header">
           <div>
@@ -2448,6 +2640,16 @@ class LivreurManager {
 
     // Ajouter les event listeners après avoir créé le HTML
     this.setupLivreurEventListeners();
+    
+    // SUPER IMPORTANT: Add event listener for the BIG ADD BUTTON
+    const superAddBtn = document.getElementById('super-add-livreur-btn');
+    if (superAddBtn) {
+      superAddBtn.addEventListener('click', () => {
+        console.log('🎯 SUPER ADD BUTTON CLICKED!');
+        this.createLivreur();
+      });
+      console.log('✅ SUPER ADD BUTTON EVENT LISTENER ADDED!');
+    }
   }
 
   static setupLivreurEventListeners() {
@@ -2527,6 +2729,13 @@ class LivreurManager {
         <div class="form-group">
           <label for="create-livreur-password">Mot de passe *</label>
           <input type="password" id="create-livreur-password" name="password" required>
+          <small style="color: #6b7280; font-size: 0.8rem; margin-top: 4px; display: block;">
+            Le mot de passe doit contenir au moins 8 caractères avec:<br>
+            • Une majuscule (A-Z)<br>
+            • Une minuscule (a-z)<br>
+            • Un chiffre (0-9)<br>
+            • Un caractère spécial (@$!%*?&)
+          </small>
         </div>
         
         <div class="form-group">
@@ -2567,7 +2776,14 @@ class LivreurManager {
         ToastManager.success('Livreur créé avec succès');
         await this.loadLivreurs();
       } catch (error) {
-        ToastManager.error(error.message || 'Erreur lors de la création');
+        console.error('Erreur création livreur:', error);
+        
+        // Show specific validation errors if available
+        if (error.message.includes('Données invalides')) {
+          ToastManager.error('Erreur de validation: Vérifiez que le mot de passe respecte tous les critères requis');
+        } else {
+          ToastManager.error(error.message || 'Erreur lors de la création');
+        }
       }
     });
   }

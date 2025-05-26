@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Ajout de Livreur</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2563eb;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #374151;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .success {
+            background-color: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        .error {
+            background-color: #ef4444;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        .info-box {
+            background-color: #3b82f6;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .feature-list {
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .feature-list h3 {
+            color: #2563eb;
+            margin-top: 0;
+        }
+        .feature-list ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .feature-list li {
+            margin-bottom: 8px;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 Ajout de Nouveau Livreur</h1>
+            <p>Fonctionnalité pour Managers et Administrateurs</p>
+        </div>
+
+        <div class="info-box">
+            <strong>📋 Instructions :</strong> Cette fonctionnalité permet aux managers et administrateurs d'ajouter de nouveaux livreurs avec nom d'utilisateur et mot de passe. Le livreur pourra ensuite se connecter avec ces identifiants.
+        </div>
+
+        <form id="add-livreur-form">
+            <div class="form-group">
+                <label for="username">Nom d'utilisateur *</label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Ex: Jean Dupont">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe *</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Minimum 8 caractères">
+                <small style="color: #6b7280;">Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm-password">Confirmer le mot de passe *</label>
+                <input type="password" id="confirm-password" name="confirm-password" required 
+                       placeholder="Retaper le mot de passe">
+            </div>
+
+            <div class="form-group">
+                <label for="status">Statut initial</label>
+                <select id="status" name="status">
+                    <option value="true">Actif</option>
+                    <option value="false">Inactif</option>
+                </select>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <button type="submit" class="btn">
+                    ➕ Créer le Livreur
+                </button>
+                <button type="reset" class="btn btn-secondary">
+                    🔄 Réinitialiser
+                </button>
+            </div>
+        </form>
+
+        <div id="success-message" class="success"></div>
+        <div id="error-message" class="error"></div>
+
+        <div class="feature-list">
+            <h3>✅ Fonctionnalités disponibles :</h3>
+            <ul>
+                <li><strong>Création de livreur</strong> : Nom d'utilisateur et mot de passe</li>
+                <li><strong>Validation sécurisée</strong> : Mot de passe fort obligatoire</li>
+                <li><strong>Statut configurable</strong> : Actif ou inactif dès la création</li>
+                <li><strong>Rôle automatique</strong> : Assigné automatiquement comme "LIVREUR"</li>
+                <li><strong>Permissions</strong> : Accessible aux MANAGERS et ADMINS uniquement</li>
+                <li><strong>Gestion complète</strong> : Modification, activation/désactivation, suppression</li>
+            </ul>
+
+            <h3>🔐 Contrôles de sécurité :</h3>
+            <ul>
+                <li>Nom d'utilisateur unique (vérification en base)</li>
+                <li>Mot de passe hashé avec bcrypt (12 rounds)</li>
+                <li>Validation côté client et serveur</li>
+                <li>Authentification requise pour accéder à la fonctionnalité</li>
+            </ul>
+
+            <h3>📱 Interface utilisateur :</h3>
+            <ul>
+                <li>Bouton "Nouveau livreur" dans la page Gestion des livreurs</li>
+                <li>Modal avec formulaire de création</li>
+                <li>Messages de succès/erreur</li>
+                <li>Actualisation automatique de la liste</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('add-livreur-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+            const confirmPassword = formData.get('confirm-password');
+            const status = formData.get('status');
+
+            // Validation côté client
+            if (password !== confirmPassword) {
+                showError('Les mots de passe ne correspondent pas');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('Le mot de passe doit contenir au moins 8 caractères');
+                return;
+            }
+
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+            if (!passwordRegex.test(password)) {
+                showError('Le mot de passe doit contenir au moins une minuscule, une majuscule, un chiffre et un caractère spécial');
+                return;
+            }
+
+            // Simulation de la création (en réalité, ceci ferait un appel API)
+            showSuccess(`✅ Livreur "${username}" créé avec succès !
+            
+📋 Détails :
+• Nom d'utilisateur : ${username}
+• Statut : ${status === 'true' ? 'Actif' : 'Inactif'}
+• Rôle : LIVREUR
+• Mot de passe : Hashé et sécurisé
+
+Le livreur peut maintenant se connecter avec ces identifiants.`);
+
+            // Réinitialiser le formulaire
+            e.target.reset();
+        });
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            const errorDiv = document.getElementById('error-message');
+            
+            errorDiv.style.display = 'none';
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            
+            // Faire défiler vers le message
+            successDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showError(message) {
+            const successDiv = document.getElementById('success-message');
+            const errorDiv = document.getElementById('error-message');
+            
+            successDiv.style.display = 'none';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Faire défiler vers le message
+            errorDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Validation en temps réel
+        document.getElementById('confirm-password').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+            
+            if (confirmPassword && password !== confirmPassword) {
+                this.style.borderColor = '#ef4444';
+            } else {
+                this.style.borderColor = '#ddd';
+            }
+        });
+    </script>
+</body>
+</html> 
