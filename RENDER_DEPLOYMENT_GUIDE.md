@@ -77,12 +77,16 @@ RATE_LIMIT_MAX_REQUESTS=100
 
 **Database Variables** (get these from your database dashboard):
 ```
+DATABASE_URL=[Your complete database connection string from Render]
+NODE_ENV=production
 DB_HOST=[Your database hostname]
 DB_PORT=5432
 DB_NAME=matix_livreur
 DB_USER=matix_user
 DB_PASSWORD=[Your database password]
 ```
+
+**Important**: The `DATABASE_URL` is the preferred method for Render as it includes SSL configuration automatically.
 
 ### Step 3: Deploy Backend
 
