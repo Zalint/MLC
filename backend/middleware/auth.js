@@ -5,8 +5,16 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env'
 // Middleware d'authentification
 const authenticateToken = async (req, res, next) => {
   try {
-    // Récupérer le token depuis les cookies
-    const token = req.cookies.auth_token;
+    // Récupérer le token depuis les cookies ou l'en-tête Authorization
+    let token = req.cookies.auth_token;
+    
+    // Fallback: vérifier l'en-tête Authorization pour les mobiles
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
     
     if (!token) {
       return res.status(401).json({
@@ -151,7 +159,7 @@ const setAuthCookie = (res, token) => {
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: isProduction, // HTTPS en production
-    sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin in production
+    sameSite: isProduction ? 'lax' : 'lax', // 'lax' for better mobile compatibility
     maxAge: 24 * 60 * 60 * 1000, // 24 heures
     path: '/'
   });
@@ -164,7 +172,7 @@ const clearAuthCookie = (res) => {
   res.clearCookie('auth_token', {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    sameSite: isProduction ? 'lax' : 'lax',
     path: '/'
   });
 };

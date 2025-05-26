@@ -179,14 +179,42 @@ class ModalManager {
 
 // ===== API CLIENT =====
 class ApiClient {
+  static getStoredToken() {
+    try {
+      return localStorage.getItem('auth_token');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static setStoredToken(token) {
+    try {
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      } else {
+        localStorage.removeItem('auth_token');
+      }
+    } catch (e) {
+      console.warn('Could not store token in localStorage:', e);
+    }
+  }
+
   static async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    // Add Authorization header if we have a stored token (for mobile fallback)
+    const storedToken = this.getStoredToken();
+    if (storedToken) {
+      headers['Authorization'] = `Bearer ${storedToken}`;
+    }
+
     const config = {
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
+      headers,
       ...options
     };
 
@@ -207,14 +235,26 @@ class ApiClient {
 
   // Auth endpoints
   static async login(username, password) {
-    return this.request('/auth/login', {
+    const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
+    
+    // Store token if provided (for mobile fallback)
+    if (response.token) {
+      this.setStoredToken(response.token);
+    }
+    
+    return response;
   }
 
   static async logout() {
-    return this.request('/auth/logout', { method: 'POST' });
+    const response = await this.request('/auth/logout', { method: 'POST' });
+    
+    // Clear stored token
+    this.setStoredToken(null);
+    
+    return response;
   }
 
   static async checkAuth() {
@@ -493,6 +533,7 @@ class AuthManager {
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
       // Forcer la déconnexion côté client même en cas d'erreur
+      ApiClient.setStoredToken(null);
       AppState.user = null;
       this.showLoginUI();
     }

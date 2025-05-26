@@ -52,7 +52,7 @@ class AuthController {
       console.log('🍪 Setting auth cookie...');
       setAuthCookie(res, token);
 
-      // Réponse de succès (sans le token dans le body pour la sécurité)
+      // Réponse de succès avec token pour les mobiles qui ne supportent pas les cookies
       console.log('✅ Login successful for user:', username);
       res.json({
         message: 'Connexion réussie',
@@ -60,7 +60,8 @@ class AuthController {
           id: user.id,
           username: user.username,
           role: user.role
-        }
+        },
+        token: token // Include token for mobile fallback
       });
 
     } catch (error) {
