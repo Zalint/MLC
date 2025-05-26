@@ -874,11 +874,12 @@ class OrderController {
   static async getMataMonthlyDashboard(req, res) {
     try {
       const month = req.query.month || new Date().toISOString().slice(0, 7); // Format YYYY-MM
+      const orderType = 'MATA'; // Could be made configurable via environment variable if needed
       
-      console.log('🔍 getMataMonthlyDashboard - month:', month);
+      console.log('🔍 getMataMonthlyDashboard - month:', month, 'user role:', req.user.role, 'orderType:', orderType);
 
-      // Récupérer toutes les commandes MATA du mois avec les détails des livreurs
-      const query = `
+      // Build query based on user permissions
+      const baseQuery = `
         SELECT 
           o.id,
           DATE(o.created_at) as date,
@@ -891,15 +892,25 @@ class OrderController {
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
-        WHERE o.order_type = 'MATA'
-          AND TO_CHAR(o.created_at, 'YYYY-MM') = $1
-          AND u.role = 'LIVREUR' 
-          AND u.is_active = true
-        ORDER BY o.created_at ASC
+        WHERE o.order_type = $1
+          AND TO_CHAR(o.created_at, 'YYYY-MM') = $2
       `;
+
+      let query;
+      let queryParams;
+
+      if (req.user.isManagerOrAdmin()) {
+        // Managers and Admins can see ALL orders of this type
+        query = baseQuery + ' ORDER BY o.created_at ASC';
+        queryParams = [orderType, month];
+      } else {
+        // Other users can only see their own orders of this type
+        query = baseQuery + ' AND o.created_by = $3 ORDER BY o.created_at ASC';
+        queryParams = [orderType, month, req.user.id];
+      }
       
       const db = require('../models/database');
-      const result = await db.query(query, [month]);
+      const result = await db.query(query, queryParams);
       const mataOrders = result.rows;
 
       // Calculer les statistiques
@@ -965,9 +976,10 @@ class OrderController {
   static async exportMataMonthlyToExcel(req, res) {
     try {
       const month = req.query.month || new Date().toISOString().slice(0, 7);
+      const orderType = 'MATA'; // Could be made configurable via environment variable if needed
       
-      // Récupérer les données MATA du mois
-      const query = `
+      // Build query based on user permissions (same logic as getMataMonthlyDashboard)
+      const baseQuery = `
         SELECT 
           o.id,
           DATE(o.created_at) as date,
@@ -980,15 +992,25 @@ class OrderController {
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
-        WHERE o.order_type = 'MATA'
-          AND TO_CHAR(o.created_at, 'YYYY-MM') = $1
-          AND u.role = 'LIVREUR' 
-          AND u.is_active = true
-        ORDER BY o.created_at ASC
+        WHERE o.order_type = $1
+          AND TO_CHAR(o.created_at, 'YYYY-MM') = $2
       `;
+
+      let query;
+      let queryParams;
+
+      if (req.user.isManagerOrAdmin()) {
+        // Managers and Admins can export ALL orders of this type
+        query = baseQuery + ' ORDER BY o.created_at ASC';
+        queryParams = [orderType, month];
+      } else {
+        // Other users can only export their own orders of this type
+        query = baseQuery + ' AND o.created_by = $3 ORDER BY o.created_at ASC';
+        queryParams = [orderType, month, req.user.id];
+      }
       
       const db = require('../models/database');
-      const result = await db.query(query, [month]);
+      const result = await db.query(query, queryParams);
       const mataOrders = result.rows;
 
       // Créer un nouveau classeur Excel
