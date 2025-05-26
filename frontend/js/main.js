@@ -2592,23 +2592,6 @@ class LivreurManager {
           ➕ AJOUTER UN NOUVEAU LIVREUR
         </button>
         <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour créer un nouveau livreur</p>
-        
-        <!-- FALLBACK BUTTON -->
-        <div style="margin-top: 15px;">
-          <button id="fallback-add-livreur-btn" style="
-            background: #ef4444; 
-            color: white; 
-            border: none; 
-            padding: 12px 25px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-          ">
-            🆘 BOUTON DE SECOURS - AJOUTER LIVREUR
-          </button>
-        </div>
       </div>
     `;
     
@@ -2661,59 +2644,21 @@ class LivreurManager {
     // SUPER IMPORTANT: Add event listener for the BIG ADD BUTTON
     const superAddBtn = document.getElementById('super-add-livreur-btn');
     if (superAddBtn) {
-      console.log('🎯 SUPER ADD BUTTON FOUND:', superAddBtn);
-      
-      superAddBtn.addEventListener('click', (e) => {
-        console.log('🎯 SUPER ADD BUTTON CLICKED!', e);
-        console.log('🎯 Current user:', AppState.user);
-        console.log('🎯 Calling createLivreur...');
-        
-        try {
-          this.createLivreur();
-          console.log('✅ createLivreur called successfully');
-        } catch (error) {
-          console.error('❌ Error calling createLivreur:', error);
-          ToastManager.error('Erreur lors de l\'ouverture du formulaire: ' + error.message);
-        }
+      superAddBtn.addEventListener('click', () => {
+        console.log('🎯 SUPER ADD BUTTON CLICKED!');
+        this.createLivreur();
       });
       
       // Add hover effects without inline handlers (CSP compliant)
       superAddBtn.addEventListener('mouseenter', () => {
         superAddBtn.style.transform = 'scale(1.05)';
-        console.log('🖱️ Button hover enter');
       });
       
       superAddBtn.addEventListener('mouseleave', () => {
         superAddBtn.style.transform = 'scale(1)';
-        console.log('🖱️ Button hover leave');
       });
       
       console.log('✅ SUPER ADD BUTTON EVENT LISTENERS ADDED!');
-    } else {
-      console.error('❌ SUPER ADD BUTTON NOT FOUND!');
-    }
-    
-    // FALLBACK BUTTON EVENT LISTENER
-    const fallbackBtn = document.getElementById('fallback-add-livreur-btn');
-    if (fallbackBtn) {
-      console.log('🆘 FALLBACK BUTTON FOUND:', fallbackBtn);
-      
-      fallbackBtn.addEventListener('click', (e) => {
-        console.log('🆘 FALLBACK BUTTON CLICKED!', e);
-        console.log('🆘 Attempting to call createLivreur via fallback...');
-        
-        try {
-          LivreurManager.createLivreur();
-          console.log('✅ Fallback createLivreur called successfully');
-        } catch (error) {
-          console.error('❌ Fallback error:', error);
-          alert('Erreur: ' + error.message);
-        }
-      });
-      
-      console.log('✅ FALLBACK BUTTON EVENT LISTENER ADDED!');
-    } else {
-      console.error('❌ FALLBACK BUTTON NOT FOUND!');
     }
   }
 
@@ -2784,9 +2729,6 @@ class LivreurManager {
   }
 
   static async createLivreur() {
-    console.log('🚀 createLivreur function called');
-    console.log('🚀 Current AppState.user:', AppState.user);
-    
     const content = `
       <form id="create-livreur-form">
         <div class="form-group">
