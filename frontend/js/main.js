@@ -601,19 +601,7 @@ class DashboardManager {
       }
 
 
-      // Update the dashboard title or add a subtitle to show the selected date
-      const dashboardTitle = document.querySelector('#dashboard-page h2'); // Assuming h2 is the main title
-      if (dashboardTitle) {
-         // Keep main title fixed, add a subtitle for the date
-        let subtitleElement = document.getElementById('dashboard-date-subtitle');
-        if (!subtitleElement) {
-          subtitleElement = document.createElement('p');
-          subtitleElement.id = 'dashboard-date-subtitle';
-          subtitleElement.className = 'text-muted'; // Optional styling
-          dashboardTitle.parentNode.insertBefore(subtitleElement, dashboardTitle.nextSibling);
-        }
-        subtitleElement.textContent = `Affichage des données pour le : ${Utils.formatDisplayDate(selectedDate)}`;
-      }
+      // Remove the subtitle display - cleaner interface
 
 
       // Charger les dernières commandes (ceci reste indépendant de la date sélectionnée pour le moment)
