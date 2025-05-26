@@ -514,6 +514,10 @@ class AuthManager {
 
   static async login(username, password) {
     try {
+      // Clear any existing tokens first to prevent conflicts
+      console.log('🧹 Clearing any existing tokens before login...');
+      ApiClient.setStoredToken(null);
+      
       const response = await ApiClient.login(username, password);
       AppState.user = response.user;
       this.showAuthenticatedUI();
