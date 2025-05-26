@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matix Livreur - Système de Commandes</title>
+    <meta name="description" content="Système de prise de commandes et livraisons pour Matix Livreur">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader">
+        <div class="loader-spinner"></div>
+        <p>Chargement...</p>
+    </div>
+
+    <!-- Header -->
+    <header id="header" class="header hidden">
+        <div class="header-content">
+            <div class="logo">
+                <h1>Matix Livreur</h1>
+            </div>
+            <div class="user-info">
+                <span id="username"></span>
+                <span id="user-role" class="role-badge"></span>
+                <button id="logout-btn" class="btn btn-secondary btn-sm">
+                    <span class="icon">🚪</span>
+                    Déconnexion
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav id="navigation" class="navigation hidden">
+        <div class="nav-container">
+            <button class="nav-item" data-page="dashboard">
+                <span class="icon">📊</span>
+                <span class="text">Tableau de bord</span>
+            </button>
+            <button class="nav-item hidden" id="nav-monthly-dashboard" data-page="monthly-dashboard">
+                <span class="icon">📈</span>
+                <span class="text">Tableau de bord mensuel</span>
+            </button>
+            <button class="nav-item hidden" id="nav-mata-monthly-dashboard" data-page="mata-monthly-dashboard">
+                <span class="icon">🛒</span>
+                <span class="text">Tableau MATA mensuel</span>
+            </button>
+            <button class="nav-item" data-page="new-order">
+                <span class="icon">➕</span>
+                <span class="text">Nouvelle commande</span>
+            </button>
+            <button class="nav-item" data-page="orders">
+                <span class="icon">📋</span>
+                <span class="text">Commandes</span>
+            </button>
+            <button class="nav-item hidden" id="nav-expenses" data-page="expenses">
+                <span class="icon">💰</span>
+                <span class="text">Dépenses</span>
+            </button>
+            <button class="nav-item hidden" id="nav-users" data-page="users">
+                <span class="icon">👥</span>
+                <span class="text">Utilisateurs</span>
+            </button>
+            <button class="nav-item hidden" id="nav-livreurs" data-page="livreurs">
+                <span class="icon">🚚</span>
+                <span class="text">Gestion livreurs</span>
+            </button>
+            <button class="nav-item" data-page="profile">
+                <span class="icon">👤</span>
+                <span class="text">Profil</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="main-content" class="main-content hidden">
+        
+        <!-- Page de connexion -->
+        <div id="login-page" class="page active">
+            <div class="login-container">
+                <div class="login-header">
+                    <h1>Matix Livreur</h1>
+                    <p>Système de gestion des commandes</p>
+                </div>
+                
+                <form id="login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="login-username">Nom d'utilisateur</label>
+                        <input type="text" id="login-username" name="username" required autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="login-password">Mot de passe</label>
+                        <div class="password-input">
+                            <input type="password" id="login-password" name="password" required autocomplete="current-password">
+                            <button type="button" class="password-toggle" data-target="login-password">
+                                <span class="icon">👁️</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Se connecter
+                    </button>
+                    
+                    <button type="button" id="change-password-link" class="btn btn-link">
+                        Changer de mot de passe
+                    </button>
+                </form>
+                
+                <div id="login-error" class="error-message hidden"></div>
+            </div>
+        </div>
+
+        <!-- Page tableau de bord -->
+        <div id="dashboard-page" class="page">
+            <div class="page-header">
+                <h2>Tableau de bord</h2>
+                <div class="page-actions">
+                    <button id="refresh-dashboard" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Dashboard Date Filter -->
+            <div class="dashboard-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; padding: 0 1rem;">
+                <label for="dashboard-date-filter" style="font-weight: bold;">Afficher pour le:</label>
+                <input type="date" id="dashboard-date-filter" name="dashboard-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
+            <div class="dashboard-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3 id="total-orders-today">0</h3>
+                            <p id="orders-today-label">Commandes aujourd'hui</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="total-amount-today">0 FCFA</h3>
+                            <p>Courses</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card hidden" id="stat-depenses">
+                        <div class="stat-icon">💸</div>
+                        <div class="stat-content">
+                            <h3 id="total-expenses-today">0 FCFA</h3>
+                            <p>Dépenses totales</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card hidden" id="stat-livreurs">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-content">
+                            <h3 id="active-livreurs">0</h3>
+                            <p>Livreurs actifs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-orders">
+                    <h3>Dernières commandes</h3>
+                    <div id="recent-orders-list" class="orders-list">
+                        <!-- Les commandes seront chargées ici -->
+                    </div>
+                </div>
+                
+                <div class="summary-section hidden" id="manager-summary-section">
+                    <h3>Récapitulatif par livreur</h3>
+                    <div id="summary-table-container">
+                        <!-- Le tableau récapitulatif sera chargé ici -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page tableau de bord mensuel -->
+        <div id="monthly-dashboard-page" class="page">
+            <div class="page-header">
+                <h2>Tableau de bord mensuel</h2>
+                            <div class="page-actions">
+                <button id="export-monthly-excel" class="btn btn-primary btn-sm">
+                    <span class="icon">📊</span>
+                    Export Excel
+                </button>
+                <button id="refresh-monthly-dashboard" class="btn btn-secondary btn-sm">
+                    <span class="icon">🔄</span>
+                    Actualiser
+                </button>
+            </div>
+            </div>
+            
+            <!-- Monthly Dashboard Date Filter -->
+            <div class="monthly-dashboard-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; padding: 0 1rem;">
+                <label for="monthly-dashboard-date-filter" style="font-weight: bold;">Afficher pour le:</label>
+                <input type="month" id="monthly-dashboard-date-filter" name="monthly-dashboard-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
+            <div class="monthly-dashboard-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3 id="monthly-total-orders">0</h3>
+                            <p id="monthly-orders-label">Commandes</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="monthly-total-amount">0 FCFA</h3>
+                            <p>Courses</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💸</div>
+                        <div class="stat-content">
+                            <h3 id="monthly-total-expenses">0 FCFA</h3>
+                            <p>Dépenses totales</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-content">
+                            <h3 id="monthly-active-livreurs">0</h3>
+                            <p>Livreurs actifs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="monthly-summary-section">
+                    <h3>Récapitulatif par livreur</h3>
+                    <div id="monthly-summary-table-container">
+                        <!-- Le tableau récapitulatif mensuel sera chargé ici -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page tableau de bord MATA mensuel -->
+        <div id="mata-monthly-dashboard-page" class="page">
+            <div class="page-header">
+                <h2>Tableau de bord mensuel MATA</h2>
+                <div class="page-actions">
+                    <button id="export-mata-monthly-excel" class="btn btn-primary btn-sm">
+                        <span class="icon">📊</span>
+                        Export Excel
+                    </button>
+                    <button id="refresh-mata-monthly-dashboard" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+            
+            <!-- MATA Monthly Dashboard Date Filter -->
+            <div class="mata-monthly-dashboard-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; padding: 0 1rem;">
+                <label for="mata-monthly-date-filter" style="font-weight: bold;">Afficher pour le:</label>
+                <input type="month" id="mata-monthly-date-filter" name="mata-monthly-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
+            <div class="mata-monthly-dashboard-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🛒</div>
+                        <div class="stat-content">
+                            <h3 id="mata-total-orders">0</h3>
+                            <p id="mata-orders-label">Commandes MATA</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="mata-total-amount">0 FCFA</h3>
+                            <p>Montant total</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-content">
+                            <h3 id="mata-active-livreurs">0</h3>
+                            <p>Livreurs actifs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mata-orders-section">
+                    <h3>Détail des commandes MATA</h3>
+                    <div id="mata-orders-table-container">
+                        <!-- Le tableau des commandes MATA sera chargé ici -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page nouvelle commande -->
+        <div id="new-order-page" class="page">
+            <div class="page-header">
+                <h2>Nouvelle commande</h2>
+            </div>
+            
+            <form id="new-order-form" class="order-form">
+                <div class="form-group">
+                    <label for="client-name">Nom du client *</label>
+                    <input type="text" id="client-name" name="client_name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone-number">Numéro de téléphone *</label>
+                    <input type="tel" id="phone-number" name="phone_number" required 
+                           placeholder="Ex: 0123456789">
+                </div>
+                
+                <div class="form-group">
+                    <label for="address">Adresse</label>
+                    <textarea id="address" name="address" rows="3" 
+                              placeholder="Adresse de livraison (optionnel)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="4" 
+                              placeholder="Description détaillée de la commande"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="order-type">Type de commande *</label>
+                    <select id="order-type" name="order_type" required>
+                        <option value="">Sélectionner un type</option>
+                        <option value="MATA">MATA</option>
+                        <option value="MLC">MLC</option>
+                        <option value="AUTRE">AUTRE</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="course-price-group" style="display: none;">
+                    <label for="course-price">Prix de la course (FCFA)</label>
+                    <input type="number" id="course-price" name="course_price" step="0.01" min="0" 
+                           value="1500">
+                </div>
+                
+                <div class="form-group" id="amount-group" style="display: none;">
+                    <label for="amount">Montant du panier (FCFA)</label>
+                    <input type="number" id="amount" name="amount" step="0.01" min="0" 
+                           placeholder="0.00">
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <span class="icon">✅</span>
+                        Créer la commande
+                    </button>
+                    <button type="reset" class="btn btn-secondary">
+                        <span class="icon">🔄</span>
+                        Réinitialiser
+                    </button>
+                </div>
+            </form>
+            
+            <div class="recent-user-orders">
+                <h3>Mes 5 dernières commandes</h3>
+                <div id="user-recent-orders" class="orders-list">
+                    <!-- Les dernières commandes de l'utilisateur -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Page commandes -->
+        <div id="orders-page" class="page">
+            <div class="page-header">
+                <h2>Commandes enregistrées</h2>
+                <div class="page-actions">
+                    <input type="date" id="orders-date-filter" class="date-input">
+                    <button id="export-excel" class="btn btn-primary btn-sm hidden">
+                        <span class="icon">📊</span>
+                        Export Excel
+                    </button>
+                </div>
+            </div>
+            
+            <div class="orders-content">
+                <div id="orders-list" class="orders-list">
+                    <!-- Les commandes seront chargées ici -->
+                </div>
+                
+                <div class="pagination hidden" id="orders-pagination">
+                    <button id="prev-page" class="btn btn-secondary btn-sm">Précédent</button>
+                    <span id="page-info">Page 1 sur 1</span>
+                    <button id="next-page" class="btn btn-secondary btn-sm">Suivant</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page dépenses -->
+        <div id="expenses-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des dépenses</h2>
+                <div class="page-actions">
+                    <div class="date-filter-group">
+                        <label for="expenses-date-filter" style="font-weight: 600; color: #374151; margin-right: 0.5rem; cursor: pointer;">Date :</label>
+                        <div style="position: relative; display: inline-block;">
+                            <input 
+                                type="date" 
+                                id="expenses-date-filter" 
+                                class="date-input" 
+                                title="Cliquer pour sélectionner une date"
+                                placeholder="Sélectionner une date"
+                                style="pointer-events: auto; cursor: pointer; padding-right: 35px;"
+                            >
+                            <button 
+                                type="button" 
+                                id="date-picker-helper" 
+                                style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; color: #2563eb;"
+                                title="Ouvrir le sélecteur de date"
+                            >📅</button>
+                        </div>
+                    </div>
+                    <button id="add-expense-btn" class="btn btn-primary btn-sm hidden" data-manager-only>
+                        <span class="icon">➕</span>
+                        Nouvelle dépense
+                    </button>
+                </div>
+            </div>
+            
+            <div class="expenses-content">
+                <div id="expenses-summary" class="expenses-summary">
+                    <!-- Le récapitulatif des dépenses sera chargé ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Page utilisateurs (managers/admins) -->
+        <div id="users-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des utilisateurs</h2>
+                <div class="page-actions">
+                    <button id="add-user-btn" class="btn btn-primary btn-sm">
+                        <span class="icon">➕</span>
+                        Nouvel utilisateur
+                    </button>
+                </div>
+            </div>
+            
+            <div class="users-content">
+                <div id="users-list" class="users-list">
+                    <!-- Les utilisateurs seront chargés ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Page gestion livreurs (managers/admins) -->
+        <div id="livreurs-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des livreurs</h2>
+                <div class="page-actions">
+                    <button id="add-livreur-btn" class="btn btn-primary btn-sm">
+                        <span class="icon">➕</span>
+                        Nouveau livreur
+                    </button>
+                    <button id="show-all-livreurs" class="btn btn-secondary btn-sm">
+                        <span class="icon">👁️</span>
+                        Voir tous
+                    </button>
+                    <button id="show-active-livreurs" class="btn btn-secondary btn-sm">
+                        <span class="icon">✅</span>
+                        Actifs seulement
+                    </button>
+                </div>
+            </div>
+            
+            <div class="livreurs-content">
+                <div class="livreurs-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">🚚</div>
+                        <div class="stat-content">
+                            <h3 id="total-livreurs">0</h3>
+                            <p>Total livreurs</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <h3 id="active-livreurs-count">0</h3>
+                            <p>Livreurs actifs</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <h3 id="inactive-livreurs-count">0</h3>
+                            <p>Livreurs inactifs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="livreurs-list" class="livreurs-list">
+                    <!-- Les livreurs seront chargés ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Page profil -->
+        <div id="profile-page" class="page">
+            <div class="page-header">
+                <h2>Mon profil</h2>
+            </div>
+            
+            <div class="profile-content">
+                <div class="profile-info">
+                    <div class="info-group">
+                        <label>Nom d'utilisateur</label>
+                        <span id="profile-username"></span>
+                    </div>
+                    <div class="info-group">
+                        <label>Rôle</label>
+                        <span id="profile-role" class="role-badge"></span>
+                    </div>
+                    <div class="info-group">
+                        <label>Membre depuis</label>
+                        <span id="profile-created"></span>
+                    </div>
+                </div>
+                
+                <button id="change-password-btn" class="btn btn-primary">
+                    <span class="icon">🔐</span>
+                    Changer le mot de passe
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modales -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Titre</h3>
+                <button id="modal-close" class="modal-close">×</button>
+            </div>
+            <div class="modal-content" id="modal-content">
+                <!-- Contenu dynamique -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages toast -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+    <script src="debug_date_field.js"></script>
+</body>
+</html> 

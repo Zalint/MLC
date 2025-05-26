@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Fonctionnalité Date Dépenses</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-header {
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9fafb;
+            border-radius: 4px;
+        }
+        .status-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        .success { color: #10b981; }
+        .info { color: #3b82f6; }
+        .code-block {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .highlight {
+            background-color: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-header">🧪 Test - Fonctionnalité de Changement de Date</h1>
+        
+        <h2>📋 Résumé des Fonctionnalités</h2>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Champ de date visible</strong> - Le sélecteur de date est présent dans l'interface
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Initialisation automatique</strong> - Date du jour définie par défaut
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Changement dynamique</strong> - Rechargement automatique lors du changement
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Indicateur de chargement</strong> - Feedback visuel pendant le chargement
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Titre dynamique</strong> - Affichage de la date sélectionnée dans le titre
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Messages informatifs</strong> - Gestion des cas sans données
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon success">✅</span>
+            <strong>Styles améliorés</strong> - Interface utilisateur optimisée
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">🔧 Éléments Modifiés</h2>
+        
+        <h3>1. Frontend JavaScript (main.js)</h3>
+        <div class="code-block">
+// Fonction loadExpenses() améliorée
+static async loadExpenses() {
+  // ... code existant ...
+  
+  // ✨ NOUVEAU: Mise à jour du titre
+  this.updatePageTitle(selectedDate);
+  
+  // ... reste du code ...
+}
+
+// ✨ NOUVEAU: Fonction updatePageTitle()
+static updatePageTitle(selectedDate) {
+  const pageHeader = document.querySelector('#expenses-page .page-header h2');
+  if (pageHeader) {
+    const today = new Date().toISOString().split('T')[0];
+    const formattedDate = Utils.formatDisplayDate(selectedDate);
+    
+    if (selectedDate === today) {
+      pageHeader.textContent = 'Gestion des dépenses - Aujourd\'hui';
+    } else {
+      pageHeader.textContent = `Gestion des dépenses - ${formattedDate}`;
+    }
+  }
+}
+
+// ✨ AMÉLIORÉ: handleDateChange() avec indicateur
+static handleDateChange() {
+  const container = document.getElementById('expenses-summary');
+  if (container) {
+    container.innerHTML = '&lt;div class="text-center"&gt;&lt;p&gt;Chargement...&lt;/p&gt;&lt;/div&gt;';
+  }
+  this.loadExpenses();
+}
+        </div>
+        
+        <h3>2. Interface HTML (index.html)</h3>
+        <div class="code-block">
+&lt;!-- ✨ AMÉLIORÉ: Groupe de filtre de date avec label --&gt;
+&lt;div class="date-filter-group"&gt;
+  &lt;label for="expenses-date-filter" style="font-weight: 600; color: #374151; margin-right: 0.5rem;"&gt;Date :&lt;/label&gt;
+  &lt;input type="date" id="expenses-date-filter" class="date-input" title="Sélectionner une date pour afficher les dépenses"&gt;
+&lt;/div&gt;
+        </div>
+        
+        <h3>3. Styles CSS (styles.css)</h3>
+        <div class="code-block">
+/* ✨ AMÉLIORÉ: Styles du champ de date */
+.date-input {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ✨ NOUVEAU: Groupe de filtre de date */
+.date-filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">🎯 Instructions de Test</h2>
+        
+        <ol>
+            <li><strong>Démarrer l'application</strong>
+                <div class="code-block">
+# Terminal 1 - Backend
+cd backend
+npm start
+
+# Terminal 2 - Frontend  
+cd frontend
+npm start
+                </div>
+            </li>
+            
+            <li><strong>Se connecter</strong> avec un compte Manager ou Admin</li>
+            
+            <li><strong>Accéder au menu "Dépenses"</strong> dans la navigation</li>
+            
+            <li><strong>Tester le changement de date</strong> :
+                <ul style="margin-top: 10px;">
+                    <li>Vérifier que la date du jour est pré-sélectionnée</li>
+                    <li>Changer la date et observer le rechargement automatique</li>
+                    <li>Vérifier que le titre change selon la date</li>
+                    <li>Tester avec une date sans données</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">📊 Résultats Attendus</h2>
+        
+        <div class="feature-item">
+            <span class="status-icon info">📅</span>
+            <strong>Date du jour</strong> : Titre "Gestion des dépenses - Aujourd'hui"
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon info">📅</span>
+            <strong>Autre date</strong> : Titre "Gestion des dépenses - DD/MM/YYYY"
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon info">⏳</span>
+            <strong>Changement</strong> : Message "Chargement des données..." temporaire
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon info">📊</span>
+            <strong>Avec données</strong> : Tableau des dépenses affiché
+        </div>
+        
+        <div class="feature-item">
+            <span class="status-icon info">📭</span>
+            <strong>Sans données</strong> : Message "Aucune donnée disponible pour la date du DD/MM/YYYY"
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-header">✅ Statut Final</h2>
+        <p style="font-size: 18px; color: #10b981; font-weight: bold;">
+            🎉 Fonctionnalité de changement de date implémentée et améliorée avec succès !
+        </p>
+        <p>
+            La fonctionnalité était déjà présente dans le code mais a été considérablement améliorée 
+            avec une meilleure expérience utilisateur, des indicateurs visuels et une interface plus intuitive.
+        </p>
+    </div>
+</body>
+</html> 

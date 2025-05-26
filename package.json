@@ -1,0 +1,28 @@
+{
+  "name": "matix-livreur",
+  "version": "1.0.0",
+  "description": "Système de prise de commandes/livraisons simple et sécurisé",
+  "main": "index.js",
+  "scripts": {
+    "dev:front": "node frontend/server.js",
+    "dev:back": "node backend/app.js",
+    "test": "jest",
+    "start": "concurrently \"npm run dev:front\" \"npm run dev:back\"",
+    "setup": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "keywords": [
+    "delivery",
+    "orders",
+    "nodejs",
+    "express"
+  ],
+  "author": "Matix Livreur Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "jest": "^29.7.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
+}
