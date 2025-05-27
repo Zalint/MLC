@@ -137,7 +137,9 @@ const validateOrderCreation = [
     
   body('amount')
     .optional()
-    .isFloat({ min: 0, max: 999999.99 })
+    .default(0)
+    .trim()
+    .isFloat({ min: 0, max: 1000000 })
     .withMessage('Le montant doit être un nombre positif inférieur à 1 000 000'),
     
   body('order_type')
@@ -183,7 +185,9 @@ const validateOrderUpdate = [
     
   body('amount')
     .optional()
-    .isFloat({ min: 0, max: 999999.99 })
+    .default(0)
+    .trim()
+    .isFloat({ min: 0, max: 1000000 })
     .withMessage('Le montant doit être un nombre positif inférieur à 1 000 000'),
     
   body('order_type')

@@ -2008,7 +2008,13 @@ class OrderManager {
         
         // Pour MLC et AUTRE, ne pas envoyer amount (seulement course_price)
         if (orderData.order_type === 'MLC' || orderData.order_type === 'AUTRE') {
-          delete orderData.amount; // Ne pas envoyer amount pour MLC/AUTRE
+          if (!orderData.amount || isNaN(orderData.amount) || orderData.amount <= 0) {
+            delete orderData.amount;
+          }
+        }
+        // Nettoyer subscription_id vide
+        if (orderData.subscription_id === '') {
+          delete orderData.subscription_id;
         }
         
         // Validation
@@ -3284,7 +3290,7 @@ class SubscriptionManager {
         <div class="form-group">
           <label for="subscription-phone-number">Numéro de téléphone *</label>
           <input type="tel" id="subscription-phone-number" name="phone_number" required 
-                 placeholder="Ex: 0123456789">
+                 placeholder="Ex: 773920000">
         </div>
         <div class="form-group">
           <label for="subscription-address">Adresse</label>
