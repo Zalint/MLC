@@ -1623,4 +1623,326 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
   .livreurs-stats {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== STYLES POUR LA PAGE ABONNEMENTS ===== */
+.subscriptions-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.subscriptions-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.subscriptions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.subscription-card {
+  background-color: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.subscription-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.subscription-card.inactive {
+  background-color: var(--gray-50);
+  border-color: var(--gray-400);
+  opacity: 0.8;
+}
+
+.subscription-card.expired {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.subscription-card.completed {
+  background-color: #f0f9ff;
+  border-color: #93c5fd;
+}
+
+.subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.subscription-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-xs);
+}
+
+.subscription-card-number {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background-color: var(--gray-100);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--gray-300);
+}
+
+.subscription-meta {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.subscription-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.subscription-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--gray-200);
+}
+
+.subscription-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.subscription-detail .label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subscription-detail .value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--gray-900);
+}
+
+.deliveries-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background-color: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.progress-fill.low {
+  background-color: #ef4444;
+}
+
+.progress-fill.medium {
+  background-color: #f59e0b;
+}
+
+.progress-fill.high {
+  background-color: var(--success);
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+
+.subscription-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subscription-status.active {
+  background-color: var(--success);
+  color: var(--white);
+}
+
+.subscription-status.inactive {
+  background-color: var(--gray-400);
+  color: var(--white);
+}
+
+.subscription-status.expired {
+  background-color: #ef4444;
+  color: var(--white);
+}
+
+.subscription-status.completed {
+  background-color: #3b82f6;
+  color: var(--white);
+}
+
+.search-input {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  min-width: 250px;
+  transition: var(--transition);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.search-input::placeholder {
+  color: var(--gray-500);
+}
+
+/* Responsive pour la page abonnements */
+@media (max-width: 768px) {
+  .subscription-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .subscription-actions {
+    justify-content: flex-start;
+    margin-top: var(--spacing-sm);
+  }
+  
+  .subscription-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .subscriptions-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .search-input {
+    min-width: 200px;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .page-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .subscriptions-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .deliveries-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-xs);
+  }
+  
+  .progress-text {
+    text-align: center;
+  }
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch label {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.toggle-switch label:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + label {
+  background-color: var(--primary-color);
+}
+
+.toggle-switch input:checked + label:before {
+  transform: translateX(26px);
+}
+
+.badge-subscription {
+  background: none;
+  color: #2563eb;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  border: 1px solid #2563eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 } 

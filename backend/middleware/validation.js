@@ -286,6 +286,129 @@ const sanitizeInput = (req, res, next) => {
   next();
 };
 
+// Validation pour la création d'abonnement
+const validateSubscriptionCreation = [
+  body('client_name')
+    .trim()
+    .notEmpty()
+    .withMessage('Le nom du client est requis')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Le nom du client doit contenir entre 2 et 100 caractères'),
+    
+  body('phone_number')
+    .trim()
+    .notEmpty()
+    .withMessage('Le numéro de téléphone est requis')
+    .custom((value) => {
+      const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d{6,20}$/.test(cleanPhone)) {
+        throw new Error('Le numéro de téléphone doit contenir entre 6 et 20 chiffres');
+      }
+      return true;
+    }),
+    
+  body('total_deliveries')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Le nombre de livraisons doit être entre 1 et 50'),
+    
+  body('expiry_months')
+    .optional()
+    .isInt({ min: 1, max: 24 })
+    .withMessage('La durée d\'expiration doit être entre 1 et 24 mois'),
+    
+  handleValidationErrors
+];
+
+// Validation pour la mise à jour d'abonnement
+const validateSubscriptionUpdate = [
+  body('client_name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Le nom du client doit contenir entre 2 et 100 caractères'),
+    
+  body('phone_number')
+    .optional()
+    .trim()
+    .custom((value) => {
+      if (value) {
+        const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
+        if (!/^\d{6,20}$/.test(cleanPhone)) {
+          throw new Error('Le numéro de téléphone doit contenir entre 6 et 20 chiffres');
+        }
+      }
+      return true;
+    }),
+    
+  body('expiry_date')
+    .optional()
+    .isISO8601()
+    .withMessage('La date d\'expiration doit être au format ISO 8601')
+    .custom((value) => {
+      const expiryDate = new Date(value);
+      const now = new Date();
+      if (expiryDate <= now) {
+        throw new Error('La date d\'expiration doit être dans le futur');
+      }
+      return true;
+    }),
+    
+  body('is_active')
+    .optional()
+    .isBoolean()
+    .withMessage('Le statut actif doit être un booléen'),
+    
+  handleValidationErrors
+];
+
+// Validation pour la création de commande MLC avec abonnement
+const validateMLCOrderCreation = [
+  body('client_name')
+    .trim()
+    .notEmpty()
+    .withMessage('Le nom du client est requis')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Le nom du client doit contenir entre 2 et 100 caractères'),
+    
+  body('phone_number')
+    .trim()
+    .notEmpty()
+    .withMessage('Le numéro de téléphone est requis')
+    .custom((value) => {
+      const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d{6,20}$/.test(cleanPhone)) {
+        throw new Error('Le numéro de téléphone doit contenir entre 6 et 20 chiffres');
+      }
+      return true;
+    }),
+    
+  body('address')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
+    
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('La description ne peut pas dépasser 1000 caractères'),
+    
+  body('course_price')
+    .optional()
+    .isFloat({ min: 0, max: 999999.99 })
+    .withMessage('Le prix de la course doit être un nombre positif'),
+    
+  body('card_number')
+    .optional()
+    .trim()
+    .matches(/^MLC-\d{4}-\d{4}$/)
+    .withMessage('Le numéro de carte doit être au format MLC-YYYY-NNNN'),
+    
+  handleValidationErrors
+];
+
 module.exports = {
   handleValidationErrors,
   validateLogin,
@@ -294,6 +417,9 @@ module.exports = {
   validateUserUpdate,
   validateOrderCreation,
   validateOrderUpdate,
+  validateSubscriptionCreation,
+  validateSubscriptionUpdate,
+  validateMLCOrderCreation,
   validateUUID,
   validateLivreurId,
   validateDate,

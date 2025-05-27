@@ -63,6 +63,10 @@
                 <span class="icon">👥</span>
                 <span class="text">Utilisateurs</span>
             </button>
+            <button class="nav-item hidden" id="nav-subscriptions" data-page="subscriptions">
+                <span class="icon">🎫</span>
+                <span class="text">Packs MLC</span>
+            </button>
             <button class="nav-item" id="nav-livreurs" data-page="livreurs" style="display: none;">
                 <span class="icon">🚚</span>
                 <span class="text">Gestion livreurs</span>
@@ -315,29 +319,6 @@
             
             <form id="new-order-form" class="order-form">
                 <div class="form-group">
-                    <label for="client-name">Nom du client *</label>
-                    <input type="text" id="client-name" name="client_name" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="phone-number">Numéro de téléphone *</label>
-                    <input type="tel" id="phone-number" name="phone_number" required 
-                           placeholder="Ex: 0123456789">
-                </div>
-                
-                <div class="form-group">
-                    <label for="address">Adresse</label>
-                    <textarea id="address" name="address" rows="3" 
-                              placeholder="Adresse de livraison (optionnel)"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" rows="4" 
-                              placeholder="Description détaillée de la commande"></textarea>
-                </div>
-                
-                <div class="form-group">
                     <label for="order-type">Type de commande *</label>
                     <select id="order-type" name="order_type" required>
                         <option value="">Sélectionner un type</option>
@@ -346,19 +327,48 @@
                         <option value="AUTRE">AUTRE</option>
                     </select>
                 </div>
-                
+                <div class="form-group" id="subscription-toggle-group" style="display: none;">
+                    <label for="use-subscription">Utiliser un abonnement</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="use-subscription" name="use_subscription">
+                        <label for="use-subscription"></label>
+                    </div>
+                </div>
+                <div class="form-group" id="subscription-select-group" style="display: none;">
+                    <label for="subscription-select">Sélectionner un abonnement</label>
+                    <select id="subscription-select" name="subscription_id">
+                        <option value="">Charger les abonnements...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="client-name">Nom du client *</label>
+                    <input type="text" id="client-name" name="client_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone-number">Numéro de téléphone *</label>
+                    <input type="tel" id="phone-number" name="phone_number" required 
+                           placeholder="Ex: 0123456789">
+                </div>
+                <div class="form-group">
+                    <label for="address">Adresse</label>
+                    <textarea id="address" name="address" rows="3" 
+                              placeholder="Adresse de livraison (optionnel)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="4" 
+                              placeholder="Description détaillée de la commande"></textarea>
+                </div>
                 <div class="form-group" id="course-price-group" style="display: none;">
                     <label for="course-price">Prix de la course (FCFA)</label>
                     <input type="number" id="course-price" name="course_price" step="0.01" min="0" 
                            value="1500">
                 </div>
-                
                 <div class="form-group" id="amount-group" style="display: none;">
                     <label for="amount">Montant du panier (FCFA)</label>
                     <input type="number" id="amount" name="amount" step="0.01" min="0" 
                            placeholder="0.00">
                 </div>
-                
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
                         <span class="icon">✅</span>
@@ -458,6 +468,81 @@
             <div class="users-content">
                 <div id="users-list" class="users-list">
                     <!-- Les utilisateurs seront chargés ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Page abonnements MLC (managers/admins) -->
+        <div id="subscriptions-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des abonnements MLC</h2>
+                <div class="page-actions">
+                    <input type="text" id="subscription-search" placeholder="Rechercher par nom, téléphone ou numéro de carte..." class="search-input">
+                    <button id="add-subscription-btn" class="btn btn-primary btn-sm">
+                        <span class="icon">🎫</span>
+                        Nouvelle carte
+                    </button>
+                    <button id="refresh-subscriptions" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+            
+            <div class="subscriptions-content">
+                <div class="subscriptions-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎫</div>
+                        <div class="stat-content">
+                            <h3 id="total-subscriptions">0</h3>
+                            <p>Total cartes</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <h3 id="active-subscriptions">0</h3>
+                            <p>Cartes actives</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏁</div>
+                        <div class="stat-content">
+                            <h3 id="completed-subscriptions">0</h3>
+                            <p>Cartes terminées</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏰</div>
+                        <div class="stat-content">
+                            <h3 id="expiring-subscriptions">0</h3>
+                            <p>Expirent bientôt</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="background: linear-gradient(135deg, #2563eb, #3b82f6); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);">
+                    <button id="add-subscription-btn-main" class="btn btn-primary btn-sm" data-manager-only style="
+                      background: #ffffff; 
+                      color: #2563eb; 
+                      border: none; 
+                      padding: 15px 30px; 
+                      font-size: 18px; 
+                      font-weight: bold; 
+                      border-radius: 8px; 
+                      cursor: pointer; 
+                      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                      transition: all 0.3s ease;
+                    ">
+                      ➕ AJOUTER UNE NOUVELLE CARTE
+                    </button>
+                    <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour créer un nouveau livreur</p>
+                  </div>
+                
+                <div class="subscriptions-section">
+                    <h3>Cartes d'abonnement</h3>
+                    <div id="subscriptions-list" class="subscriptions-list">
+                        <!-- Les cartes d'abonnement seront chargées ici -->
+                    </div>
                 </div>
             </div>
         </div>

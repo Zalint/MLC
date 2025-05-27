@@ -421,6 +421,72 @@ class ApiClient {
   static async deleteExpense(id) {
     return this.request(`/expenses/${id}`, { method: 'DELETE' });
   }
+
+  // Subscriptions endpoints
+  static async getSubscriptions(page = 1, limit = 20) {
+    return this.request(`/subscriptions?page=${page}&limit=${limit}`);
+  }
+
+  static async getSubscriptionStats() {
+    return this.request('/subscriptions/stats');
+  }
+
+  static async searchSubscriptions(query) {
+    return this.request(`/subscriptions/search?q=${encodeURIComponent(query)}`);
+  }
+
+  static async getSubscriptionByCardNumber(cardNumber) {
+    return this.request(`/subscriptions/card/${cardNumber}`);
+  }
+
+  static async getSubscriptionsByPhone(phoneNumber, activeOnly = false) {
+    return this.request(`/subscriptions/phone/${phoneNumber}?active=${activeOnly}`);
+  }
+
+  static async checkCardValidity(cardNumber) {
+    return this.request(`/subscriptions/check/${cardNumber}`);
+  }
+
+  static async createSubscription(subscriptionData) {
+    return this.request('/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(subscriptionData)
+    });
+  }
+
+  static async updateSubscription(id, subscriptionData) {
+    return this.request(`/subscriptions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(subscriptionData)
+    });
+  }
+
+  static async deactivateSubscription(id) {
+    return this.request(`/subscriptions/${id}/deactivate`, {
+      method: 'PATCH'
+    });
+  }
+
+  static async reactivateSubscription(id) {
+    return this.request(`/subscriptions/${id}/reactivate`, {
+      method: 'PATCH'
+    });
+  }
+
+  static async createMLCOrderWithSubscription(orderData) {
+    return this.request('/subscriptions/mlc-order', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
+  }
+
+  static async getExpiringSoonSubscriptions(days = 30) {
+    return this.request(`/subscriptions/expiring-soon?days=${days}`);
+  }
+
+  static async getActiveSubscriptions() {
+    return this.request('/subscriptions/active');
+  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
@@ -476,6 +542,11 @@ class PageManager {
         case 'users':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await UserManager.loadUsers();
+          }
+          break;
+        case 'subscriptions':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await SubscriptionManager.loadSubscriptions();
           }
           break;
         case 'livreurs':
@@ -579,6 +650,7 @@ class AuthManager {
 
     // Afficher/masquer les éléments selon le rôle
     const navUsers = document.getElementById('nav-users');
+    const navSubscriptions = document.getElementById('nav-subscriptions');
     const navLivreurs = document.getElementById('nav-livreurs');
     const navExpenses = document.getElementById('nav-expenses');
     const navMonthlyDashboard = document.getElementById('nav-monthly-dashboard');
@@ -591,6 +663,10 @@ class AuthManager {
       if (navUsers) {
         navUsers.classList.remove('hidden');
         navUsers.style.display = 'flex';
+      }
+      if (navSubscriptions) {
+        navSubscriptions.classList.remove('hidden');
+        navSubscriptions.style.display = 'flex';
       }
       if (navLivreurs) {
         navLivreurs.classList.remove('hidden');
@@ -630,6 +706,10 @@ class AuthManager {
       if (navUsers) {
         navUsers.classList.add('hidden');
         navUsers.style.display = 'none';
+      }
+      if (navSubscriptions) {
+        navSubscriptions.classList.add('hidden');
+        navSubscriptions.style.display = 'none';
       }
       if (navLivreurs) {
         navLivreurs.classList.add('hidden');
@@ -677,6 +757,7 @@ class AuthManager {
       // Vérifier aussi les autres éléments
       const elementsToCheck = [
         'nav-users',
+        'nav-subscriptions',
         'nav-expenses', 
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard'
@@ -807,7 +888,9 @@ class DashboardManager {
       <div class="order-card">
         <div class="order-header">
           <div class="order-title">${Utils.escapeHtml(order.client_name)}</div>
-          <div class="order-meta">${Utils.formatDate(order.created_at)}</div>
+          <div class="order-meta">${Utils.formatDate(order.created_at)}
+            ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">🎫 Abonnement</span>' : ''}
+          </div>
         </div>
         <div class="order-details">
           <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
@@ -1664,6 +1747,7 @@ class OrderManager {
             <div class="order-meta">
               ${Utils.formatDate(order.created_at)}
               ${order.creator_username ? ` • Par ${Utils.escapeHtml(order.creator_username)}` : ''}
+              ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">🎫 Abonnement</span>' : ''}
             </div>
           </div>
           <div class="order-actions">
@@ -1673,21 +1757,19 @@ class OrderManager {
                 Modifier
               </button>
             ` : ''}
-            ${this.canDeleteOrder(order) ? `
-              <button class="btn btn-sm btn-danger order-delete-btn" data-order-id="${order.id}">
-                <span class="icon">🗑️</span>
-                Supprimer
-              </button>
-            ` : ''}
           </div>
         </div>
-        <div class="order-details">
-          <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
-          ${order.address ? `<p><strong>Adresse:</strong> ${Utils.escapeHtml(order.address)}</p>` : ''}
-          ${order.description ? `<p><strong>Description:</strong> ${Utils.escapeHtml(order.description)}</p>` : ''}
-          <p><strong>Prix de la course:</strong> <span class="order-amount">${Utils.formatAmount(order.course_price)}</span></p>
-          ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
-          <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span></p>
+        <div class="order-body">
+          <div class="order-info">
+            <span>📞 ${Utils.escapeHtml(order.phone_number)}</span>
+            <span>📍 ${Utils.escapeHtml(order.address)}</span>
+          </div>
+          <div class="order-description">${Utils.escapeHtml(order.description || '')}</div>
+          <div class="order-prices">
+            <span class="order-price">Course : <b>${Utils.formatAmount(order.course_price)}</b></span>
+            <span class="order-amount">Montant : <b>${Utils.formatAmount(order.amount)}</b></span>
+          </div>
+          <div class="order-type">Type : <b>${Utils.escapeHtml(order.order_type)}</b></div>
         </div>
       </div>
     `).join('');
@@ -1711,7 +1793,9 @@ class OrderManager {
           <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
           <p><strong>Prix de la course:</strong> <span class="order-amount">${Utils.formatAmount(order.course_price)}</span></p>
           ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
-          <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span></p>
+          <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span>
+            ${order.order_type === 'MLC' && order.is_subscription ? '<span class="badge-abonnement" style="margin-left:8px;background:#2563eb;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;vertical-align:middle;">🎫 Abonnement</span>' : ''}
+          </p>
         </div>
       </div>
     `).join('');
@@ -2923,6 +3007,470 @@ class LivreurManager {
   }
 }
 
+// ===== GESTIONNAIRE D'ABONNEMENTS =====
+class SubscriptionManager {
+  static subscriptions = [];
+  static stats = {};
+  static searchTimeout = null;
+
+  static async loadSubscriptions() {
+    try {
+      const [subscriptionsResponse, statsResponse] = await Promise.all([
+        ApiClient.getSubscriptions(),
+        ApiClient.getSubscriptionStats()
+      ]);
+
+      this.subscriptions = subscriptionsResponse.subscriptions || [];
+      this.stats = statsResponse.stats || {};
+
+      this.updateStats();
+      this.displaySubscriptions();
+      this.setupEventListeners();
+    } catch (error) {
+      console.error('Erreur lors du chargement des abonnements:', error);
+      ToastManager.error('Erreur lors du chargement des abonnements');
+    }
+  }
+
+  static updateStats() {
+    const elements = {
+      'total-subscriptions': this.stats.total_cards || 0,
+      'active-subscriptions': this.stats.active_cards || 0,
+      'completed-subscriptions': this.stats.completed_cards || 0,
+      'expiring-subscriptions': this.stats.expiring_soon || 0
+    };
+
+    Object.entries(elements).forEach(([id, value]) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    });
+  }
+
+  static displaySubscriptions() {
+    const container = document.getElementById('subscriptions-list');
+    
+    if (this.subscriptions.length === 0) {
+      container.innerHTML = '<p class="text-center">Aucune carte d\'abonnement trouvée</p>';
+      return;
+    }
+
+    container.innerHTML = this.subscriptions.map(subscription => {
+      const progressPercentage = (subscription.used_deliveries / subscription.total_deliveries) * 100;
+      const progressClass = progressPercentage >= 80 ? 'low' : progressPercentage >= 50 ? 'medium' : 'high';
+      const statusClass = this.getStatusClass(subscription);
+      const statusText = this.getStatusText(subscription);
+
+      return `
+        <div class="subscription-card ${statusClass}">
+          <div class="subscription-header">
+            <div>
+              <div class="subscription-title">${Utils.escapeHtml(subscription.client_name)}</div>
+              <div class="subscription-card-number">${subscription.card_number}</div>
+              <div class="subscription-meta">
+                <span>📞 ${Utils.escapeHtml(subscription.phone_number)}</span>
+                <span class="subscription-status ${statusClass}">${statusText}</span>
+              </div>
+            </div>
+            <div class="subscription-actions">
+              ${this.canEditSubscription(subscription) ? `
+                <button class="btn btn-sm btn-secondary edit-subscription-btn" 
+                        data-subscription-id="${subscription.id}"
+                        title="Modifier">
+                  <span class="icon">✏️</span>
+                </button>
+              ` : ''}
+              ${subscription.is_active ? `
+                <button class="btn btn-sm btn-warning deactivate-subscription-btn" 
+                        data-subscription-id="${subscription.id}"
+                        title="Désactiver">
+                  <span class="icon">⏸️</span>
+                </button>
+              ` : `
+                <button class="btn btn-sm btn-success reactivate-subscription-btn" 
+                        data-subscription-id="${subscription.id}"
+                        title="Réactiver">
+                  <span class="icon">▶️</span>
+                </button>
+              `}
+              <button class="btn btn-sm btn-primary check-card-btn" 
+                      data-card-number="${subscription.card_number}"
+                      title="Vérifier la carte">
+                <span class="icon">🔍</span>
+              </button>
+            </div>
+          </div>
+          <div class="subscription-details">
+            <div class="subscription-detail">
+              <span class="label">Livraisons</span>
+              <div class="deliveries-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill ${progressClass}" style="width: ${progressPercentage}%"></div>
+                </div>
+                <span class="progress-text">${subscription.used_deliveries}/${subscription.total_deliveries}</span>
+              </div>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Restantes</span>
+              <span class="value">${subscription.remaining_deliveries}</span>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Prix de la carte</span>
+              <span class="value">${subscription.price ? Utils.formatAmount(subscription.price) : '-'}</span>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Adresse</span>
+              <span class="value">${subscription.address ? Utils.escapeHtml(subscription.address) : '-'}</span>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Achat</span>
+              <span class="value">${Utils.formatDisplayDate(subscription.purchase_date)}</span>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Expiration</span>
+              <span class="value">${Utils.formatDisplayDate(subscription.expiry_date)}</span>
+            </div>
+            <div class="subscription-detail">
+              <span class="label">Créé par</span>
+              <span class="value">${Utils.escapeHtml(subscription.created_by || 'N/A')}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.setupSubscriptionEventListeners();
+  }
+
+  static getStatusClass(subscription) {
+    if (!subscription.is_active) return 'inactive';
+    if (subscription.remaining_deliveries === 0) return 'completed';
+    if (new Date(subscription.expiry_date) < new Date()) return 'expired';
+    return 'active';
+  }
+
+  static getStatusText(subscription) {
+    if (!subscription.is_active) return 'Inactive';
+    if (subscription.remaining_deliveries === 0) return 'Terminée';
+    if (new Date(subscription.expiry_date) < new Date()) return 'Expirée';
+    return 'Active';
+  }
+
+  static canEditSubscription(subscription) {
+    return AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN');
+  }
+
+  static setupEventListeners() {
+    // Search functionality
+    const searchInput = document.getElementById('subscription-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+          this.handleSearch(e.target.value);
+        }, 300);
+      });
+    }
+
+    // Add subscription button
+    const addBtn = document.getElementById('add-subscription-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => this.showCreateSubscriptionModal());
+    }
+
+    // Add subscription main button (bloc bleu)
+    const addBtnMain = document.getElementById('add-subscription-btn-main');
+    if (addBtnMain) {
+      addBtnMain.addEventListener('click', () => this.showCreateSubscriptionModal());
+    }
+
+    // Refresh button
+    const refreshBtn = document.getElementById('refresh-subscriptions');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.loadSubscriptions());
+    }
+  }
+
+  static setupSubscriptionEventListeners() {
+    // Edit subscription buttons
+    document.querySelectorAll('.edit-subscription-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const subscriptionId = e.currentTarget.dataset.subscriptionId;
+        this.editSubscription(subscriptionId);
+      });
+    });
+
+    // Deactivate subscription buttons
+    document.querySelectorAll('.deactivate-subscription-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const subscriptionId = e.currentTarget.dataset.subscriptionId;
+        this.deactivateSubscription(subscriptionId);
+      });
+    });
+
+    // Reactivate subscription buttons
+    document.querySelectorAll('.reactivate-subscription-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const subscriptionId = e.currentTarget.dataset.subscriptionId;
+        this.reactivateSubscription(subscriptionId);
+      });
+    });
+
+    // Check card buttons
+    document.querySelectorAll('.check-card-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const cardNumber = e.currentTarget.dataset.cardNumber;
+        this.checkCardValidity(cardNumber);
+      });
+    });
+  }
+
+  static async handleSearch(query) {
+    if (!query.trim()) {
+      await this.loadSubscriptions();
+      return;
+    }
+
+    try {
+      const response = await ApiClient.searchSubscriptions(query);
+      this.subscriptions = response.subscriptions || [];
+      this.displaySubscriptions();
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error);
+      ToastManager.error('Erreur lors de la recherche');
+    }
+  }
+
+  static showCreateSubscriptionModal() {
+    const content = `
+      <form id="create-subscription-form" class="subscription-form">
+        <div class="form-group">
+          <label for="subscription-client-name">Nom du client *</label>
+          <input type="text" id="subscription-client-name" name="client_name" required>
+        </div>
+        <div class="form-group">
+          <label for="subscription-phone-number">Numéro de téléphone *</label>
+          <input type="tel" id="subscription-phone-number" name="phone_number" required 
+                 placeholder="Ex: 0123456789">
+        </div>
+        <div class="form-group">
+          <label for="subscription-address">Adresse</label>
+          <textarea id="subscription-address" name="address" rows="2" placeholder="Adresse du client (optionnel)"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="subscription-total-deliveries">Nombre de livraisons</label>
+          <input type="number" id="subscription-total-deliveries" name="total_deliveries" 
+                 value="10" min="1" max="50" required>
+        </div>
+        <div class="form-group">
+          <label for="subscription-expiry-months">Durée de validité (mois)</label>
+          <input type="number" id="subscription-expiry-months" name="expiry_months" 
+                 value="6" min="1" max="24" required>
+        </div>
+        <div class="form-group">
+          <label for="subscription-price">Prix de la carte (FCFA)</label>
+          <input type="number" id="subscription-price" name="price" min="0" step="0.01" placeholder="Ex: 15000" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <span class="icon">🎫</span>
+            Créer la carte
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
+            Annuler
+          </button>
+        </div>
+      </form>
+    `;
+
+    ModalManager.show('Nouvelle carte d\'abonnement MLC', content);
+
+    document.getElementById('create-subscription-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await this.createSubscription(new FormData(e.target));
+    });
+  }
+
+  static async createSubscription(formData) {
+    try {
+      const subscriptionData = {
+        client_name: formData.get('client_name'),
+        phone_number: formData.get('phone_number'),
+        total_deliveries: parseInt(formData.get('total_deliveries')),
+        expiry_months: parseInt(formData.get('expiry_months')),
+        address: formData.get('address'),
+        price: formData.get('price') ? parseFloat(formData.get('price')) : null
+      };
+
+      const response = await ApiClient.createSubscription(subscriptionData);
+      
+      if (response.success) {
+        ToastManager.success(`Carte créée avec succès: ${response.subscription.card_number}`);
+        ModalManager.hide();
+        await this.loadSubscriptions();
+      } else {
+        ToastManager.error(response.message || 'Erreur lors de la création');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création:', error);
+      ToastManager.error('Erreur lors de la création de la carte');
+    }
+  }
+
+  static async editSubscription(subscriptionId) {
+    try {
+      const subscription = this.subscriptions.find(s => s.id === subscriptionId);
+      if (!subscription) return;
+
+      const content = `
+        <form id="edit-subscription-form" class="subscription-form">
+          <div class="form-group">
+            <label for="edit-subscription-client-name">Nom du client *</label>
+            <input type="text" id="edit-subscription-client-name" name="client_name" 
+                   value="${Utils.escapeHtml(subscription.client_name)}" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-subscription-phone-number">Numéro de téléphone *</label>
+            <input type="tel" id="edit-subscription-phone-number" name="phone_number" 
+                   value="${Utils.escapeHtml(subscription.phone_number)}" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-subscription-address">Adresse</label>
+            <textarea id="edit-subscription-address" name="address" rows="2" placeholder="Adresse du client (optionnel)">${subscription.address ? Utils.escapeHtml(subscription.address) : ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Numéro de carte</label>
+            <input type="text" value="${subscription.card_number}" disabled class="subscription-card-number">
+          </div>
+          <div class="form-group">
+            <label>Livraisons utilisées</label>
+            <input type="number" value="${subscription.used_deliveries}" disabled>
+          </div>
+          <div class="form-group">
+            <label>Livraisons restantes</label>
+            <input type="number" value="${subscription.remaining_deliveries}" disabled>
+          </div>
+          <div class="form-group">
+            <label for="edit-subscription-price">Prix de la carte (FCFA)</label>
+            <input type="number" id="edit-subscription-price" name="price" min="0" step="0.01" value="${subscription.price ? subscription.price : ''}" required>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              <span class="icon">💾</span>
+              Sauvegarder
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
+              Annuler
+            </button>
+          </div>
+        </form>
+      `;
+
+      ModalManager.show('Modifier la carte d\'abonnement', content);
+
+      document.getElementById('edit-subscription-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.updateSubscription(subscriptionId, new FormData(e.target));
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'édition:', error);
+      ToastManager.error('Erreur lors de l\'édition');
+    }
+  }
+
+  static async updateSubscription(subscriptionId, formData) {
+    try {
+      const subscriptionData = {
+        client_name: formData.get('client_name'),
+        phone_number: formData.get('phone_number')
+      };
+
+      const response = await ApiClient.updateSubscription(subscriptionId, subscriptionData);
+      
+      if (response.success) {
+        ToastManager.success('Carte mise à jour avec succès');
+        ModalManager.hide();
+        await this.loadSubscriptions();
+      } else {
+        ToastManager.error(response.message || 'Erreur lors de la mise à jour');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour:', error);
+      ToastManager.error('Erreur lors de la mise à jour');
+    }
+  }
+
+  static async deactivateSubscription(subscriptionId) {
+    const subscription = this.subscriptions.find(s => s.id === subscriptionId);
+    if (!subscription) return;
+
+    ModalManager.confirm(
+      'Désactiver la carte',
+      `Êtes-vous sûr de vouloir désactiver la carte ${subscription.card_number} de ${subscription.client_name} ?`,
+      async () => {
+        try {
+          const response = await ApiClient.deactivateSubscription(subscriptionId);
+          if (response.success) {
+            ToastManager.success('Carte désactivée avec succès');
+            await this.loadSubscriptions();
+          } else {
+            ToastManager.error(response.message || 'Erreur lors de la désactivation');
+          }
+        } catch (error) {
+          console.error('Erreur lors de la désactivation:', error);
+          ToastManager.error('Erreur lors de la désactivation');
+        }
+      }
+    );
+  }
+
+  static async reactivateSubscription(subscriptionId) {
+    try {
+      const response = await ApiClient.reactivateSubscription(subscriptionId);
+      if (response.success) {
+        ToastManager.success('Carte réactivée avec succès');
+        await this.loadSubscriptions();
+      } else {
+        ToastManager.error(response.message || 'Erreur lors de la réactivation');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la réactivation:', error);
+      ToastManager.error('Erreur lors de la réactivation');
+    }
+  }
+
+  static async checkCardValidity(cardNumber) {
+    try {
+      const response = await ApiClient.checkCardValidity(cardNumber);
+      
+      const statusIcon = response.valid ? '✅' : '❌';
+      const statusText = response.valid ? 'Valide' : 'Invalide';
+      
+      let details = `<p><strong>Statut:</strong> ${statusIcon} ${statusText}</p>`;
+      
+      if (response.subscription) {
+        const sub = response.subscription;
+        details += `
+          <p><strong>Client:</strong> ${Utils.escapeHtml(sub.client_name)}</p>
+          <p><strong>Téléphone:</strong> ${Utils.escapeHtml(sub.phone_number)}</p>
+          <p><strong>Livraisons restantes:</strong> ${sub.remaining_deliveries}/${sub.total_deliveries}</p>
+          <p><strong>Expiration:</strong> ${Utils.formatDisplayDate(sub.expiry_date)}</p>
+        `;
+      }
+      
+      ModalManager.show(`Vérification de la carte ${cardNumber}`, details);
+      
+      if (response.valid) {
+        ToastManager.success('Carte valide');
+      } else {
+        ToastManager.warning('Carte invalide ou expirée');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification:', error);
+      ToastManager.error('Erreur lors de la vérification');
+    }
+  }
+}
+
 // ===== GESTIONNAIRE DE PROFIL =====
 class ProfileManager {
   static async loadProfile() {
@@ -3081,34 +3629,96 @@ class App {
       const orderType = e.target.value;
       const coursePriceGroup = document.getElementById('course-price-group');
       const amountGroup = document.getElementById('amount-group');
+      const subscriptionToggleGroup = document.getElementById('subscription-toggle-group');
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
       const coursePriceInput = document.getElementById('course-price');
-      const coursePriceLabel = coursePriceGroup.querySelector('label');
       
       if (orderType === 'MATA') {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'block';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
         coursePriceInput.value = '1500';
         coursePriceInput.readOnly = true;
-        coursePriceLabel.textContent = 'Prix de la course (FCFA)';
-      } else if (orderType === 'MLC' || orderType === 'AUTRE') {
+      } else if (orderType === 'MLC') {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'block';
         coursePriceInput.value = '';
         coursePriceInput.readOnly = false;
-        coursePriceLabel.textContent = 'Prix de la course (FCFA)';
       } else {
-        coursePriceGroup.style.display = 'none';
+        coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
       }
     });
 
-    // Formulaire nouvelle commande
+    // Gestion du toggle d'abonnement
+    document.getElementById('use-subscription').addEventListener('change', async (e) => {
+      const useSubscription = e.target.checked;
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const coursePriceInput = document.getElementById('course-price');
+      
+      if (useSubscription) {
+        subscriptionSelectGroup.style.display = 'block';
+        coursePriceInput.value = '1500';
+        coursePriceInput.readOnly = true;
+        
+        // Charger les abonnements actifs
+        try {
+          const response = await ApiClient.getActiveSubscriptions();
+          const select = document.getElementById('subscription-select');
+          select.innerHTML = '<option value="">Sélectionner un abonnement...</option>';
+          
+          response.subscriptions.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = `${sub.card_number} - ${sub.client_name} (${sub.remaining_deliveries} livraisons restantes)`;
+            option.dataset.clientName = sub.client_name;
+            option.dataset.phoneNumber = sub.phone_number;
+            option.dataset.price = sub.price;
+            option.dataset.totalDeliveries = sub.total_deliveries;
+            option.dataset.address = sub.address || '';
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Erreur lors du chargement des abonnements:', error);
+          ToastManager.error('Erreur lors du chargement des abonnements');
+        }
+      } else {
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      }
+    });
+
+    // Gestion de la sélection d'un abonnement
+    document.getElementById('subscription-select').addEventListener('change', (e) => {
+      const selectedOption = e.target.selectedOptions[0];
+      if (selectedOption.value) {
+        document.getElementById('client-name').value = selectedOption.dataset.clientName;
+        document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
+        document.getElementById('address').value = selectedOption.dataset.address;
+        // Calcul automatique du prix de la course
+        const price = parseFloat(selectedOption.dataset.price);
+        const totalDeliveries = parseInt(selectedOption.dataset.totalDeliveries);
+        if (price && totalDeliveries) {
+          const coursePrice = Math.round(price / totalDeliveries);
+          document.getElementById('course-price').value = coursePrice;
+        }
+      }
+    });
+
+    // Gestion de la soumission du formulaire
     document.getElementById('new-order-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
-
+      
       // Convertir les montants en nombres
       if (orderData.course_price) {
         orderData.course_price = parseFloat(orderData.course_price);
@@ -3116,24 +3726,31 @@ class App {
       if (orderData.amount) {
         orderData.amount = parseFloat(orderData.amount);
       }
-
-      // Pour MLC et AUTRE, ne pas envoyer amount (seulement course_price)
-      if (orderData.order_type === 'MLC' || orderData.order_type === 'AUTRE') {
-        delete orderData.amount; // Ne pas envoyer amount pour MLC/AUTRE
-      }
-
-      // Validation côté client
-      if (!Utils.validatePhoneNumber(orderData.phone_number)) {
-        ToastManager.error('Numéro de téléphone invalide (doit contenir entre 6 et 20 chiffres)');
+      
+      // Pour MLC avec abonnement, utiliser la route spéciale
+      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
+        try {
+          const response = await ApiClient.createMLCOrderWithSubscription(orderData);
+          if (response.success) {
+            ToastManager.success('Commande créée avec succès');
+            document.getElementById('new-order-form').reset();
+            await OrderManager.loadLastUserOrders();
+          } else {
+            ToastManager.error(response.message || 'Erreur lors de la création de la commande');
+          }
+        } catch (error) {
+          console.error('Erreur lors de la création de la commande:', error);
+          ToastManager.error('Erreur lors de la création de la commande');
+        }
         return;
       }
-
-      console.log('Données nouvelle commande à envoyer:', orderData); // Debug
-
+      
+      // Pour les autres types de commandes, utiliser la route normale
       try {
         await OrderManager.createOrder(orderData);
       } catch (error) {
-        ToastManager.error(error.message || 'Erreur lors de la création de la commande');
+        console.error('Erreur lors de la création de la commande:', error);
+        ToastManager.error('Erreur lors de la création de la commande');
       }
     });
 
@@ -3284,4 +3901,5 @@ window.LivreurManager = LivreurManager;
 window.ExpenseManager = ExpenseManager;
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
+window.SubscriptionManager = SubscriptionManager;
 window.ModalManager = ModalManager; 

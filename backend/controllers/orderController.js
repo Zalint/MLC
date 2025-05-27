@@ -87,7 +87,10 @@ class OrderController {
       }
 
       res.json({
-        orders,
+        orders: orders.map(order => ({
+          ...order,
+          is_subscription: !!order.subscription_id
+        })),
         pagination: {
           page,
           limit,
@@ -125,7 +128,7 @@ class OrderController {
       }
 
       res.json({
-        order
+        order: order ? { ...order, is_subscription: !!order.subscription_id } : null
       });
 
     } catch (error) {
@@ -145,7 +148,10 @@ class OrderController {
       const orders = await Order.findLastByUser(userId, limit);
 
       res.json({
-        orders,
+        orders: orders.map(order => ({
+          ...order,
+          is_subscription: !!order.subscription_id
+        })),
         total: orders.length
       });
 
@@ -175,7 +181,10 @@ class OrderController {
       }
 
       res.json({
-        orders,
+        orders: orders.map(order => ({
+          ...order,
+          is_subscription: !!order.subscription_id
+        })),
         date,
         total: orders.length
       });

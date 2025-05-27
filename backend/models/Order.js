@@ -14,20 +14,21 @@ class Order {
     this.created_by = data.created_by;
     this.created_at = data.created_at;
     this.creator_username = data.creator_username; // Joint avec users
+    this.subscription_id = data.subscription_id || null;
   }
 
   // Créer une nouvelle commande
-  static async create({ client_name, phone_number, address, description, amount, course_price, order_type, created_by }) {
+  static async create({ client_name, phone_number, address, description, amount, course_price, order_type, created_by, subscription_id }) {
     const id = uuidv4();
     
     const query = `
-      INSERT INTO orders (id, client_name, phone_number, address, description, amount, course_price, order_type, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO orders (id, client_name, phone_number, address, description, amount, course_price, order_type, created_by, subscription_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
     
     const result = await db.query(query, [
-      id, client_name, phone_number, address, description, amount || null, course_price || 0, order_type, created_by
+      id, client_name, phone_number, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null
     ]);
     
     return new Order(result.rows[0]);
