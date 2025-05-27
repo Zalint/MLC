@@ -532,6 +532,24 @@ class PageManager {
           break;
         case 'new-order':
           await OrderManager.loadLastUserOrders();
+          // Affichage du champ livreur pour managers/admins
+          const livreurGroup = document.getElementById('livreur-select-group');
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            livreurGroup.style.display = 'block';
+            // Charger la liste des livreurs actifs
+            const select = document.getElementById('livreur-select');
+            select.innerHTML = '<option value="">Sélectionner un livreur</option>';
+            try {
+              const response = await ApiClient.getActiveLivreurs();
+              (response.livreurs || []).forEach(livreur => {
+                select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+              });
+            } catch (error) {
+              ToastManager.error('Erreur lors du chargement des livreurs');
+            }
+          } else {
+            livreurGroup.style.display = 'none';
+          }
           break;
         case 'orders':
           await OrderManager.loadOrders();
@@ -1757,6 +1775,12 @@ class OrderManager {
                 Modifier
               </button>
             ` : ''}
+            ${(AppState.user && AppState.user.role === 'ADMIN') ? `
+              <button class="btn btn-sm btn-danger order-delete-btn" data-order-id="${order.id}">
+                <span class="icon">🗑️</span>
+                Supprimer
+              </button>
+            ` : ''}
           </div>
         </div>
         <div class="order-body">
@@ -1767,7 +1791,7 @@ class OrderManager {
           <div class="order-description">${Utils.escapeHtml(order.description || '')}</div>
           <div class="order-prices">
             <span class="order-price">Course : <b>${Utils.formatAmount(order.course_price)}</b></span>
-            <span class="order-amount">Montant : <b>${Utils.formatAmount(order.amount)}</b></span>
+            ${order.order_type === 'MATA' ? `<span class="order-amount">Montant : <b>${Utils.formatAmount(order.amount)}</b></span>` : ''}
           </div>
           <div class="order-type">Type : <b>${Utils.escapeHtml(order.order_type)}</b></div>
         </div>
@@ -1832,7 +1856,13 @@ class OrderManager {
     document.querySelectorAll('.order-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.dataset.orderId;
-        this.deleteOrder(orderId);
+        ModalManager.confirm(
+          'Supprimer la commande',
+          'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
+          () => {
+            this.deleteOrder(orderId);
+          }
+        );
       });
     });
   }
@@ -2014,6 +2044,10 @@ class OrderManager {
           await ApiClient.deleteOrder(orderId);
           ToastManager.success('Commande supprimée avec succès');
           await this.loadOrders(AppState.currentOrdersPage);
+          // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
+          if (AppState.currentPage === 'subscriptions') {
+            await SubscriptionManager.loadSubscriptions();
+          }
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la suppression');
         }
@@ -3886,6 +3920,22 @@ class App {
     window.addEventListener('offline', () => {
       ToastManager.warning('Connexion perdue');
     });
+
+    // Affichage du champ livreur pour managers/admins
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      const livreurGroup = document.getElementById('livreur-select-group');
+      livreurGroup.style.display = 'block';
+      // Charger la liste des livreurs
+      ApiClient.getLivreurs().then(response => {
+        const select = document.getElementById('livreur-select');
+        select.innerHTML = '<option value="">Sélectionner un livreur</option>';
+        (response.livreurs || []).forEach(livreur => {
+          select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+        });
+      });
+    } else {
+      document.getElementById('livreur-select-group').style.display = 'none';
+    }
   }
 }
 

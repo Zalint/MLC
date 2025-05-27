@@ -359,6 +359,13 @@
                     <textarea id="description" name="description" rows="4" 
                               placeholder="Description détaillée de la commande"></textarea>
                 </div>
+                <div class="form-group" id="livreur-select-group" style="display: none;">
+                    <label for="livreur-select">Livreur (assigner à)</label>
+                    <select id="livreur-select" name="created_by">
+                        <option value="">Sélectionner un livreur</option>
+                        <!-- Options dynamiques JS -->
+                    </select>
+                </div>
                 <div class="form-group" id="course-price-group" style="display: none;">
                     <label for="course-price">Prix de la course (FCFA)</label>
                     <input type="number" id="course-price" name="course_price" step="0.01" min="0" 

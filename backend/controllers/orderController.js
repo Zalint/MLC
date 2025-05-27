@@ -333,10 +333,12 @@ class OrderController {
   static async deleteOrder(req, res) {
     try {
       const { id } = req.params;
+      console.log(`[DELETE] Attempting to delete order with id: ${id}`);
 
       // Vérifier que la commande existe
       const existingOrder = await Order.findById(id);
       if (!existingOrder) {
+        console.warn(`[DELETE] Order not found: ${id}`);
         return res.status(404).json({
           error: 'Commande non trouvée'
         });
@@ -344,46 +346,68 @@ class OrderController {
 
       // Vérifications de permissions selon le rôle
       if (!req.user.isManagerOrAdmin()) {
-        // Les non-managers ne peuvent supprimer que leurs commandes du jour
         if (existingOrder.created_by !== req.user.id) {
+          console.warn(`[DELETE] User ${req.user.username} not allowed to delete order ${id}`);
           return res.status(403).json({
             error: 'Vous ne pouvez supprimer que vos propres commandes'
           });
         }
-        
         const isToday = await Order.isCreatedToday(id);
         if (!isToday) {
+          console.warn(`[DELETE] User ${req.user.username} tried to delete non-today order ${id}`);
           return res.status(403).json({
             error: 'Vous ne pouvez supprimer que vos commandes du jour'
           });
         }
       } else if (req.user.role === 'MANAGER') {
-        // Les managers ne peuvent supprimer que les commandes du jour
         const isToday = await Order.isCreatedToday(id);
         if (!isToday) {
+          console.warn(`[DELETE] Manager tried to delete non-today order ${id}`);
           return res.status(403).json({
             error: 'Vous ne pouvez supprimer que les commandes du jour'
           });
         }
       }
-      // Les admins et utilisateurs spéciaux (SALIOU, OUSMANE) peuvent tout supprimer
 
-      const deletedOrder = await Order.delete(id);
+      // Les admins et utilisateurs spéciaux (SALIOU, OUSMANE) peuvent tout supprimer
+      let deletedOrder;
+      try {
+        deletedOrder = await Order.delete(id);
+        console.log(`[DELETE] Order deleted: ${id}`);
+      } catch (dbError) {
+        console.error(`[DELETE] DB error when deleting order ${id}:`, dbError);
+        if (dbError.message && dbError.message.includes('violates foreign key constraint')) {
+          return res.status(409).json({
+            error: 'Impossible de supprimer la commande à cause de dépendances en base de données.'
+          });
+        }
+        return res.status(500).json({
+          error: dbError.message || 'Erreur lors de la suppression en base de données.'
+        });
+      }
+
+      // Si la commande était liée à un abonnement, restaurer une livraison
+      if (deletedOrder.subscription_id) {
+        try {
+          const Subscription = require('../models/Subscription');
+          await Subscription.restoreDelivery(deletedOrder.subscription_id);
+          console.log(`[DELETE] Subscription delivery restored for card: ${deletedOrder.subscription_id}`);
+        } catch (restoreError) {
+          console.error('Erreur lors de la restauration de la livraison abonnement:', restoreError);
+        }
+      }
 
       res.json({
         message: 'Commande supprimée avec succès',
         order: deletedOrder
       });
-
     } catch (error) {
       console.error('Erreur lors de la suppression de la commande:', error);
-      
       if (error.message === 'Commande non trouvée') {
         return res.status(404).json({
           error: error.message
         });
       }
-      
       res.status(500).json({
         error: 'Erreur interne du serveur'
       });

@@ -357,6 +357,24 @@ class Subscription {
       day: '2-digit'
     }).format(new Date(this.purchase_date));
   }
+
+  // Restaurer une livraison (après suppression d'une commande)
+  static async restoreDelivery(cardId) {
+    const query = `
+      UPDATE subscriptions 
+      SET used_deliveries = used_deliveries - 1,
+          remaining_deliveries = remaining_deliveries + 1,
+          is_active = true,
+          updated_at = NOW()
+      WHERE id = $1 AND used_deliveries > 0
+      RETURNING *
+    `;
+    const result = await db.query(query, [cardId]);
+    if (result.rows.length === 0) {
+      throw new Error('Impossible de restaurer la livraison (carte non trouvée ou aucune livraison utilisée)');
+    }
+    return new Subscription(result.rows[0]);
+  }
 }
 
 module.exports = Subscription; 
