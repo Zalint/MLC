@@ -1918,22 +1918,31 @@ class OrderManager {
             <label for="edit-client-name">Nom du client *</label>
             <input type="text" id="edit-client-name" name="client_name" value="${Utils.escapeHtml(order.client_name)}" required>
           </div>
-          
           <div class="form-group">
             <label for="edit-phone-number">Numéro de téléphone *</label>
             <input type="tel" id="edit-phone-number" name="phone_number" value="${Utils.escapeHtml(order.phone_number)}" required>
           </div>
-          
-          <div class="form-group">
-            <label for="edit-address">Adresse</label>
-            <textarea id="edit-address" name="address" rows="3">${order.address ? Utils.escapeHtml(order.address) : ''}</textarea>
+          <div class="form-group" id="edit-adresse-source-group">
+            <label for="edit-adresse-source">Adresse source</label>
+            <textarea id="edit-adresse-source" name="adresse_source" rows="2" placeholder="Adresse de départ">${order.adresse_source ? Utils.escapeHtml(order.adresse_source) : ''}</textarea>
           </div>
-          
-          <div class="form-group">
+          <div class="form-group" id="edit-adresse-destination-group">
+            <label for="edit-adresse-destination">Adresse destination *</label>
+            <textarea id="edit-adresse-destination" name="adresse_destination" rows="2" placeholder="Adresse d'arrivée" required>${order.adresse_destination ? Utils.escapeHtml(order.adresse_destination) : ''}</textarea>
+          </div>
+          <div class="form-group" id="edit-point-vente-group" style="display: none;">
+            <label for="edit-point-vente">Point de vente *</label>
+            <select id="edit-point-vente" name="point_de_vente">
+              <option value="">Sélectionner un point de vente</option>
+              <option value="O.Foire" ${order.point_de_vente === 'O.Foire' ? 'selected' : ''}>O.Foire</option>
+              <option value="Mbao" ${order.point_de_vente === 'Mbao' ? 'selected' : ''}>Mbao</option>
+              <option value="Keur Massar" ${order.point_de_vente === 'Keur Massar' ? 'selected' : ''}>Keur Massar</option>
+            </select>
+          </div>
+          <div class="form-group" id="edit-description-group">
             <label for="edit-description">Description</label>
             <textarea id="edit-description" name="description" rows="4">${order.description ? Utils.escapeHtml(order.description) : ''}</textarea>
           </div>
-          
           <div class="form-group">
             <label for="edit-order-type">Type de commande *</label>
             <select id="edit-order-type" name="order_type" required>
@@ -1942,19 +1951,14 @@ class OrderManager {
               <option value="AUTRE" ${order.order_type === 'AUTRE' ? 'selected' : ''}>AUTRE</option>
             </select>
           </div>
-          
           <div class="form-group" id="edit-course-price-group" style="display: ${order.order_type ? 'block' : 'none'};">
             <label for="edit-course-price">Prix de la course (FCFA)</label>
-            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" 
-                   value="${order.course_price || (order.order_type === 'MATA' ? 1500 : '')}" 
-                   ${order.order_type === 'MATA' ? 'readonly' : ''}>
+            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" value="${order.course_price || (order.order_type === 'MATA' ? 1500 : '')}" ${order.order_type === 'MATA' ? 'readonly' : ''}>
           </div>
-          
           <div class="form-group" id="edit-amount-group" style="display: ${order.order_type === 'MATA' ? 'block' : 'none'};">
             <label for="edit-amount">Montant du panier (FCFA)</label>
             <input type="number" id="edit-amount" name="amount" step="0.01" min="0" value="${order.amount || ''}">
           </div>
-          
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Sauvegarder</button>
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
@@ -1964,67 +1968,74 @@ class OrderManager {
 
       ModalManager.show('Modifier la commande', content);
 
+      // Hide old address field if present
+      const oldAddressField = document.getElementById('edit-address');
+      if (oldAddressField) oldAddressField.parentElement.style.display = 'none';
+
+      // Show/hide point de vente and set required logic
+      const orderTypeSelect = document.getElementById('edit-order-type');
+      const adresseSourceGroup = document.getElementById('edit-adresse-source-group');
+      const adresseDestinationGroup = document.getElementById('edit-adresse-destination-group');
+      const pointVenteGroup = document.getElementById('edit-point-vente-group');
+      const pointVenteSelect = document.getElementById('edit-point-vente');
+      const adresseSourceInput = document.getElementById('edit-adresse-source');
+      const adresseDestinationInput = document.getElementById('edit-adresse-destination');
+      const adresseSourceLabel = adresseSourceGroup.querySelector('label');
+
+      function updateEditOrderFields() {
+        const type = orderTypeSelect.value;
+        if (type === 'MLC' || type === 'AUTRE') {
+          adresseSourceGroup.style.display = '';
+          adresseDestinationGroup.style.display = '';
+          pointVenteGroup.style.display = 'none';
+          adresseSourceInput.required = true;
+          adresseDestinationInput.required = true;
+          if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source <span style="color:red">*</span>';
+          if (pointVenteSelect) pointVenteSelect.required = false;
+        } else if (type === 'MATA') {
+          adresseSourceGroup.style.display = '';
+          adresseDestinationGroup.style.display = '';
+          pointVenteGroup.style.display = '';
+          adresseSourceInput.required = false;
+          adresseDestinationInput.required = true;
+          if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+          if (pointVenteSelect) pointVenteSelect.required = true;
+        } else {
+          adresseSourceGroup.style.display = '';
+          adresseDestinationGroup.style.display = '';
+          pointVenteGroup.style.display = 'none';
+          adresseSourceInput.required = false;
+          adresseDestinationInput.required = false;
+          if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+          if (pointVenteSelect) pointVenteSelect.required = false;
+        }
+      }
+      orderTypeSelect.addEventListener('change', updateEditOrderFields);
+      updateEditOrderFields();
+
       // Gestionnaire pour le bouton d'annulation
       document.querySelector('.modal-cancel-btn').addEventListener('click', () => {
         ModalManager.hide();
       });
 
-      // Gestion du changement de type de commande dans le modal d'édition
-      document.getElementById('edit-order-type').addEventListener('change', (e) => {
-        const orderType = e.target.value;
-        const coursePriceGroup = document.getElementById('edit-course-price-group');
-        const amountGroup = document.getElementById('edit-amount-group');
-        const coursePriceInput = document.getElementById('edit-course-price');
-        
-        if (orderType === 'MATA') {
-          coursePriceGroup.style.display = 'block';
-          amountGroup.style.display = 'block';
-          coursePriceInput.value = '1500';
-          coursePriceInput.readOnly = true;
-        } else if (orderType === 'MLC' || orderType === 'AUTRE') {
-          coursePriceGroup.style.display = 'block';
-          amountGroup.style.display = 'none';
-          coursePriceInput.value = '';
-          coursePriceInput.readOnly = false;
-        } else {
-          coursePriceGroup.style.display = 'none';
-          amountGroup.style.display = 'none';
-        }
-      });
-
       document.getElementById('edit-order-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const formData = new FormData(e.target);
         const orderData = Object.fromEntries(formData.entries());
-        
-        // Convertir les montants en nombres
-        if (orderData.course_price) {
-          orderData.course_price = parseFloat(orderData.course_price);
-        }
-        if (orderData.amount) {
-          orderData.amount = parseFloat(orderData.amount);
-        }
-        
-        // Pour MLC et AUTRE, ne pas envoyer amount (seulement course_price)
+        if (orderData.course_price) orderData.course_price = parseFloat(orderData.course_price);
+        if (orderData.amount) orderData.amount = parseFloat(orderData.amount);
         if (orderData.order_type === 'MLC' || orderData.order_type === 'AUTRE') {
           if (!orderData.amount || isNaN(orderData.amount) || orderData.amount <= 0) {
             delete orderData.amount;
           }
         }
-        // Nettoyer subscription_id vide
         if (orderData.subscription_id === '') {
           delete orderData.subscription_id;
         }
-        
-        // Validation
         if (!Utils.validatePhoneNumber(orderData.phone_number)) {
           ToastManager.error('Numéro de téléphone invalide (doit contenir entre 6 et 20 chiffres)');
           return;
         }
-
-        console.log('Données à envoyer:', orderData); // Debug
-
         try {
           await ApiClient.updateOrder(orderId, orderData);
           ModalManager.hide();
@@ -2034,7 +2045,6 @@ class OrderManager {
           ToastManager.error(error.message || 'Erreur lors de la modification');
         }
       });
-
     } catch (error) {
       console.error('Erreur lors de l\'édition de la commande:', error);
       ToastManager.error('Erreur lors de l\'édition de la commande');
@@ -3962,6 +3972,70 @@ class App {
     } else {
       document.getElementById('livreur-select-group').style.display = 'none';
     }
+
+    // --- Order form dynamic fields logic ---
+    const orderTypeSelect = document.getElementById('order-type');
+    const adresseSourceGroup = document.getElementById('adresse-source-group');
+    const adresseDestinationGroup = document.getElementById('adresse-destination-group');
+    const pointVenteGroup = document.getElementById('point-vente-group');
+    const addressGroup = document.getElementById('address-group');
+    const pointVenteSelect = document.getElementById('point-vente');
+
+    orderTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        const adresseSourceLabel = document.querySelector('label[for="adresse-source"]');
+        if (type === 'MLC' || type === 'AUTRE') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = true;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source <span style="color:red">*</span>';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        } else if (type === 'MATA') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = '';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = true;
+        } else {
+            // Default: show adresse source/destination, hide old Adresse
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = false;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        }
+    });
+
+    // On page load, trigger change to set correct fields
+    if (orderTypeSelect) orderTypeSelect.dispatchEvent(new Event('change'));
+
+    // --- Form validation on submit ---
+    document.getElementById('new-order-form').addEventListener('submit', function(e) {
+        const type = orderTypeSelect.value;
+        if ((type === 'MLC' || type === 'AUTRE')) {
+            if (!document.getElementById('adresse-source').value.trim() || !document.getElementById('adresse-destination').value.trim()) {
+                e.preventDefault();
+                ToastManager.error('Adresse source et destination sont obligatoires pour ce type de commande.');
+                return false;
+            }
+        }
+        if (type === 'MATA') {
+            if (!pointVenteSelect.value) {
+                e.preventDefault();
+                ToastManager.error('Le point de vente est obligatoire pour MATA.');
+                return false;
+            }
+        }
+    });
   }
 }
 

@@ -6,12 +6,15 @@ class OrderController {
   // Créer une nouvelle commande
   static async createOrder(req, res) {
     try {
-      const { client_name, phone_number, address, description, amount, course_price, order_type } = req.body;
+      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type } = req.body;
       const created_by = req.user.id;
 
       const newOrder = await Order.create({
         client_name,
         phone_number,
+        adresse_source,
+        adresse_destination,
+        point_de_vente,
         address,
         description,
         amount,

@@ -349,10 +349,26 @@
                     <input type="tel" id="phone-number" name="phone_number" required 
                            placeholder="Ex: 773920000">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="adresse-source-group" style="display: none;">
+                    <label for="adresse-source">Adresse source *</label>
+                    <textarea id="adresse-source" name="adresse_source" rows="2" placeholder="Adresse de départ"></textarea>
+                </div>
+                <div class="form-group" id="adresse-destination-group" style="display: none;">
+                    <label for="adresse-destination">Adresse destination *</label>
+                    <textarea id="adresse-destination" name="adresse_destination" rows="2" placeholder="Adresse d'arrivée"></textarea>
+                </div>
+                <div class="form-group" id="point-vente-group" style="display: none;">
+                    <label for="point-vente">Point de vente *</label>
+                    <select id="point-vente" name="point_de_vente">
+                        <option value="">Sélectionner un point de vente</option>
+                        <option value="O.Foire">O.Foire</option>
+                        <option value="Mbao">Mbao</option>
+                        <option value="Keur Massar">Keur Massar</option>
+                    </select>
+                </div>
+                <div class="form-group" id="address-group" style="display: none;">
                     <label for="address">Adresse</label>
-                    <textarea id="address" name="address" rows="3" 
-                              placeholder="Adresse de livraison (optionnel)"></textarea>
+                    <textarea id="address" name="address" rows="3" placeholder="Adresse de livraison (optionnel)"></textarea>
                 </div>
                 <div class="form-group">
                     <label for="description">Description</label>

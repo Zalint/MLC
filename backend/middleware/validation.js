@@ -145,7 +145,20 @@ const validateOrderCreation = [
   body('order_type')
     .isIn(['MATA', 'MLC', 'AUTRE'])
     .withMessage('Le type de commande doit être MATA, MLC ou AUTRE'),
-    
+  
+  body('adresse_source')
+    .if(body('order_type').custom(val => val === 'MLC' || val === 'AUTRE'))
+    .notEmpty().withMessage('Adresse source requise pour ce type de commande')
+    .isLength({ max: 500 }).withMessage('Adresse source ne peut pas dépasser 500 caractères'),
+  body('adresse_destination')
+    .if(body('order_type').custom(val => val === 'MLC' || val === 'AUTRE' || val === 'MATA'))
+    .notEmpty().withMessage('Adresse destination requise pour ce type de commande')
+    .isLength({ max: 500 }).withMessage('Adresse destination ne peut pas dépasser 500 caractères'),
+  body('point_de_vente')
+    .if(body('order_type').equals('MATA'))
+    .notEmpty().withMessage('Le point de vente est obligatoire pour MATA')
+    .isIn(['O.Foire', 'Mbao', 'Keur Massar']).withMessage('Point de vente invalide'),
+  
   handleValidationErrors
 ];
 

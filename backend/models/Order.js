@@ -15,20 +15,23 @@ class Order {
     this.created_at = data.created_at;
     this.creator_username = data.creator_username; // Joint avec users
     this.subscription_id = data.subscription_id || null;
+    this.adresse_source = data.adresse_source;
+    this.adresse_destination = data.adresse_destination;
+    this.point_de_vente = data.point_de_vente;
   }
 
   // Créer une nouvelle commande
-  static async create({ client_name, phone_number, address, description, amount, course_price, order_type, created_by, subscription_id }) {
+  static async create({ client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id }) {
     const id = uuidv4();
     
     const query = `
-      INSERT INTO orders (id, client_name, phone_number, address, description, amount, course_price, order_type, created_by, subscription_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO orders (id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
     
     const result = await db.query(query, [
-      id, client_name, phone_number, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null
+      id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null
     ]);
     
     return new Order(result.rows[0]);
@@ -278,7 +281,7 @@ class Order {
 
   // Mettre à jour une commande
   static async update(id, updates) {
-    const allowedFields = ['client_name', 'phone_number', 'address', 'description', 'amount', 'course_price', 'order_type', 'commentaire'];
+    const allowedFields = ['client_name', 'phone_number', 'adresse_source', 'adresse_destination', 'point_de_vente', 'address', 'description', 'amount', 'course_price', 'order_type', 'commentaire'];
     const setClause = [];
     const values = [];
     let paramIndex = 1;
