@@ -337,7 +337,7 @@ const validateSubscriptionUpdate = [
     .trim()
     .custom((value) => {
       if (value) {
-        const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
+        const cleanPhone = value.replace(/[^\d]/g, '');
         if (!/^\d{6,20}$/.test(cleanPhone)) {
           throw new Error('Le numéro de téléphone doit contenir entre 6 et 20 chiffres');
         }
@@ -362,6 +362,21 @@ const validateSubscriptionUpdate = [
     .optional()
     .isBoolean()
     .withMessage('Le statut actif doit être un booléen'),
+    
+  body('used_deliveries')
+    .optional()
+    .isInt({ min: 0, max: 50 })
+    .withMessage('Le nombre de livraisons utilisées doit être entre 0 et 50'),
+    
+  body('remaining_deliveries')
+    .optional()
+    .isInt({ min: 0, max: 50 })
+    .withMessage('Le nombre de livraisons restantes doit être entre 0 et 50'),
+    
+  body('price')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Le prix doit être un nombre positif'),
     
   handleValidationErrors
 ];

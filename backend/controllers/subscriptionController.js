@@ -337,9 +337,11 @@ class SubscriptionController {
     try {
       const { id } = req.params;
       const updates = req.body;
-
+      // If ADMIN, set modified_by
+      if (req.user && req.user.role === 'ADMIN') {
+        updates.modified_by = req.user.id;
+      }
       const subscription = await Subscription.update(id, updates);
-
       res.json({
         success: true,
         message: 'Carte d\'abonnement mise à jour avec succès',

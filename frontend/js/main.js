@@ -3360,7 +3360,7 @@ class SubscriptionManager {
     try {
       const subscription = this.subscriptions.find(s => s.id === subscriptionId);
       if (!subscription) return;
-
+      const isAdmin = AppState.user && AppState.user.role === 'ADMIN';
       const content = `
         <form id="edit-subscription-form" class="subscription-form">
           <div class="form-group">
@@ -3379,15 +3379,19 @@ class SubscriptionManager {
           </div>
           <div class="form-group">
             <label>Numéro de carte</label>
-            <input type="text" value="${subscription.card_number}" disabled class="subscription-card-number">
+            <input type="text" value="${subscription.card_number}" disabled class="subscription-card-number" style="${subscription.modified_by ? 'font-style:italic;' : ''}">
+          </div>
+          <div class="form-group">
+            <label>Nombre de livraisons</label>
+            <input type="number" name="total_deliveries" value="${subscription.total_deliveries}" ${isAdmin ? '' : 'disabled'}>
           </div>
           <div class="form-group">
             <label>Livraisons utilisées</label>
-            <input type="number" value="${subscription.used_deliveries}" disabled>
+            <input type="number" name="used_deliveries" value="${subscription.used_deliveries}" ${isAdmin ? '' : 'disabled'} min="0" max="50">
           </div>
           <div class="form-group">
             <label>Livraisons restantes</label>
-            <input type="number" value="${subscription.remaining_deliveries}" disabled>
+            <input type="number" name="remaining_deliveries" value="${subscription.remaining_deliveries}" ${isAdmin ? '' : 'disabled'} min="0" max="50">
           </div>
           <div class="form-group">
             <label for="edit-subscription-price">Prix de la carte (FCFA)</label>
@@ -3404,9 +3408,7 @@ class SubscriptionManager {
           </div>
         </form>
       `;
-
       ModalManager.show('Modifier la carte d\'abonnement', content);
-
       document.getElementById('edit-subscription-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.updateSubscription(subscriptionId, new FormData(e.target));
@@ -3419,13 +3421,31 @@ class SubscriptionManager {
 
   static async updateSubscription(subscriptionId, formData) {
     try {
+      const total_deliveries = formData.get('total_deliveries') !== null ? parseInt(formData.get('total_deliveries')) : null;
+      const used_deliveries = formData.get('used_deliveries') !== null ? parseInt(formData.get('used_deliveries')) : null;
+      const remaining_deliveries = formData.get('remaining_deliveries') !== null ? parseInt(formData.get('remaining_deliveries')) : null;
+      // Validation: total_deliveries = used_deliveries + remaining_deliveries
+      if (
+        total_deliveries !== null &&
+        used_deliveries !== null &&
+        remaining_deliveries !== null &&
+        (total_deliveries !== used_deliveries + remaining_deliveries)
+      ) {
+        ToastManager.error('Le nombre de livraisons doit être égal à la somme des livraisons utilisées et restantes.');
+        return;
+      }
       const subscriptionData = {
         client_name: formData.get('client_name'),
-        phone_number: formData.get('phone_number')
+        phone_number: formData.get('phone_number'),
+        address: formData.get('address'),
+        price: formData.get('price') ? parseFloat(formData.get('price')) : null
       };
-
+      if (AppState.user && AppState.user.role === 'ADMIN') {
+        subscriptionData.used_deliveries = used_deliveries;
+        subscriptionData.remaining_deliveries = remaining_deliveries;
+        subscriptionData.total_deliveries = total_deliveries;
+      }
       const response = await ApiClient.updateSubscription(subscriptionId, subscriptionData);
-      
       if (response.success) {
         ToastManager.success('Carte mise à jour avec succès');
         ModalManager.hide();

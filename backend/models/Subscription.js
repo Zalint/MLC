@@ -283,7 +283,7 @@ class Subscription {
 
   // Mettre à jour une carte
   static async update(id, updates) {
-    const allowedFields = ['client_name', 'phone_number', 'expiry_date', 'is_active', 'address', 'price'];
+    const allowedFields = ['client_name', 'phone_number', 'expiry_date', 'is_active', 'address', 'price', 'used_deliveries', 'remaining_deliveries', 'total_deliveries'];
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -296,13 +296,20 @@ class Subscription {
       }
     }
 
+    // Handle modified_by and modified_at if present
+    if (updates.modified_by) {
+      setClause.push(`modified_by = $${paramIndex}`);
+      values.push(updates.modified_by);
+      paramIndex++;
+      setClause.push(`modified_at = NOW()`);
+    }
+
     if (setClause.length === 0) {
       throw new Error('Aucun champ valide à mettre à jour');
     }
 
     setClause.push('updated_at = NOW()');
     values.push(id);
-    
     const query = `
       UPDATE subscriptions 
       SET ${setClause.join(', ')}
@@ -311,11 +318,9 @@ class Subscription {
     `;
 
     const result = await db.query(query, values);
-    
     if (result.rows.length === 0) {
       throw new Error('Carte d\'abonnement non trouvée');
     }
-    
     return new Subscription(result.rows[0]);
   }
 
