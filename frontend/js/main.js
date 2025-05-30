@@ -1460,7 +1460,8 @@ class MataMonthlyDashboardManager {
               <th>Date</th>
               <th>Numéro de téléphone</th>
               <th>Nom</th>
-              <th>Adresse</th>
+              <th>Adresse source</th>
+              <th>Adresse destination</th>
               <th>Montant commande (FCFA)</th>
               <th>Livreur</th>
               <th>Commentaire</th>
@@ -1473,7 +1474,8 @@ class MataMonthlyDashboardManager {
                 <td>${new Date(order.date).toLocaleDateString('fr-FR')}</td>
                 <td>${Utils.escapeHtml(order.phone_number)}</td>
                 <td>${Utils.escapeHtml(order.client_name)}</td>
-                <td>${order.address ? Utils.escapeHtml(order.address) : '-'}</td>
+                <td>${order.adresse_source ? Utils.escapeHtml(order.adresse_source) : '-'}</td>
+                <td>${order.adresse_destination ? Utils.escapeHtml(order.adresse_destination) : '-'}</td>
                 <td>${Utils.formatAmount(order.montant_commande || 0)}</td>
                 <td>${Utils.escapeHtml(order.livreur)}</td>
                 <td>
