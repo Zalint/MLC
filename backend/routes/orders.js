@@ -80,6 +80,14 @@ router.put('/:id/comment',
   OrderController.updateMataOrderComment
 );
 
+// Route spéciale pour mettre à jour les notes d'une commande MATA (managers et admins seulement)
+router.put('/:id/rating', 
+  validateUUID, 
+  requireManagerOrAdmin,
+  sanitizeInput, 
+  OrderController.updateMataOrderRating
+);
+
 router.delete('/:id', 
   validateUUID, 
   OrderController.deleteOrder

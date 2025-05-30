@@ -829,14 +829,14 @@ class OrderController {
       const dates = [...new Set(dailyData.map(item => item.date))].sort();
 
       // Créer les en-têtes (structure verticale)
-      const headers = [
+      const columnHeaders = [
         'Date', 'Livreur', 'Commandes', 'Courses (FCFA)', 
         'Carburant', 'Réparations', 'Police', 'Autres', 
         'Total Dépenses', 'Km', 'Bénéfice (FCFA)'
       ];
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:' + String.fromCharCode(64 + headers.length) + '1');
+      worksheet.mergeCells('A1:' + String.fromCharCode(64 + columnHeaders.length) + '1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Récapitulatif Mensuel - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -851,14 +851,47 @@ class OrderController {
       // Ajouter une ligne vide
       worksheet.addRow([]);
 
-      // Ajouter les en-têtes
-      const headerRow = worksheet.addRow(headers);
-      headerRow.font = { bold: true };
+      // Définir et ajouter explicitement les en-têtes
+      const mataHeaders = [
+        'Date',
+        'Numéro de téléphone', 
+        'Nom',
+        'Adresse source',
+        'Adresse destination',
+        'Montant commande (FCFA)',
+        'Livreur',
+        'Commentaire',
+        'Service livraison',
+        'Qualité produits', 
+        'Niveau prix',
+        'Note moyenne'
+      ];
+      
+      const headerRow = worksheet.addRow(mataHeaders);
+      
+      // Styliser l'en-tête
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       headerRow.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFF0F0F0' }
+        fgColor: { argb: 'FF009E60' }
       };
+
+      // Définir les largeurs des colonnes
+      worksheet.columns = [
+        { width: 12 },  // Date
+        { width: 18 },  // Numéro de téléphone
+        { width: 25 },  // Nom
+        { width: 30 },  // Adresse source
+        { width: 30 },  // Adresse destination
+        { width: 20 },  // Montant commande (FCFA)
+        { width: 15 },  // Livreur
+        { width: 50 },  // Commentaire
+        { width: 15 },  // Service livraison
+        { width: 15 },  // Qualité produits
+        { width: 15 },  // Niveau prix
+        { width: 15 }   // Note moyenne
+      ];
 
       // Créer des maps pour un accès rapide aux données
       const ordersMap = {};
@@ -1006,6 +1039,9 @@ class OrderController {
           COALESCE(NULLIF(o.adresse_destination, ''), o.address) as adresse_destination,
           o.amount as montant_commande,
           o.commentaire,
+          o.service_rating,
+          o.quality_rating,
+          o.price_rating,
           u.username as livreur,
           o.created_at
         FROM orders o
@@ -1090,6 +1126,69 @@ class OrderController {
     }
   }
 
+  // Mettre à jour les notes d'une commande MATA
+  static async updateMataOrderRating(req, res) {
+    try {
+      const { id } = req.params;
+      const { ratingType, ratingValue } = req.body;
+
+      // Validation des types de notes acceptés
+      const validRatingTypes = ['service', 'quality', 'price'];
+      if (!validRatingTypes.includes(ratingType)) {
+        return res.status(400).json({
+          error: 'Type de note invalide. Types acceptés: service, quality, price'
+        });
+      }
+
+      // Validation de la valeur de la note
+      if (ratingValue !== null && (typeof ratingValue !== 'number' || ratingValue < 0 || ratingValue > 10)) {
+        return res.status(400).json({
+          error: 'La note doit être un nombre entre 0 et 10, ou null'
+        });
+      }
+
+      // Vérifier que la commande existe et est de type MATA
+      const existingOrder = await Order.findById(id);
+      if (!existingOrder) {
+        return res.status(404).json({
+          error: 'Commande non trouvée'
+        });
+      }
+
+      if (existingOrder.order_type !== 'MATA') {
+        return res.status(400).json({
+          error: 'Cette fonction est réservée aux commandes MATA'
+        });
+      }
+
+      // Mapper le type de note au nom de colonne
+      const ratingColumnMap = {
+        'service': 'service_rating',
+        'quality': 'quality_rating',
+        'price': 'price_rating'
+      };
+
+      const columnName = ratingColumnMap[ratingType];
+      
+      // Mettre à jour uniquement la note spécifiée
+      const updateData = {};
+      updateData[columnName] = ratingValue;
+      
+      const updatedOrder = await Order.update(id, updateData);
+
+      res.json({
+        message: 'Note mise à jour avec succès',
+        order: updatedOrder
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la note:', error);
+      res.status(500).json({
+        error: 'Erreur interne du serveur'
+      });
+    }
+  }
+
   // Exporter le tableau de bord MATA mensuel en Excel
   static async exportMataMonthlyToExcel(req, res) {
     try {
@@ -1107,6 +1206,9 @@ class OrderController {
           COALESCE(NULLIF(o.adresse_destination, ''), o.address) as adresse_destination,
           o.amount as montant_commande,
           o.commentaire,
+          o.service_rating,
+          o.quality_rating,
+          o.price_rating,
           u.username as livreur,
           o.created_at
         FROM orders o
@@ -1137,7 +1239,7 @@ class OrderController {
       const worksheet = workbook.addWorksheet('Commandes MATA Mensuel');
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:H1');
+      worksheet.mergeCells('A1:L1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -1152,39 +1254,75 @@ class OrderController {
       // Ajouter une ligne vide
       worksheet.addRow([]);
 
-      // Définir les colonnes selon les spécifications
-      worksheet.columns = [
-        { header: 'Date', key: 'date', width: 12 },
-        { header: 'Numéro de téléphone', key: 'phone_number', width: 18 },
-        { header: 'Nom', key: 'client_name', width: 25 },
-        { header: 'Adresse source', key: 'adresse_source', width: 30 },
-        { header: 'Adresse destination', key: 'adresse_destination', width: 30 },
-        { header: 'Montant commande (FCFA)', key: 'montant_commande', width: 20 },
-        { header: 'Livreur', key: 'livreur', width: 15 },
-        { header: 'Commentaire', key: 'commentaire', width: 50 }
+      // Définir et ajouter explicitement les en-têtes
+      const mataHeaders = [
+        'Date',
+        'Numéro de téléphone', 
+        'Nom',
+        'Adresse source',
+        'Adresse destination',
+        'Montant commande (FCFA)',
+        'Livreur',
+        'Commentaire',
+        'Service livraison',
+        'Qualité produits', 
+        'Niveau prix',
+        'Note moyenne'
       ];
-
+      
+      const headerRow = worksheet.addRow(mataHeaders);
+      
       // Styliser l'en-tête
-      const headerRow = worksheet.getRow(3);
-      headerRow.font = { bold: true };
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       headerRow.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFF0F0F0' }
+        fgColor: { argb: 'FF009E60' }
       };
+
+      // Définir les largeurs des colonnes
+      worksheet.columns = [
+        { width: 12 },  // Date
+        { width: 18 },  // Numéro de téléphone
+        { width: 25 },  // Nom
+        { width: 30 },  // Adresse source
+        { width: 30 },  // Adresse destination
+        { width: 20 },  // Montant commande (FCFA)
+        { width: 15 },  // Livreur
+        { width: 50 },  // Commentaire
+        { width: 15 },  // Service livraison
+        { width: 15 },  // Qualité produits
+        { width: 15 },  // Niveau prix
+        { width: 15 }   // Note moyenne
+      ];
 
       // Ajouter les données
       mataOrders.forEach(order => {
-        worksheet.addRow({
-          date: new Date(order.date).toLocaleDateString('fr-FR'),
-          phone_number: order.phone_number,
-          client_name: order.client_name,
-          adresse_source: order.adresse_source || '',
-          adresse_destination: order.adresse_destination || '',
-          montant_commande: order.montant_commande || 0,
-          livreur: order.livreur,
-          commentaire: order.commentaire || ''
-        });
+        // Calculer la note moyenne avec traitement sécurisé des valeurs
+        const serviceRating = (order.service_rating !== null && order.service_rating !== undefined && order.service_rating !== '') ? parseFloat(order.service_rating) : null;
+        const qualityRating = (order.quality_rating !== null && order.quality_rating !== undefined && order.quality_rating !== '') ? parseFloat(order.quality_rating) : null;
+        const priceRating = (order.price_rating !== null && order.price_rating !== undefined && order.price_rating !== '') ? parseFloat(order.price_rating) : null;
+        
+        let averageRating = 'NA';
+        if (serviceRating !== null && qualityRating !== null && priceRating !== null && 
+            !isNaN(serviceRating) && !isNaN(qualityRating) && !isNaN(priceRating)) {
+          averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+        }
+        
+        worksheet.addRow([
+          new Date(order.date).toLocaleDateString('fr-FR'),
+          order.phone_number,
+          order.client_name,
+          order.adresse_source || '',
+          order.adresse_destination || '',
+          order.montant_commande || 0,
+          order.livreur,
+          order.commentaire || '',
+          serviceRating !== null ? serviceRating + '/10' : 'NA',
+          qualityRating !== null ? qualityRating + '/10' : 'NA',
+          priceRating !== null ? priceRating + '/10' : 'NA',
+          averageRating !== 'NA' ? averageRating + '/10' : averageRating
+        ]);
       });
 
       // Ajouter des bordures
@@ -1203,16 +1341,20 @@ class OrderController {
 
       // Ajouter une ligne de total
       const totalMontant = mataOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
-      const totalRow = worksheet.addRow({
-        date: '',
-        phone_number: '',
-        client_name: '',
-        adresse_source: 'TOTAL',
-        adresse_destination: '',
-        montant_commande: totalMontant,
-        livreur: `${mataOrders.length} commandes`,
-        commentaire: ''
-      });
+      const totalRow = worksheet.addRow([
+        '',                              // Date
+        '',                              // Numéro de téléphone
+        '',                              // Nom
+        'TOTAL',                         // Adresse source
+        '',                              // Adresse destination
+        totalMontant,                    // Montant commande
+        `${mataOrders.length} commandes`, // Livreur
+        '',                              // Commentaire
+        '',                              // Service livraison
+        '',                              // Qualité produits
+        '',                              // Niveau prix
+        ''                               // Note moyenne
+      ]);
       
       totalRow.font = { bold: true };
       totalRow.fill = {

@@ -258,7 +258,7 @@
             <div class="page-header">
                 <h2>Tableau de bord mensuel MATA</h2>
                 <div class="page-actions">
-                    <button id="export-mata-monthly-excel" class="btn btn-primary btn-sm">
+                    <button id="export-mata-monthly-excel" class="btn btn-primary btn-sm hidden">
                         <span class="icon">📊</span>
                         Export Excel
                     </button>
@@ -303,7 +303,13 @@
                 </div>
                 
                 <div class="mata-orders-section">
-                    <h3>Détail des commandes MATA</h3>
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Détail des commandes MATA</h3>
+                        <button id="export-mata-monthly-excel-table" class="btn btn-primary btn-sm">
+                            <span class="icon">📊</span>
+                            Old Export Excel
+                        </button>
+                    </div>
                     <div id="mata-orders-table-container">
                         <!-- Le tableau des commandes MATA sera chargé ici -->
                     </div>
@@ -387,6 +393,44 @@
                     <input type="number" id="course-price" name="course_price" step="0.01" min="0" 
                            value="1500">
                 </div>
+                
+                <!-- Nouveau groupe pour le supplément MLC -->
+                <div class="form-group" id="supplement-toggle-group" style="display: none;">
+                    <label for="add-supplement">Ajouter supplément</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="add-supplement" name="add_supplement">
+                        <label for="add-supplement"></label>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="supplement-options-group" style="display: none;">
+                    <label>Montant du supplément (FCFA)</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="supplement-500" name="supplement_amount" value="500">
+                            <label for="supplement-500">500 FCFA</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="supplement-1000" name="supplement_amount" value="1000">
+                            <label for="supplement-1000">1000 FCFA</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="supplement-1500" name="supplement_amount" value="1500">
+                            <label for="supplement-1500">1500 FCFA</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="supplement-other" name="supplement_amount" value="other">
+                            <label for="supplement-other">Autre</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="supplement-custom-group" style="display: none;">
+                    <label for="supplement-custom-amount">Montant personnalisé (FCFA)</label>
+                    <input type="number" id="supplement-custom-amount" name="supplement_custom_amount" 
+                           step="0.01" min="0" placeholder="Entrer le montant">
+                </div>
+                
                 <div class="form-group" id="amount-group" style="display: none;">
                     <label for="amount">Montant du panier (FCFA)</label>
                     <input type="number" id="amount" name="amount" step="0.01" min="0" 

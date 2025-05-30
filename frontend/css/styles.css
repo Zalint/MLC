@@ -1945,4 +1945,212 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Radio Group Styles - Modern Design */
+.radio-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.radio-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border: 2px solid transparent;
+  border-radius: 25px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  min-width: auto;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  user-select: none;
+}
+
+.radio-option:hover {
+  background: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  transform: translateY(-1px);
+}
+
+.radio-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-option label {
+  margin: 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #64748b;
+  transition: color 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-option label::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: white;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.radio-option input[type="radio"]:checked + label {
+  color: #1e293b;
+}
+
+.radio-option input[type="radio"]:checked + label::before {
+  background: #2563eb;
+  border-color: #2563eb;
+  box-shadow: inset 0 0 0 3px white;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #2563eb;
+  color: white;
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+  transform: translateY(-2px);
+}
+
+.radio-option:has(input[type="radio"]:checked) label {
+  color: white;
+}
+
+.radio-option:has(input[type="radio"]:checked) label::before {
+  background: white;
+  border-color: white;
+  box-shadow: inset 0 0 0 3px #2563eb;
+}
+
+/* Responsive pour mobile iPhone/Android */
+@media (max-width: 768px) {
+  .radio-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  
+  .radio-option {
+    padding: 16px 20px;
+    justify-content: center;
+    text-align: center;
+    min-height: 56px;
+    border-radius: 16px;
+  }
+  
+  .radio-option label {
+    font-size: 1rem;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .radio-group {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .radio-option {
+    padding: 18px 24px;
+    min-height: 60px;
+    border-radius: 14px;
+  }
+  
+  .radio-option label {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  
+  .radio-option label::before {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Animation pour l'apparition */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.radio-group {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Force l'affichage du bouton export MATA */
+#export-mata-monthly-excel {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1000;
+}
+
+.page-actions {
+    display: flex !important;
+    gap: 8px;
+    align-items: center;
+}
+
+#mata-monthly-dashboard-page .page-actions {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+/* Bouton export au-dessus du tableau MATA */
+#export-mata-monthly-excel-table {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: #009E60;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#export-mata-monthly-excel-table:hover {
+    background-color: #008055;
+}
+
+.section-header {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
 } 

@@ -350,6 +350,16 @@ class ApiClient {
     window.open(url, '_blank');
   }
 
+  static async updateMataOrderRating(orderId, ratingType, ratingValue) {
+    return this.request(`/orders/${orderId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        ratingType, 
+        ratingValue 
+      })
+    });
+  }
+
   // Users endpoints
   static async getUsers() {
     return this.request('/users');
@@ -1451,6 +1461,21 @@ class MataMonthlyDashboardManager {
       return;
     }
 
+    // Debug: log des données reçues
+    console.log('🔍 Debug orders data:', orders.slice(0, 2)); // Log des 2 premières commandes
+    if (orders.length > 0) {
+      console.log('🔍 Debug first order ratings:', {
+        service_rating: orders[0].service_rating,
+        quality_rating: orders[0].quality_rating,
+        price_rating: orders[0].price_rating,
+        types: {
+          service: typeof orders[0].service_rating,
+          quality: typeof orders[0].quality_rating,
+          price: typeof orders[0].price_rating
+        }
+      });
+    }
+
     // Créer le tableau avec les colonnes demandées
     const table = `
       <div class="mata-table-container">
@@ -1465,11 +1490,37 @@ class MataMonthlyDashboardManager {
               <th>Montant commande (FCFA)</th>
               <th>Livreur</th>
               <th>Commentaire</th>
+              <th>Service livraison</th>
+              <th>Qualité produits</th>
+              <th>Niveau prix</th>
+              <th>Note moyenne</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${orders.map(order => `
+            ${orders.map(order => {
+              // Calculer la note moyenne avec traitement sécurisé des valeurs
+              const serviceRating = (order.service_rating !== null && order.service_rating !== undefined && order.service_rating !== '') ? parseFloat(order.service_rating) : null;
+              const qualityRating = (order.quality_rating !== null && order.quality_rating !== undefined && order.quality_rating !== '') ? parseFloat(order.quality_rating) : null;
+              const priceRating = (order.price_rating !== null && order.price_rating !== undefined && order.price_rating !== '') ? parseFloat(order.price_rating) : null;
+              
+              // Debug spécifique pour cette commande
+              if (order.service_rating || order.quality_rating || order.price_rating) {
+                console.log(`🔍 Order ${order.id} ratings:`, {
+                  raw: { service: order.service_rating, quality: order.quality_rating, price: order.price_rating },
+                  parsed: { service: serviceRating, quality: qualityRating, price: priceRating }
+                });
+              }
+              
+              let averageRating = 'NA';
+              if (serviceRating !== null && qualityRating !== null && priceRating !== null && 
+                  !isNaN(serviceRating) && !isNaN(qualityRating) && !isNaN(priceRating)) {
+                const calculated = ((serviceRating + qualityRating + priceRating) / 3);
+                averageRating = calculated.toFixed(1);
+                console.log(`🔍 Order ${order.id} average calculation: ${serviceRating} + ${qualityRating} + ${priceRating} / 3 = ${calculated} → ${averageRating}`);
+              }
+              
+              return `
               <tr data-order-id="${order.id}">
                 <td>${new Date(order.date).toLocaleDateString('fr-FR')}</td>
                 <td>${Utils.escapeHtml(order.phone_number)}</td>
@@ -1486,22 +1537,75 @@ class MataMonthlyDashboardManager {
                     <textarea class="comment-edit hidden" rows="2" placeholder="Ajouter un commentaire...">${order.commentaire || ''}</textarea>
                   </div>
                 </td>
+                <td class="rating-cell">
+                  <div class="rating-display">
+                    <span class="rating-value" ${serviceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
+                      ${serviceRating !== null ? serviceRating + '/10' : 'NA'}
+                    </span>
+                    <button class="btn-edit-rating" data-type="service" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                  </div>
+                  <div class="rating-edit-group hidden">
+                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${serviceRating || ''}" data-type="service">
+                    <div class="rating-buttons">
+                      <button class="btn btn-xs btn-success save-rating-btn" data-type="service" data-order-id="${order.id}">✓</button>
+                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="service" data-order-id="${order.id}">✗</button>
+                    </div>
+                  </div>
+                </td>
+                <td class="rating-cell">
+                  <div class="rating-display">
+                    <span class="rating-value" ${qualityRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
+                      ${qualityRating !== null ? qualityRating + '/10' : 'NA'}
+                    </span>
+                    <button class="btn-edit-rating" data-type="quality" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                  </div>
+                  <div class="rating-edit-group hidden">
+                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${qualityRating || ''}" data-type="quality">
+                    <div class="rating-buttons">
+                      <button class="btn btn-xs btn-success save-rating-btn" data-type="quality" data-order-id="${order.id}">✓</button>
+                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="quality" data-order-id="${order.id}">✗</button>
+                    </div>
+                  </div>
+                </td>
+                <td class="rating-cell">
+                  <div class="rating-display">
+                    <span class="rating-value" ${priceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
+                      ${priceRating !== null ? priceRating + '/10' : 'NA'}
+                    </span>
+                    <button class="btn-edit-rating" data-type="price" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                  </div>
+                  <div class="rating-edit-group hidden">
+                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${priceRating || ''}" data-type="price">
+                    <div class="rating-buttons">
+                      <button class="btn btn-xs btn-success save-rating-btn" data-type="price" data-order-id="${order.id}">✓</button>
+                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="price" data-order-id="${order.id}">✗</button>
+                    </div>
+                  </div>
+                </td>
+                <td class="average-rating-cell">
+                  <span class="average-rating ${averageRating !== 'NA' ? (averageRating >= 7 ? 'good' : averageRating >= 5 ? 'average' : 'poor') : ''}">
+                    ${averageRating}${averageRating !== 'NA' ? '/10' : ''}
+                  </span>
+                </td>
                 <td>
-                  <button class="btn btn-sm btn-secondary edit-comment-btn" data-order-id="${order.id}">
-                    <span class="icon">✏️</span>
-                    Modifier
-                  </button>
-                  <button class="btn btn-sm btn-success save-comment-btn hidden" data-order-id="${order.id}">
-                    <span class="icon">💾</span>
-                    Sauver
-                  </button>
-                  <button class="btn btn-sm btn-secondary cancel-comment-btn hidden" data-order-id="${order.id}">
-                    <span class="icon">❌</span>
-                    Annuler
-                  </button>
+                  <div class="action-buttons">
+                    <button class="btn btn-sm btn-secondary edit-comment-btn" data-order-id="${order.id}">
+                      <span class="icon">✏️</span>
+                      Modifier
+                    </button>
+                    <button class="btn btn-sm btn-success save-comment-btn hidden" data-order-id="${order.id}">
+                      <span class="icon">💾</span>
+                      Sauver
+                    </button>
+                    <button class="btn btn-sm btn-secondary cancel-comment-btn hidden" data-order-id="${order.id}">
+                      <span class="icon">❌</span>
+                      Annuler
+                    </button>
+                  </div>
                 </td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -1561,21 +1665,106 @@ class MataMonthlyDashboardManager {
           border-radius: 4px;
           padding: 4px;
         }
+        .rating-cell {
+          min-width: 100px;
+          text-align: center;
+        }
+        .rating-display {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+        .rating-value {
+          font-weight: 600;
+          min-width: 40px;
+        }
+        .btn-edit-rating {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-size: 12px;
+          opacity: 0.7;
+          transition: opacity 0.2s;
+        }
+        .btn-edit-rating:hover {
+          opacity: 1;
+          background-color: #f0f0f0;
+        }
+        .rating-edit {
+          width: 60px;
+          padding: 4px;
+          border: 1px solid #2563eb;
+          border-radius: 4px;
+          text-align: center;
+        }
+        .rating-edit-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: center;
+        }
+        .rating-buttons {
+          display: flex;
+          gap: 4px;
+        }
+        .btn-xs {
+          padding: 2px 6px;
+          font-size: 10px;
+          min-width: 20px;
+          height: 24px;
+        }
+        .average-rating-cell {
+          text-align: center;
+          font-weight: bold;
+        }
+        .average-rating.good {
+          color: #16a34a;
+          background-color: #dcfce7;
+          padding: 4px 8px;
+          border-radius: 12px;
+        }
+        .average-rating.average {
+          color: #ca8a04;
+          background-color: #fef3c7;
+          padding: 4px 8px;
+          border-radius: 12px;
+        }
+        .average-rating.poor {
+          color: #dc2626;
+          background-color: #fee2e2;
+          padding: 4px 8px;
+          border-radius: 12px;
+        }
+        .action-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 120px;
+        }
         .mata-orders-table td:nth-child(1) { min-width: 80px; }
         .mata-orders-table td:nth-child(2) { min-width: 120px; }
         .mata-orders-table td:nth-child(3) { min-width: 150px; }
         .mata-orders-table td:nth-child(4) { min-width: 200px; }
-        .mata-orders-table td:nth-child(5) { min-width: 120px; text-align: right; }
-        .mata-orders-table td:nth-child(6) { min-width: 100px; }
-        .mata-orders-table td:nth-child(7) { min-width: 200px; }
-        .mata-orders-table td:nth-child(8) { min-width: 150px; }
+        .mata-orders-table td:nth-child(5) { min-width: 200px; }
+        .mata-orders-table td:nth-child(6) { min-width: 120px; text-align: right; }
+        .mata-orders-table td:nth-child(7) { min-width: 100px; }
+        .mata-orders-table td:nth-child(8) { min-width: 200px; }
+        .mata-orders-table td:nth-child(9) { min-width: 100px; }
+        .mata-orders-table td:nth-child(10) { min-width: 100px; }
+        .mata-orders-table td:nth-child(11) { min-width: 100px; }
+        .mata-orders-table td:nth-child(12) { min-width: 100px; }
+        .mata-orders-table td:nth-child(13) { min-width: 150px; }
       </style>
     `;
 
     container.innerHTML = table;
     
-    // Ajouter les event listeners pour l'édition des commentaires
+    // Ajouter les event listeners pour l'édition des commentaires et des notes
     this.setupCommentEditListeners();
+    this.setupRatingEditListeners();
   }
 
   static setupCommentEditListeners() {
@@ -1679,6 +1868,155 @@ class MataMonthlyDashboardManager {
     commentEdit.value = originalComment;
   }
 
+  static setupRatingEditListeners() {
+    // Boutons "Modifier"
+    document.querySelectorAll('.btn-edit-rating').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const orderId = e.currentTarget.dataset.orderId;
+        const type = e.currentTarget.dataset.type;
+        this.startEditRating(orderId, type);
+      });
+    });
+
+    // Boutons "Sauver"
+    document.querySelectorAll('.save-rating-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const orderId = e.currentTarget.dataset.orderId;
+        const type = e.currentTarget.dataset.type;
+        await this.saveRating(orderId, type);
+      });
+    });
+
+    // Boutons "Annuler"
+    document.querySelectorAll('.cancel-rating-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const orderId = e.currentTarget.dataset.orderId;
+        const type = e.currentTarget.dataset.type;
+        this.cancelEditRating(orderId, type);
+      });
+    });
+  }
+
+  static startEditRating(orderId, type) {
+    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+    const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
+    const ratingDisplay = ratingCell.querySelector('.rating-display');
+    const ratingEditGroup = ratingCell.querySelector('.rating-edit-group');
+
+    // Masquer l'affichage et afficher l'édition
+    ratingDisplay.classList.add('hidden');
+    ratingEditGroup.classList.remove('hidden');
+
+    // Focus sur l'input
+    const ratingInput = ratingEditGroup.querySelector('.rating-edit');
+    ratingInput.focus();
+  }
+
+  static async saveRating(orderId, type) {
+    try {
+      const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+      const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
+      const ratingEdit = ratingCell.querySelector('.rating-edit');
+      const newRating = parseFloat(ratingEdit.value);
+
+      // Validation
+      if (ratingEdit.value !== '' && (isNaN(newRating) || newRating < 0 || newRating > 10)) {
+        ToastManager.error('La note doit être entre 0 et 10');
+        return;
+      }
+
+      // Sauvegarder via l'API
+      await ApiClient.updateMataOrderRating(orderId, type, ratingEdit.value === '' ? null : newRating);
+
+      // Mettre à jour l'affichage
+      const ratingValue = ratingCell.querySelector('.rating-value');
+      if (ratingEdit.value !== '') {
+        ratingValue.textContent = newRating + '/10';
+        ratingValue.style.color = '';
+        ratingValue.style.fontStyle = '';
+      } else {
+        ratingValue.textContent = 'NA';
+        ratingValue.style.color = '#999';
+        ratingValue.style.fontStyle = 'italic';
+      }
+
+      // Recalculer et mettre à jour la note moyenne
+      this.updateAverageRating(orderId);
+
+      // Revenir au mode affichage
+      this.cancelEditRating(orderId, type);
+
+      ToastManager.success('Note mise à jour avec succès');
+
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la note:', error);
+      ToastManager.error('Erreur lors de la sauvegarde de la note');
+    }
+  }
+
+  static cancelEditRating(orderId, type) {
+    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+    const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
+    const ratingDisplay = ratingCell.querySelector('.rating-display');
+    const ratingEditGroup = ratingCell.querySelector('.rating-edit-group');
+
+    // Afficher l'affichage et masquer l'édition
+    ratingDisplay.classList.remove('hidden');
+    ratingEditGroup.classList.add('hidden');
+
+    // Restaurer la valeur originale dans l'input
+    const ratingValue = ratingCell.querySelector('.rating-value');
+    const ratingEdit = ratingCell.querySelector('.rating-edit');
+    const originalValue = ratingValue.textContent === 'NA' ? '' : ratingValue.textContent.replace('/10', '');
+    ratingEdit.value = originalValue;
+  }
+
+  static updateAverageRating(orderId) {
+    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+    const ratingCells = row.querySelectorAll('.rating-cell');
+    
+    let serviceRating = null;
+    let qualityRating = null;
+    let priceRating = null;
+
+    // Récupérer les valeurs actuelles avec traitement sécurisé
+    ratingCells.forEach(cell => {
+      const btn = cell.querySelector('.btn-edit-rating');
+      if (btn) {
+        const type = btn.dataset.type;
+        const value = cell.querySelector('.rating-value').textContent;
+        if (value !== 'NA' && value.trim() !== '') {
+          const numValue = parseFloat(value.replace('/10', ''));
+          if (!isNaN(numValue)) {
+            if (type === 'service') serviceRating = numValue;
+            else if (type === 'quality') qualityRating = numValue;
+            else if (type === 'price') priceRating = numValue;
+          }
+        }
+      }
+    });
+
+    // Calculer la moyenne
+    let averageRating = 'NA';
+    if (serviceRating !== null && qualityRating !== null && priceRating !== null) {
+      averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+    }
+
+    // Mettre à jour l'affichage de la moyenne
+    const averageCell = row.querySelector('.average-rating-cell');
+    const averageSpan = averageCell.querySelector('.average-rating');
+    
+    averageSpan.textContent = averageRating + (averageRating !== 'NA' ? '/10' : '');
+    
+    // Mettre à jour la classe CSS pour la couleur
+    averageSpan.className = 'average-rating';
+    if (averageRating !== 'NA') {
+      if (averageRating >= 7) averageSpan.classList.add('good');
+      else if (averageRating >= 5) averageSpan.classList.add('average');
+      else averageSpan.classList.add('poor');
+    }
+  }
+
   static setupEventListeners() {
     // Gestionnaire pour le changement de mois
     const monthInput = document.getElementById('mata-monthly-date-filter');
@@ -1700,6 +2038,17 @@ class MataMonthlyDashboardManager {
     const exportBtn = document.getElementById('export-mata-monthly-excel');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
+        const monthInput = document.getElementById('mata-monthly-date-filter');
+        const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
+        ApiClient.exportMataMonthlyToExcel(selectedMonth);
+        ToastManager.success('Export Excel MATA en cours...');
+      });
+    }
+
+    // Gestionnaire pour l'export Excel MATA mensuel (bouton au-dessus du tableau)
+    const exportTableBtn = document.getElementById('export-mata-monthly-excel-table');
+    if (exportTableBtn) {
+      exportTableBtn.addEventListener('click', () => {
         const monthInput = document.getElementById('mata-monthly-date-filter');
         const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
         ApiClient.exportMataMonthlyToExcel(selectedMonth);
@@ -3703,7 +4052,16 @@ class App {
       const amountGroup = document.getElementById('amount-group');
       const subscriptionToggleGroup = document.getElementById('subscription-toggle-group');
       const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
       const coursePriceInput = document.getElementById('course-price');
+      
+      // Réinitialiser les suppléments
+      document.getElementById('add-supplement').checked = false;
+      supplementToggleGroup.style.display = 'none';
+      supplementOptionsGroup.style.display = 'none';
+      supplementCustomGroup.style.display = 'none';
       
       if (orderType === 'MATA') {
         coursePriceGroup.style.display = 'block';
@@ -3732,10 +4090,14 @@ class App {
     document.getElementById('use-subscription').addEventListener('change', async (e) => {
       const useSubscription = e.target.checked;
       const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
       const coursePriceInput = document.getElementById('course-price');
       
       if (useSubscription) {
         subscriptionSelectGroup.style.display = 'block';
+        supplementToggleGroup.style.display = 'block';
         coursePriceInput.value = '1500';
         coursePriceInput.readOnly = true;
         
@@ -3762,9 +4124,49 @@ class App {
         }
       } else {
         subscriptionSelectGroup.style.display = 'none';
+        supplementToggleGroup.style.display = 'none';
+        supplementOptionsGroup.style.display = 'none';
+        supplementCustomGroup.style.display = 'none';
+        document.getElementById('add-supplement').checked = false;
         coursePriceInput.value = '';
         coursePriceInput.readOnly = false;
       }
+    });
+    
+    // Gestion du toggle de supplément
+    document.getElementById('add-supplement').addEventListener('change', (e) => {
+      const addSupplement = e.target.checked;
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      
+      if (addSupplement) {
+        supplementOptionsGroup.style.display = 'block';
+      } else {
+        supplementOptionsGroup.style.display = 'none';
+        supplementCustomGroup.style.display = 'none';
+        // Décocher tous les boutons radio
+        document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
+          radio.checked = false;
+        });
+        document.getElementById('supplement-custom-amount').value = '';
+      }
+    });
+    
+    // Gestion des boutons radio de supplément
+    document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const supplementCustomGroup = document.getElementById('supplement-custom-group');
+        const supplementCustomAmount = document.getElementById('supplement-custom-amount');
+        
+        if (e.target.value === 'other') {
+          supplementCustomGroup.style.display = 'block';
+          supplementCustomAmount.required = true;
+        } else {
+          supplementCustomGroup.style.display = 'none';
+          supplementCustomAmount.required = false;
+          supplementCustomAmount.value = '';
+        }
+      });
     });
 
     // Gestion de la sélection d'un abonnement
@@ -3799,6 +4201,26 @@ class App {
         orderData.amount = parseFloat(orderData.amount);
       }
       
+      // Traitement des données de supplément pour MLC avec abonnement
+      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.add_supplement === 'on') {
+        let supplementAmount = 0;
+        
+        if (orderData.supplement_amount === 'other') {
+          supplementAmount = parseFloat(orderData.supplement_custom_amount) || 0;
+        } else if (orderData.supplement_amount) {
+          supplementAmount = parseFloat(orderData.supplement_amount);
+        }
+        
+        if (supplementAmount > 0) {
+          orderData.supplement_amount = supplementAmount;
+          // Ajouter le supplément au prix de la course
+          orderData.course_price = (orderData.course_price || 0) + supplementAmount;
+        }
+        
+        // Nettoyer les champs non nécessaires
+        delete orderData.supplement_custom_amount;
+      }
+      
       // Pour MLC avec abonnement, utiliser la route spéciale
       if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
         try {
@@ -3806,6 +4228,10 @@ class App {
           if (response.success) {
             ToastManager.success('Commande créée avec succès');
             document.getElementById('new-order-form').reset();
+            // Réinitialiser les groupes de supplément
+            document.getElementById('supplement-toggle-group').style.display = 'none';
+            document.getElementById('supplement-options-group').style.display = 'none';
+            document.getElementById('supplement-custom-group').style.display = 'none';
             await OrderManager.loadLastUserOrders();
           } else {
             ToastManager.error(response.message || 'Erreur lors de la création de la commande');

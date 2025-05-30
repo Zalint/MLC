@@ -17,6 +17,8 @@ const userRoutes = require('./routes/users');
 const orderRoutes = require('./routes/orders');
 const expenseRoutes = require('./routes/expenses');
 const subscriptionRoutes = require('./routes/subscriptions');
+const analyticsRoutes = require('./routes/analytics');
+const salariesRoutes = require('./routes/salaries');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -88,6 +90,8 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/salaries', salariesRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 
