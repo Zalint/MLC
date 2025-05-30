@@ -3,7 +3,7 @@ const API_BASE_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:4000/api/v1'
   : 'https://matix-livreur-backend.onrender.com/api/v1';
 
-// État global de l'application
+// ├ëtat global de l'application
 const AppState = {
   user: null,
   currentPage: 'login',
@@ -38,9 +38,9 @@ class Utils {
     }).format(amount) + ' FCFA';
   }
 
-  // Valider un numéro de téléphone français
+  // Valider un num├⌐ro de t├⌐l├⌐phone fran├ºais
   static validatePhoneNumber(phone) {
-    // Accepter tous les formats numériques (avec ou sans espaces, tirets, parenthèses)
+    // Accepter tous les formats num├⌐riques (avec ou sans espaces, tirets, parenth├¿ses)
     // Exemples: 773929671, 002211234678855411, +33123456789, 0033 1 23 45 67 89
     const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
     const phoneRegex = /^\d{6,20}$/; // Entre 6 et 20 chiffres
@@ -134,7 +134,7 @@ class ModalManager {
     modalTitle.textContent = title;
     modalContent.innerHTML = content;
     
-    // Ajouter la classe large si spécifiée
+    // Ajouter la classe large si sp├⌐cifi├⌐e
     if (options.large) {
       modal.classList.add('large');
     } else {
@@ -350,16 +350,6 @@ class ApiClient {
     window.open(url, '_blank');
   }
 
-  static async updateMataOrderRating(orderId, ratingType, ratingValue) {
-    return this.request(`/orders/${orderId}/rating`, {
-      method: 'PUT',
-      body: JSON.stringify({ 
-        ratingType, 
-        ratingValue 
-      })
-    });
-  }
-
   // Users endpoints
   static async getUsers() {
     return this.request('/users');
@@ -497,71 +487,6 @@ class ApiClient {
   static async getActiveSubscriptions() {
     return this.request('/subscriptions/active');
   }
-
-  // Analytics endpoints
-  static async getAnalyticsGlobal(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/global?${queryString}`);
-  }
-
-  static async getAnalyticsByType(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/by-type?${queryString}`);
-  }
-
-  static async getAnalyticsRanking(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/ranking?${queryString}`);
-  }
-
-  static async getAnalyticsLivreurDetails(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/livreur-details?${queryString}`);
-  }
-
-  static async getAnalyticsComparison(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/compare?${queryString}`);
-  }
-
-  static async getScoreWeights() {
-    return this.request('/analytics/score-weights');
-  }
-
-  static async updateScoreWeights(weights) {
-    return this.request('/analytics/score-weights', {
-      method: 'PUT',
-      body: JSON.stringify(weights)
-    });
-  }
-
-  // Salaries endpoints
-  static async getSalaries(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/salaries?${queryString}`);
-  }
-
-  static async getCurrentSalaries() {
-    return this.request('/salaries/current');
-  }
-
-  static async createSalary(salaryData) {
-    return this.request('/salaries', {
-      method: 'POST',
-      body: JSON.stringify(salaryData)
-    });
-  }
-
-  static async updateSalary(id, salaryData) {
-    return this.request(`/salaries/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(salaryData)
-    });
-  }
-
-  static async deleteSalary(id) {
-    return this.request(`/salaries/${id}`, { method: 'DELETE' });
-  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
@@ -572,14 +497,14 @@ class PageManager {
       page.classList.remove('active');
     });
 
-    // Afficher la page demandée
+    // Afficher la page demand├⌐e
     const targetPage = document.getElementById(`${pageId}-page`);
     if (targetPage) {
       targetPage.classList.add('active');
       AppState.currentPage = pageId;
     }
 
-    // Mettre à jour la navigation
+    // Mettre ├á jour la navigation
     document.querySelectorAll('.nav-item').forEach(item => {
       item.classList.remove('active');
     });
@@ -589,7 +514,7 @@ class PageManager {
       activeNavItem.classList.add('active');
     }
 
-    // Charger les données de la page
+    // Charger les donn├⌐es de la page
     this.loadPageData(pageId);
   }
 
@@ -613,7 +538,7 @@ class PageManager {
             livreurGroup.style.display = 'block';
             // Charger la liste des livreurs actifs
             const select = document.getElementById('livreur-select');
-            select.innerHTML = '<option value="">Sélectionner un livreur</option>';
+            select.innerHTML = '<option value="">S├⌐lectionner un livreur</option>';
             try {
               const response = await ApiClient.getActiveLivreurs();
               (response.livreurs || []).forEach(livreur => {
@@ -642,11 +567,6 @@ class PageManager {
             await SubscriptionManager.loadSubscriptions();
           }
           break;
-        case 'analytics':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-            await AnalyticsManager.loadAnalytics();
-          }
-          break;
         case 'livreurs':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await LivreurManager.loadLivreurs();
@@ -658,7 +578,7 @@ class PageManager {
       }
     } catch (error) {
       console.error(`Erreur lors du chargement de la page ${pageId}:`, error);
-      ToastManager.error('Erreur lors du chargement des données');
+      ToastManager.error('Erreur lors du chargement des donn├⌐es');
     }
   }
 }
@@ -676,7 +596,7 @@ class AuthManager {
         this.showLoginUI();
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification d\'authentification:', error);
+      console.error('Erreur lors de la v├⌐rification d\'authentification:', error);
       this.showLoginUI();
     }
   }
@@ -684,14 +604,14 @@ class AuthManager {
   static async login(username, password) {
     try {
       // Clear any existing tokens first to prevent conflicts
-      console.log('🧹 Clearing any existing tokens before login...');
+      console.log('≡ƒº╣ Clearing any existing tokens before login...');
       ApiClient.setStoredToken(null);
       
       const response = await ApiClient.login(username, password);
       AppState.user = response.user;
       this.showAuthenticatedUI();
       PageManager.showPage('dashboard');
-      ToastManager.success('Connexion réussie');
+      ToastManager.success('Connexion r├⌐ussie');
     } catch (error) {
       throw error;
     }
@@ -702,10 +622,10 @@ class AuthManager {
       await ApiClient.logout();
       AppState.user = null;
       this.showLoginUI();
-      ToastManager.info('Déconnexion réussie');
+      ToastManager.info('D├⌐connexion r├⌐ussie');
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      // Forcer la déconnexion côté client même en cas d'erreur
+      console.error('Erreur lors de la d├⌐connexion:', error);
+      // Forcer la d├⌐connexion c├┤t├⌐ client m├¬me en cas d'erreur
       ApiClient.setStoredToken(null);
       AppState.user = null;
       this.showLoginUI();
@@ -723,7 +643,7 @@ class AuthManager {
   }
 
   static showAuthenticatedUI() {
-    console.log('🎯 Showing authenticated UI...');
+    console.log('≡ƒÄ» Showing authenticated UI...');
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('header').classList.remove('hidden');
     document.getElementById('navigation').classList.remove('hidden');
@@ -737,19 +657,18 @@ class AuthManager {
     navigation.style.left = '0';
     navigation.style.right = '0';
     navigation.style.zIndex = '999';
-    console.log('🎯 Navigation element:', navigation);
-    console.log('🎯 Navigation classes:', navigation.className);
+    console.log('≡ƒÄ» Navigation element:', navigation);
+    console.log('≡ƒÄ» Navigation classes:', navigation.className);
 
-    // Mettre à jour les informations utilisateur
+    // Mettre ├á jour les informations utilisateur
     document.getElementById('username').textContent = AppState.user.username;
     const roleElement = document.getElementById('user-role');
     roleElement.textContent = AppState.user.role;
     roleElement.className = `role-badge ${AppState.user.role}`;
 
-    // Afficher/masquer les éléments selon le rôle
+    // Afficher/masquer les ├⌐l├⌐ments selon le r├┤le
     const navUsers = document.getElementById('nav-users');
     const navSubscriptions = document.getElementById('nav-subscriptions');
-    const navAnalytics = document.getElementById('nav-analytics');
     const navLivreurs = document.getElementById('nav-livreurs');
     const navExpenses = document.getElementById('nav-expenses');
     const navMonthlyDashboard = document.getElementById('nav-monthly-dashboard');
@@ -767,18 +686,14 @@ class AuthManager {
         navSubscriptions.classList.remove('hidden');
         navSubscriptions.style.display = 'flex';
       }
-      if (navAnalytics) {
-        navAnalytics.classList.remove('hidden');
-        navAnalytics.style.display = 'flex';
-      }
       if (navLivreurs) {
         navLivreurs.classList.remove('hidden');
         navLivreurs.style.display = 'flex';
         navLivreurs.style.visibility = 'visible';
         navLivreurs.style.opacity = '1';
         // Force l'affichage du bouton Gestion livreurs pour les managers
-        console.log('🎯 Forçage affichage bouton Gestion livreurs pour manager/admin');
-        console.log('🎯 État du bouton navLivreurs:', {
+        console.log('≡ƒÄ» For├ºage affichage bouton Gestion livreurs pour manager/admin');
+        console.log('≡ƒÄ» ├ëtat du bouton navLivreurs:', {
           element: navLivreurs,
           classList: navLivreurs.className,
           style: navLivreurs.style.cssText,
@@ -801,7 +716,7 @@ class AuthManager {
       if (statLivreurs) statLivreurs.classList.remove('hidden');
       if (managerSummary) managerSummary.classList.remove('hidden');
       
-      // Vérification supplémentaire pour forcer l'affichage des éléments manager
+      // V├⌐rification suppl├⌐mentaire pour forcer l'affichage des ├⌐l├⌐ments manager
       setTimeout(() => {
         this.ensureManagerElementsVisible();
       }, 100);
@@ -813,10 +728,6 @@ class AuthManager {
       if (navSubscriptions) {
         navSubscriptions.classList.add('hidden');
         navSubscriptions.style.display = 'none';
-      }
-      if (navAnalytics) {
-        navAnalytics.classList.add('hidden');
-        navAnalytics.style.display = 'none';
       }
       if (navLivreurs) {
         navLivreurs.classList.add('hidden');
@@ -842,18 +753,18 @@ class AuthManager {
 
   static ensureManagerElementsVisible() {
     if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-      console.log('🎯 Vérification supplémentaire des éléments manager...');
+      console.log('≡ƒÄ» V├⌐rification suppl├⌐mentaire des ├⌐l├⌐ments manager...');
       
       const navLivreurs = document.getElementById('nav-livreurs');
       if (navLivreurs) {
-        // Force l'affichage avec toutes les méthodes possibles
+        // Force l'affichage avec toutes les m├⌐thodes possibles
         navLivreurs.classList.remove('hidden');
         navLivreurs.style.display = 'flex';
         navLivreurs.style.visibility = 'visible';
         navLivreurs.style.opacity = '1';
         navLivreurs.removeAttribute('hidden');
         
-        console.log('🎯 État final du bouton Gestion livreurs:', {
+        console.log('≡ƒÄ» ├ëtat final du bouton Gestion livreurs:', {
           classList: navLivreurs.className,
           style: navLivreurs.style.cssText,
           isVisible: navLivreurs.offsetWidth > 0 && navLivreurs.offsetHeight > 0,
@@ -861,11 +772,10 @@ class AuthManager {
         });
       }
       
-      // Vérifier aussi les autres éléments
+      // V├⌐rifier aussi les autres ├⌐l├⌐ments
       const elementsToCheck = [
         'nav-users',
         'nav-subscriptions',
-        'nav-analytics',
         'nav-expenses', 
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard'
@@ -897,7 +807,7 @@ class AuthManager {
           button.style.visibility = 'visible';
           button.style.opacity = '1';
           button.removeAttribute('hidden');
-          console.log(`🎯 Bouton ${id} forcé à s'afficher`);
+          console.log(`≡ƒÄ» Bouton ${id} forc├⌐ ├á s'afficher`);
         }
       });
     }
@@ -921,7 +831,7 @@ class DashboardManager {
         }
       }
 
-      // Charger les commandes pour la date sélectionnée (pour les cartes du haut)
+      // Charger les commandes pour la date s├⌐lectionn├⌐e (pour les cartes du haut)
       const ordersResponse = await ApiClient.getOrdersByDate(selectedDate);
       const orders = ordersResponse.orders || [];
 
@@ -929,7 +839,7 @@ class DashboardManager {
       const totalOrders = orders.length;
       const totalAmount = orders.reduce((sum, order) => sum + (parseFloat(order.course_price) || 0), 0);
 
-      // Mettre à jour les statistiques
+      // Mettre ├á jour les statistiques
       const totalOrdersElement = document.getElementById('total-orders-today');
       const totalAmountElement = document.getElementById('total-amount-today');
       const ordersTodayLabelElement = document.getElementById('orders-today-label'); // Assuming an ID for the label "Commandes aujourd'hui"
@@ -944,12 +854,12 @@ class DashboardManager {
       // Remove the subtitle display - cleaner interface
 
 
-      // Charger les dernières commandes (ceci reste indépendant de la date sélectionnée pour le moment)
-      // Si vous souhaitez que "Dernières commandes" dépende aussi de la date, il faudrait une nouvelle API ou modifier l'existante
+      // Charger les derni├¿res commandes (ceci reste ind├⌐pendant de la date s├⌐lectionn├⌐e pour le moment)
+      // Si vous souhaitez que "Derni├¿res commandes" d├⌐pende aussi de la date, il faudrait une nouvelle API ou modifier l'existante
       const recentOrdersResponse = await ApiClient.getLastUserOrders(5); // This usually means latest overall, not for a specific day
       this.displayRecentOrders(recentOrdersResponse.orders || []);
 
-      // Pour les managers/admins, charger le récapitulatif pour la date sélectionnée
+      // Pour les managers/admins, charger le r├⌐capitulatif pour la date s├⌐lectionn├⌐e
       const managerSummarySection = document.getElementById('manager-summary-section');
       const statDepensesCard = document.getElementById('stat-depenses');
       const statLivreursCard = document.getElementById('stat-livreurs');
@@ -966,7 +876,7 @@ class DashboardManager {
         const activeLivreursElement = document.getElementById('active-livreurs');
         if (activeLivreursElement) activeLivreursElement.textContent = activeLivreurs;
 
-        // Afficher les dépenses totales
+        // Afficher les d├⌐penses totales
         const totalExpensesElement = document.getElementById('total-expenses-today');
         if (totalExpensesElement) {
           totalExpensesElement.textContent = Utils.formatAmount(summaryResponse.total_depenses || 0);
@@ -988,7 +898,7 @@ class DashboardManager {
     const container = document.getElementById('recent-orders-list');
     
     if (orders.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune commande récente</p>';
+      container.innerHTML = '<p class="text-center">Aucune commande r├⌐cente</p>';
       return;
     }
 
@@ -997,11 +907,11 @@ class DashboardManager {
         <div class="order-header">
           <div class="order-title">${Utils.escapeHtml(order.client_name)}</div>
           <div class="order-meta">${Utils.formatDate(order.created_at)}
-            ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">🎫 Abonnement</span>' : ''}
+            ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">≡ƒÄ½ Abonnement</span>' : ''}
           </div>
         </div>
         <div class="order-details">
-          <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
+          <p><strong>T├⌐l├⌐phone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
           ${order.address ? `<p><strong>Adresse:</strong> ${Utils.escapeHtml(order.address)}</p>` : ''}
           <p><strong>Prix de la course:</strong> <span class="order-amount">${Utils.formatAmount(order.course_price)}</span></p>
           ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
@@ -1015,7 +925,7 @@ class DashboardManager {
     const container = document.getElementById('summary-table-container');
     
     if (summary.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune donnée disponible</p>';
+      container.innerHTML = '<p class="text-center">Aucune donn├⌐e disponible</p>';
       return;
     }
 
@@ -1027,9 +937,9 @@ class DashboardManager {
               <th>Livreur</th>
               <th>Commandes</th>
               <th>Courses</th>
-              <th>Dépenses</th>
+              <th>D├⌐penses</th>
               <th>Km parcourus</th>
-              <th>Détails</th>
+              <th>D├⌐tails</th>
             </tr>
           </thead>
           <tbody>
@@ -1045,9 +955,9 @@ class DashboardManager {
                     <button class="btn btn-sm btn-primary livreur-details-btn" 
                             data-livreur-id="${item.livreur_id}" 
                             data-livreur-name="${Utils.escapeHtml(item.livreur)}"
-                            title="Voir les détails des courses">
-                      <span class="icon">📋</span>
-                      Détails
+                            title="Voir les d├⌐tails des courses">
+                      <span class="icon">≡ƒôï</span>
+                      D├⌐tails
                     </button>
                   ` : 'Aucune commande'}
                 </td>
@@ -1058,7 +968,7 @@ class DashboardManager {
       </div>
     `;
 
-    // Ajouter les event listeners pour les boutons de détails
+    // Ajouter les event listeners pour les boutons de d├⌐tails
     this.setupDetailsEventListeners();
   }
 
@@ -1082,7 +992,7 @@ class DashboardManager {
       const content = `
         <div class="livreur-details">
           <div class="details-header">
-            <h4>Détails des courses - ${Utils.escapeHtml(livreurName)}</h4>
+            <h4>D├⌐tails des courses - ${Utils.escapeHtml(livreurName)}</h4>
             <p><strong>Date:</strong> ${Utils.formatDisplayDate(date)}</p>
             <div class="details-summary">
               <div class="summary-item">
@@ -1100,7 +1010,7 @@ class DashboardManager {
                 </div>
               ` : ''}
               <div class="summary-item total">
-                <span class="label">Total général:</span>
+                <span class="label">Total g├⌐n├⌐ral:</span>
                 <span class="value">${Utils.formatAmount(summary.total_general)}</span>
               </div>
             </div>
@@ -1109,7 +1019,7 @@ class DashboardManager {
           <div class="details-actions">
             <button id="export-livreur-details" class="btn btn-primary btn-sm" 
                     data-livreur-id="${livreurId}" data-date="${date}">
-              <span class="icon">📊</span>
+              <span class="icon">≡ƒôè</span>
               Exporter Excel
             </button>
           </div>
@@ -1121,7 +1031,7 @@ class DashboardManager {
                   <tr>
                     <th>Heure</th>
                     <th>Client</th>
-                    <th>Téléphone</th>
+                    <th>T├⌐l├⌐phone</th>
                     <th>Type</th>
                     <th>Prix course</th>
                     ${orders.some(o => o.amount) ? '<th>Montant panier</th>' : ''}
@@ -1142,12 +1052,12 @@ class DashboardManager {
                   `).join('')}
                 </tbody>
               </table>
-            ` : '<p class="text-center">Aucune commande trouvée pour cette date</p>'}
+            ` : '<p class="text-center">Aucune commande trouv├⌐e pour cette date</p>'}
           </div>
         </div>
       `;
 
-      ModalManager.show(`Détails des courses - ${livreurName}`, content, { large: true });
+      ModalManager.show(`D├⌐tails des courses - ${livreurName}`, content, { large: true });
 
       // Ajouter l'event listener pour l'export Excel
       document.getElementById('export-livreur-details')?.addEventListener('click', (e) => {
@@ -1158,8 +1068,8 @@ class DashboardManager {
       });
 
     } catch (error) {
-      console.error('Erreur lors du chargement des détails:', error);
-      ToastManager.error('Erreur lors du chargement des détails du livreur');
+      console.error('Erreur lors du chargement des d├⌐tails:', error);
+      ToastManager.error('Erreur lors du chargement des d├⌐tails du livreur');
     }
   }
 }
@@ -1170,47 +1080,47 @@ class MonthlyDashboardManager {
     try {
       AppState.isLoading = true;
       
-      // Obtenir le mois sélectionné ou le mois actuel
+      // Obtenir le mois s├⌐lectionn├⌐ ou le mois actuel
       const monthInput = document.getElementById('monthly-dashboard-date-filter');
       const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
       
-      // Mettre à jour le champ de date si nécessaire
+      // Mettre ├á jour le champ de date si n├⌐cessaire
       if (!monthInput.value) {
         monthInput.value = selectedMonth;
       }
 
-      // Charger les données mensuelles
+      // Charger les donn├⌐es mensuelles
       const response = await ApiClient.getMonthlyOrdersSummary(selectedMonth);
       
-      // Mettre à jour les statistiques
+      // Mettre ├á jour les statistiques
       this.updateMonthlyStats(response);
       
-      // Afficher le tableau détaillé par jour
+      // Afficher le tableau d├⌐taill├⌐ par jour
       this.displayMonthlyDetailedTable(response.dailyData, response.dailyExpenses, selectedMonth);
       
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord mensuel:', error);
-      ToastManager.error('Erreur lors du chargement des données mensuelles');
+      ToastManager.error('Erreur lors du chargement des donn├⌐es mensuelles');
     } finally {
       AppState.isLoading = false;
     }
   }
 
   static updateMonthlyStats(data) {
-    // Mettre à jour les cartes de statistiques
+    // Mettre ├á jour les cartes de statistiques
     document.getElementById('monthly-total-orders').textContent = data.total_commandes || 0;
     document.getElementById('monthly-total-amount').textContent = Utils.formatAmount(data.total_montant || 0);
     document.getElementById('monthly-total-expenses').textContent = Utils.formatAmount(data.total_depenses || 0);
     document.getElementById('monthly-active-livreurs').textContent = data.total_livreurs || 0;
 
-    // Mettre à jour le label avec le mois
+    // Mettre ├á jour le label avec le mois
     const monthInput = document.getElementById('monthly-dashboard-date-filter');
     const selectedMonth = monthInput.value;
     if (selectedMonth) {
       const [year, month] = selectedMonth.split('-');
       const monthNames = [
-        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        'Janvier', 'F├⌐vrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Ao├╗t', 'Septembre', 'Octobre', 'Novembre', 'D├⌐cembre'
       ];
       const monthName = monthNames[parseInt(month) - 1];
       document.getElementById('monthly-orders-label').textContent = `Commandes - ${monthName} ${year}`;
@@ -1221,7 +1131,7 @@ class MonthlyDashboardManager {
     const container = document.getElementById('monthly-summary-table-container');
     
     if (!dailyData || dailyData.length === 0) {
-      container.innerHTML = '<p class="no-data">Aucune donnée disponible pour ce mois.</p>';
+      container.innerHTML = '<p class="no-data">Aucune donn├⌐e disponible pour ce mois.</p>';
       return;
     }
 
@@ -1229,7 +1139,7 @@ class MonthlyDashboardManager {
     const livreurs = [...new Set(dailyData.map(item => item.livreur))].sort();
     const dates = [...new Set(dailyData.map(item => item.date))].sort();
 
-    // Créer des maps pour un accès rapide aux données
+    // Cr├⌐er des maps pour un acc├¿s rapide aux donn├⌐es
     const ordersMap = {};
     const expensesMap = {};
 
@@ -1243,22 +1153,22 @@ class MonthlyDashboardManager {
       expensesMap[key] = item;
     });
 
-    // Créer les en-têtes du tableau (structure verticale)
+    // Cr├⌐er les en-t├¬tes du tableau (structure verticale)
     const headers = `
       <th class="date-column">Date</th>
       <th class="livreur-column">Livreur</th>
       <th class="sub-header">Cmd</th>
       <th class="sub-header">Courses</th>
       <th class="sub-header">Carburant</th>
-      <th class="sub-header">Réparations</th>
+      <th class="sub-header">R├⌐parations</th>
       <th class="sub-header">Police</th>
       <th class="sub-header">Autres</th>
-      <th class="sub-header">Total Dép.</th>
+      <th class="sub-header">Total D├⌐p.</th>
       <th class="sub-header">Km</th>
-      <th class="sub-header">Bénéfice</th>
+      <th class="sub-header">B├⌐n├⌐fice</th>
     `;
 
-    // Créer les lignes de données (une ligne par date/livreur)
+    // Cr├⌐er les lignes de donn├⌐es (une ligne par date/livreur)
     let rows = '';
     dates.forEach(date => {
       const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
@@ -1294,7 +1204,7 @@ class MonthlyDashboardManager {
       });
     });
 
-    // Créer les lignes de totaux par livreur
+    // Cr├⌐er les lignes de totaux par livreur
     let totalRows = '';
     livreurs.forEach(livreur => {
       const livreurOrders = dailyData.filter(item => item.livreur === livreur);
@@ -1438,7 +1348,7 @@ class MonthlyDashboardManager {
           bottom: 0;
           z-index: 9;
         }
-        /* Améliorer la visibilité des bordures pour les colonnes fixes */
+        /* Am├⌐liorer la visibilit├⌐ des bordures pour les colonnes fixes */
         .date-cell {
           border-right: 2px solid #009E60;
         }
@@ -1489,19 +1399,19 @@ class MataMonthlyDashboardManager {
     try {
       AppState.isLoading = true;
       
-      // Obtenir le mois sélectionné ou le mois actuel
+      // Obtenir le mois s├⌐lectionn├⌐ ou le mois actuel
       const monthInput = document.getElementById('mata-monthly-date-filter');
       const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
       
-      // Mettre à jour le champ de date si nécessaire
+      // Mettre ├á jour le champ de date si n├⌐cessaire
       if (!monthInput.value) {
         monthInput.value = selectedMonth;
       }
 
-      // Charger les données MATA mensuelles
+      // Charger les donn├⌐es MATA mensuelles
       const response = await ApiClient.getMataMonthlyDashboard(selectedMonth);
       
-      // Mettre à jour les statistiques
+      // Mettre ├á jour les statistiques
       this.updateMataStats(response.statistics, selectedMonth);
       
       // Afficher le tableau des commandes MATA
@@ -1509,24 +1419,24 @@ class MataMonthlyDashboardManager {
       
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord MATA mensuel:', error);
-      ToastManager.error('Erreur lors du chargement des données MATA mensuelles');
+      ToastManager.error('Erreur lors du chargement des donn├⌐es MATA mensuelles');
     } finally {
       AppState.isLoading = false;
     }
   }
 
   static updateMataStats(statistics, month) {
-    // Mettre à jour les cartes de statistiques
+    // Mettre ├á jour les cartes de statistiques
     document.getElementById('mata-total-orders').textContent = statistics.total_commandes || 0;
     document.getElementById('mata-total-amount').textContent = Utils.formatAmount(statistics.total_montant || 0);
     document.getElementById('mata-active-livreurs').textContent = statistics.livreurs_actifs || 0;
 
-    // Mettre à jour le label avec le mois
+    // Mettre ├á jour le label avec le mois
     if (month) {
       const [year, monthNum] = month.split('-');
       const monthNames = [
-        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        'Janvier', 'F├⌐vrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Ao├╗t', 'Septembre', 'Octobre', 'Novembre', 'D├⌐cembre'
       ];
       const monthName = monthNames[parseInt(monthNum) - 1];
       document.getElementById('mata-orders-label').textContent = `Commandes MATA - ${monthName} ${year}`;
@@ -1537,70 +1447,29 @@ class MataMonthlyDashboardManager {
     const container = document.getElementById('mata-orders-table-container');
     
     if (!orders || orders.length === 0) {
-      container.innerHTML = '<p class="no-data">Aucune commande MATA trouvée pour ce mois.</p>';
+      container.innerHTML = '<p class="no-data">Aucune commande MATA trouv├⌐e pour ce mois.</p>';
       return;
     }
 
-    // Debug: log des données reçues
-    console.log('🔍 Debug orders data:', orders.slice(0, 2)); // Log des 2 premières commandes
-    if (orders.length > 0) {
-      console.log('🔍 Debug first order ratings:', {
-        service_rating: orders[0].service_rating,
-        quality_rating: orders[0].quality_rating,
-        price_rating: orders[0].price_rating,
-        types: {
-          service: typeof orders[0].service_rating,
-          quality: typeof orders[0].quality_rating,
-          price: typeof orders[0].price_rating
-        }
-      });
-    }
-
-    // Créer le tableau avec les colonnes demandées
+    // Cr├⌐er le tableau avec les colonnes demand├⌐es
     const table = `
       <div class="mata-table-container">
         <table class="mata-orders-table">
           <thead>
             <tr>
               <th>Date</th>
-              <th>Numéro de téléphone</th>
+              <th>Num├⌐ro de t├⌐l├⌐phone</th>
               <th>Nom</th>
               <th>Adresse source</th>
               <th>Adresse destination</th>
               <th>Montant commande (FCFA)</th>
               <th>Livreur</th>
               <th>Commentaire</th>
-              <th>Service livraison</th>
-              <th>Qualité produits</th>
-              <th>Niveau prix</th>
-              <th>Note moyenne</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${orders.map(order => {
-              // Calculer la note moyenne avec traitement sécurisé des valeurs
-              const serviceRating = (order.service_rating !== null && order.service_rating !== undefined && order.service_rating !== '') ? parseFloat(order.service_rating) : null;
-              const qualityRating = (order.quality_rating !== null && order.quality_rating !== undefined && order.quality_rating !== '') ? parseFloat(order.quality_rating) : null;
-              const priceRating = (order.price_rating !== null && order.price_rating !== undefined && order.price_rating !== '') ? parseFloat(order.price_rating) : null;
-              
-              // Debug spécifique pour cette commande
-              if (order.service_rating || order.quality_rating || order.price_rating) {
-                console.log(`🔍 Order ${order.id} ratings:`, {
-                  raw: { service: order.service_rating, quality: order.quality_rating, price: order.price_rating },
-                  parsed: { service: serviceRating, quality: qualityRating, price: priceRating }
-                });
-              }
-              
-              let averageRating = 'NA';
-              if (serviceRating !== null && qualityRating !== null && priceRating !== null && 
-                  !isNaN(serviceRating) && !isNaN(qualityRating) && !isNaN(priceRating)) {
-                const calculated = ((serviceRating + qualityRating + priceRating) / 3);
-                averageRating = calculated.toFixed(1);
-                console.log(`🔍 Order ${order.id} average calculation: ${serviceRating} + ${qualityRating} + ${priceRating} / 3 = ${calculated} → ${averageRating}`);
-              }
-              
-              return `
+            ${orders.map(order => `
               <tr data-order-id="${order.id}">
                 <td>${new Date(order.date).toLocaleDateString('fr-FR')}</td>
                 <td>${Utils.escapeHtml(order.phone_number)}</td>
@@ -1617,75 +1486,22 @@ class MataMonthlyDashboardManager {
                     <textarea class="comment-edit hidden" rows="2" placeholder="Ajouter un commentaire...">${order.commentaire || ''}</textarea>
                   </div>
                 </td>
-                <td class="rating-cell">
-                  <div class="rating-display">
-                    <span class="rating-value" ${serviceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
-                      ${serviceRating !== null ? serviceRating + '/10' : 'NA'}
-                    </span>
-                    <button class="btn-edit-rating" data-type="service" data-order-id="${order.id}" title="Modifier la note">✏️</button>
-                  </div>
-                  <div class="rating-edit-group hidden">
-                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${serviceRating || ''}" data-type="service">
-                    <div class="rating-buttons">
-                      <button class="btn btn-xs btn-success save-rating-btn" data-type="service" data-order-id="${order.id}">✓</button>
-                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="service" data-order-id="${order.id}">✗</button>
-                    </div>
-                  </div>
-                </td>
-                <td class="rating-cell">
-                  <div class="rating-display">
-                    <span class="rating-value" ${qualityRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
-                      ${qualityRating !== null ? qualityRating + '/10' : 'NA'}
-                    </span>
-                    <button class="btn-edit-rating" data-type="quality" data-order-id="${order.id}" title="Modifier la note">✏️</button>
-                  </div>
-                  <div class="rating-edit-group hidden">
-                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${qualityRating || ''}" data-type="quality">
-                    <div class="rating-buttons">
-                      <button class="btn btn-xs btn-success save-rating-btn" data-type="quality" data-order-id="${order.id}">✓</button>
-                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="quality" data-order-id="${order.id}">✗</button>
-                    </div>
-                  </div>
-                </td>
-                <td class="rating-cell">
-                  <div class="rating-display">
-                    <span class="rating-value" ${priceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
-                      ${priceRating !== null ? priceRating + '/10' : 'NA'}
-                    </span>
-                    <button class="btn-edit-rating" data-type="price" data-order-id="${order.id}" title="Modifier la note">✏️</button>
-                  </div>
-                  <div class="rating-edit-group hidden">
-                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${priceRating || ''}" data-type="price">
-                    <div class="rating-buttons">
-                      <button class="btn btn-xs btn-success save-rating-btn" data-type="price" data-order-id="${order.id}">✓</button>
-                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="price" data-order-id="${order.id}">✗</button>
-                    </div>
-                  </div>
-                </td>
-                <td class="average-rating-cell">
-                  <span class="average-rating ${averageRating !== 'NA' ? (averageRating >= 7 ? 'good' : averageRating >= 5 ? 'average' : 'poor') : ''}">
-                    ${averageRating}${averageRating !== 'NA' ? '/10' : ''}
-                  </span>
-                </td>
                 <td>
-                  <div class="action-buttons">
-                    <button class="btn btn-sm btn-secondary edit-comment-btn" data-order-id="${order.id}">
-                      <span class="icon">✏️</span>
-                      Modifier
-                    </button>
-                    <button class="btn btn-sm btn-success save-comment-btn hidden" data-order-id="${order.id}">
-                      <span class="icon">💾</span>
-                      Sauver
-                    </button>
-                    <button class="btn btn-sm btn-secondary cancel-comment-btn hidden" data-order-id="${order.id}">
-                      <span class="icon">❌</span>
-                      Annuler
-                    </button>
-                  </div>
+                  <button class="btn btn-sm btn-secondary edit-comment-btn" data-order-id="${order.id}">
+                    <span class="icon">Γ£Å∩╕Å</span>
+                    Modifier
+                  </button>
+                  <button class="btn btn-sm btn-success save-comment-btn hidden" data-order-id="${order.id}">
+                    <span class="icon">≡ƒÆ╛</span>
+                    Sauver
+                  </button>
+                  <button class="btn btn-sm btn-secondary cancel-comment-btn hidden" data-order-id="${order.id}">
+                    <span class="icon">Γ¥î</span>
+                    Annuler
+                  </button>
                 </td>
               </tr>
-            `;
-            }).join('')}
+            `).join('')}
           </tbody>
         </table>
       </div>
@@ -1745,106 +1561,21 @@ class MataMonthlyDashboardManager {
           border-radius: 4px;
           padding: 4px;
         }
-        .rating-cell {
-          min-width: 100px;
-          text-align: center;
-        }
-        .rating-display {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-        .rating-value {
-          font-weight: 600;
-          min-width: 40px;
-        }
-        .btn-edit-rating {
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 2px 4px;
-          border-radius: 3px;
-          font-size: 12px;
-          opacity: 0.7;
-          transition: opacity 0.2s;
-        }
-        .btn-edit-rating:hover {
-          opacity: 1;
-          background-color: #f0f0f0;
-        }
-        .rating-edit {
-          width: 60px;
-          padding: 4px;
-          border: 1px solid #2563eb;
-          border-radius: 4px;
-          text-align: center;
-        }
-        .rating-edit-group {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          align-items: center;
-        }
-        .rating-buttons {
-          display: flex;
-          gap: 4px;
-        }
-        .btn-xs {
-          padding: 2px 6px;
-          font-size: 10px;
-          min-width: 20px;
-          height: 24px;
-        }
-        .average-rating-cell {
-          text-align: center;
-          font-weight: bold;
-        }
-        .average-rating.good {
-          color: #16a34a;
-          background-color: #dcfce7;
-          padding: 4px 8px;
-          border-radius: 12px;
-        }
-        .average-rating.average {
-          color: #ca8a04;
-          background-color: #fef3c7;
-          padding: 4px 8px;
-          border-radius: 12px;
-        }
-        .average-rating.poor {
-          color: #dc2626;
-          background-color: #fee2e2;
-          padding: 4px 8px;
-          border-radius: 12px;
-        }
-        .action-buttons {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          min-width: 120px;
-        }
         .mata-orders-table td:nth-child(1) { min-width: 80px; }
         .mata-orders-table td:nth-child(2) { min-width: 120px; }
         .mata-orders-table td:nth-child(3) { min-width: 150px; }
         .mata-orders-table td:nth-child(4) { min-width: 200px; }
-        .mata-orders-table td:nth-child(5) { min-width: 200px; }
-        .mata-orders-table td:nth-child(6) { min-width: 120px; text-align: right; }
-        .mata-orders-table td:nth-child(7) { min-width: 100px; }
-        .mata-orders-table td:nth-child(8) { min-width: 200px; }
-        .mata-orders-table td:nth-child(9) { min-width: 100px; }
-        .mata-orders-table td:nth-child(10) { min-width: 100px; }
-        .mata-orders-table td:nth-child(11) { min-width: 100px; }
-        .mata-orders-table td:nth-child(12) { min-width: 100px; }
-        .mata-orders-table td:nth-child(13) { min-width: 150px; }
+        .mata-orders-table td:nth-child(5) { min-width: 120px; text-align: right; }
+        .mata-orders-table td:nth-child(6) { min-width: 100px; }
+        .mata-orders-table td:nth-child(7) { min-width: 200px; }
+        .mata-orders-table td:nth-child(8) { min-width: 150px; }
       </style>
     `;
 
     container.innerHTML = table;
     
-    // Ajouter les event listeners pour l'édition des commentaires et des notes
+    // Ajouter les event listeners pour l'├⌐dition des commentaires
     this.setupCommentEditListeners();
-    this.setupRatingEditListeners();
   }
 
   static setupCommentEditListeners() {
@@ -1885,7 +1616,7 @@ class MataMonthlyDashboardManager {
     commentDisplay.classList.add('hidden');
     editBtn.classList.add('hidden');
 
-    // Afficher l'édition et les boutons sauver/annuler
+    // Afficher l'├⌐dition et les boutons sauver/annuler
     commentEdit.classList.remove('hidden');
     saveBtn.classList.remove('hidden');
     cancelBtn.classList.remove('hidden');
@@ -1903,7 +1634,7 @@ class MataMonthlyDashboardManager {
       // Sauvegarder via l'API
       await ApiClient.updateMataOrderComment(orderId, newComment);
 
-      // Mettre à jour l'affichage
+      // Mettre ├á jour l'affichage
       const commentDisplay = row.querySelector('.comment-display');
       if (newComment) {
         commentDisplay.textContent = newComment;
@@ -1918,7 +1649,7 @@ class MataMonthlyDashboardManager {
       // Revenir au mode affichage
       this.cancelEditComment(orderId);
 
-      ToastManager.success('Commentaire mis à jour avec succès');
+      ToastManager.success('Commentaire mis ├á jour avec succ├¿s');
 
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du commentaire:', error);
@@ -1938,7 +1669,7 @@ class MataMonthlyDashboardManager {
     commentDisplay.classList.remove('hidden');
     editBtn.classList.remove('hidden');
 
-    // Masquer l'édition et les boutons sauver/annuler
+    // Masquer l'├⌐dition et les boutons sauver/annuler
     commentEdit.classList.add('hidden');
     saveBtn.classList.add('hidden');
     cancelBtn.classList.add('hidden');
@@ -1946,155 +1677,6 @@ class MataMonthlyDashboardManager {
     // Restaurer la valeur originale
     const originalComment = commentDisplay.textContent === 'Aucun commentaire' ? '' : commentDisplay.textContent;
     commentEdit.value = originalComment;
-  }
-
-  static setupRatingEditListeners() {
-    // Boutons "Modifier"
-    document.querySelectorAll('.btn-edit-rating').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const orderId = e.currentTarget.dataset.orderId;
-        const type = e.currentTarget.dataset.type;
-        this.startEditRating(orderId, type);
-      });
-    });
-
-    // Boutons "Sauver"
-    document.querySelectorAll('.save-rating-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const orderId = e.currentTarget.dataset.orderId;
-        const type = e.currentTarget.dataset.type;
-        await this.saveRating(orderId, type);
-      });
-    });
-
-    // Boutons "Annuler"
-    document.querySelectorAll('.cancel-rating-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const orderId = e.currentTarget.dataset.orderId;
-        const type = e.currentTarget.dataset.type;
-        this.cancelEditRating(orderId, type);
-      });
-    });
-  }
-
-  static startEditRating(orderId, type) {
-    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
-    const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
-    const ratingDisplay = ratingCell.querySelector('.rating-display');
-    const ratingEditGroup = ratingCell.querySelector('.rating-edit-group');
-
-    // Masquer l'affichage et afficher l'édition
-    ratingDisplay.classList.add('hidden');
-    ratingEditGroup.classList.remove('hidden');
-
-    // Focus sur l'input
-    const ratingInput = ratingEditGroup.querySelector('.rating-edit');
-    ratingInput.focus();
-  }
-
-  static async saveRating(orderId, type) {
-    try {
-      const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
-      const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
-      const ratingEdit = ratingCell.querySelector('.rating-edit');
-      const newRating = parseFloat(ratingEdit.value);
-
-      // Validation
-      if (ratingEdit.value !== '' && (isNaN(newRating) || newRating < 0 || newRating > 10)) {
-        ToastManager.error('La note doit être entre 0 et 10');
-        return;
-      }
-
-      // Sauvegarder via l'API
-      await ApiClient.updateMataOrderRating(orderId, type, ratingEdit.value === '' ? null : newRating);
-
-      // Mettre à jour l'affichage
-      const ratingValue = ratingCell.querySelector('.rating-value');
-      if (ratingEdit.value !== '') {
-        ratingValue.textContent = newRating + '/10';
-        ratingValue.style.color = '';
-        ratingValue.style.fontStyle = '';
-      } else {
-        ratingValue.textContent = 'NA';
-        ratingValue.style.color = '#999';
-        ratingValue.style.fontStyle = 'italic';
-      }
-
-      // Recalculer et mettre à jour la note moyenne
-      this.updateAverageRating(orderId);
-
-      // Revenir au mode affichage
-      this.cancelEditRating(orderId, type);
-
-      ToastManager.success('Note mise à jour avec succès');
-
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde de la note:', error);
-      ToastManager.error('Erreur lors de la sauvegarde de la note');
-    }
-  }
-
-  static cancelEditRating(orderId, type) {
-    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
-    const ratingCell = row.querySelector(`.rating-cell:has(.btn-edit-rating[data-type="${type}"])`);
-    const ratingDisplay = ratingCell.querySelector('.rating-display');
-    const ratingEditGroup = ratingCell.querySelector('.rating-edit-group');
-
-    // Afficher l'affichage et masquer l'édition
-    ratingDisplay.classList.remove('hidden');
-    ratingEditGroup.classList.add('hidden');
-
-    // Restaurer la valeur originale dans l'input
-    const ratingValue = ratingCell.querySelector('.rating-value');
-    const ratingEdit = ratingCell.querySelector('.rating-edit');
-    const originalValue = ratingValue.textContent === 'NA' ? '' : ratingValue.textContent.replace('/10', '');
-    ratingEdit.value = originalValue;
-  }
-
-  static updateAverageRating(orderId) {
-    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
-    const ratingCells = row.querySelectorAll('.rating-cell');
-    
-    let serviceRating = null;
-    let qualityRating = null;
-    let priceRating = null;
-
-    // Récupérer les valeurs actuelles avec traitement sécurisé
-    ratingCells.forEach(cell => {
-      const btn = cell.querySelector('.btn-edit-rating');
-      if (btn) {
-        const type = btn.dataset.type;
-        const value = cell.querySelector('.rating-value').textContent;
-        if (value !== 'NA' && value.trim() !== '') {
-          const numValue = parseFloat(value.replace('/10', ''));
-          if (!isNaN(numValue)) {
-            if (type === 'service') serviceRating = numValue;
-            else if (type === 'quality') qualityRating = numValue;
-            else if (type === 'price') priceRating = numValue;
-          }
-        }
-      }
-    });
-
-    // Calculer la moyenne
-    let averageRating = 'NA';
-    if (serviceRating !== null && qualityRating !== null && priceRating !== null) {
-      averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
-    }
-
-    // Mettre à jour l'affichage de la moyenne
-    const averageCell = row.querySelector('.average-rating-cell');
-    const averageSpan = averageCell.querySelector('.average-rating');
-    
-    averageSpan.textContent = averageRating + (averageRating !== 'NA' ? '/10' : '');
-    
-    // Mettre à jour la classe CSS pour la couleur
-    averageSpan.className = 'average-rating';
-    if (averageRating !== 'NA') {
-      if (averageRating >= 7) averageSpan.classList.add('good');
-      else if (averageRating >= 5) averageSpan.classList.add('average');
-      else averageSpan.classList.add('poor');
-    }
   }
 
   static setupEventListeners() {
@@ -2124,38 +1706,6 @@ class MataMonthlyDashboardManager {
         ToastManager.success('Export Excel MATA en cours...');
       });
     }
-
-    // Gestionnaire pour l'export Excel MATA mensuel (bouton au-dessus du tableau)
-    const exportTableBtn = document.getElementById('export-mata-monthly-excel-table');
-    if (exportTableBtn) {
-      exportTableBtn.addEventListener('click', () => {
-        const monthInput = document.getElementById('mata-monthly-date-filter');
-        const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
-        ApiClient.exportMataMonthlyToExcel(selectedMonth);
-        ToastManager.success('Export Excel MATA en cours...');
-      });
-    }
-  }
-
-  static updateTypeAnalysis(typeStats) {
-    const container = document.getElementById('type-analysis-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    typeStats.forEach(type => {
-      const typeCard = document.createElement('div');
-      typeCard.className = 'stat-card';
-      typeCard.innerHTML = `
-        <div class="stat-icon">${this.getTypeIcon(type.type)}</div>
-        <div class="stat-content">
-          <h3>${type.count}</h3>
-          <p>${this.getTypeName(type.type)}</p>
-          <small>${Utils.formatAmount(type.revenue)} • ${type.totalKm || 0} km</small>
-        </div>
-      `;
-      container.appendChild(typeCard);
-    });
   }
 }
 
@@ -2197,7 +1747,7 @@ class OrderManager {
       const response = await ApiClient.getLastUserOrders(5);
       this.displayUserRecentOrders(response.orders || []);
     } catch (error) {
-      console.error('Erreur lors du chargement des dernières commandes:', error);
+      console.error('Erreur lors du chargement des derni├¿res commandes:', error);
     }
   }
 
@@ -2205,7 +1755,7 @@ class OrderManager {
     const container = document.getElementById('orders-list');
     
     if (AppState.orders.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune commande trouvée</p>';
+      container.innerHTML = '<p class="text-center">Aucune commande trouv├⌐e</p>';
       return;
     }
 
@@ -2216,20 +1766,20 @@ class OrderManager {
             <div class="order-title">${Utils.escapeHtml(order.client_name)}</div>
             <div class="order-meta">
               ${Utils.formatDate(order.created_at)}
-              ${order.creator_username ? ` • Par ${Utils.escapeHtml(order.creator_username)}` : ''}
-              ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">🎫 Abonnement</span>' : ''}
+              ${order.creator_username ? ` ΓÇó Par ${Utils.escapeHtml(order.creator_username)}` : ''}
+              ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">≡ƒÄ½ Abonnement</span>' : ''}
             </div>
           </div>
           <div class="order-actions">
             ${this.canEditOrder(order) ? `
               <button class="btn btn-sm btn-secondary order-edit-btn" data-order-id="${order.id}">
-                <span class="icon">✏️</span>
+                <span class="icon">Γ£Å∩╕Å</span>
                 Modifier
               </button>
             ` : ''}
             ${(AppState.user && AppState.user.role === 'ADMIN') ? `
               <button class="btn btn-sm btn-danger order-delete-btn" data-order-id="${order.id}">
-                <span class="icon">🗑️</span>
+                <span class="icon">≡ƒùæ∩╕Å</span>
                 Supprimer
               </button>
             ` : ''}
@@ -2237,8 +1787,8 @@ class OrderManager {
         </div>
         <div class="order-body">
           <div class="order-info">
-            <span>📞 ${Utils.escapeHtml(order.phone_number)}</span>
-            <span>📍 ${Utils.escapeHtml(order.address)}</span>
+            <span>≡ƒô₧ ${Utils.escapeHtml(order.phone_number)}</span>
+            <span>≡ƒôì ${Utils.escapeHtml(order.address)}</span>
           </div>
           <div class="order-description">${Utils.escapeHtml(order.description || '')}</div>
           <div class="order-prices">
@@ -2255,7 +1805,7 @@ class OrderManager {
     const container = document.getElementById('user-recent-orders');
     
     if (orders.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune commande récente</p>';
+      container.innerHTML = '<p class="text-center">Aucune commande r├⌐cente</p>';
       return;
     }
 
@@ -2266,11 +1816,11 @@ class OrderManager {
           <div class="order-meta">${Utils.formatDate(order.created_at)}</div>
         </div>
         <div class="order-details">
-          <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
+          <p><strong>T├⌐l├⌐phone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
           <p><strong>Prix de la course:</strong> <span class="order-amount">${Utils.formatAmount(order.course_price)}</span></p>
           ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
           <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span>
-            ${order.order_type === 'MLC' && order.is_subscription ? '<span class="badge-abonnement" style="margin-left:8px;background:#2563eb;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;vertical-align:middle;">🎫 Abonnement</span>' : ''}
+            ${order.order_type === 'MLC' && order.is_subscription ? '<span class="badge-abonnement" style="margin-left:8px;background:#2563eb;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;vertical-align:middle;">≡ƒÄ½ Abonnement</span>' : ''}
           </p>
         </div>
       </div>
@@ -2296,7 +1846,7 @@ class OrderManager {
   }
 
   static setupOrderEventListeners() {
-    // Boutons d'édition des commandes
+    // Boutons d'├⌐dition des commandes
     document.querySelectorAll('.order-edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.dataset.orderId;
@@ -2310,7 +1860,7 @@ class OrderManager {
         const orderId = e.currentTarget.dataset.orderId;
         ModalManager.confirm(
           'Supprimer la commande',
-          'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
+          '├ètes-vous s├╗r de vouloir supprimer cette commande ? Cette action est irr├⌐versible.',
           () => {
             this.deleteOrder(orderId);
           }
@@ -2341,17 +1891,17 @@ class OrderManager {
   static async createOrder(formData) {
     try {
       await ApiClient.createOrder(formData);
-      ToastManager.success('Commande créée avec succès');
+      ToastManager.success('Commande cr├⌐├⌐e avec succ├¿s');
       
-      // Réinitialiser le formulaire
+      // R├⌐initialiser le formulaire
       document.getElementById('new-order-form').reset();
       
-      // Recharger les dernières commandes
+      // Recharger les derni├¿res commandes
       await this.loadLastUserOrders();
       
       return true;
     } catch (error) {
-      console.error('Erreur lors de la création de la commande:', error);
+      console.error('Erreur lors de la cr├⌐ation de la commande:', error);
       throw error;
     }
   }
@@ -2360,7 +1910,7 @@ class OrderManager {
     try {
       const order = AppState.orders.find(o => o.id === orderId);
       if (!order) {
-        ToastManager.error('Commande non trouvée');
+        ToastManager.error('Commande non trouv├⌐e');
         return;
       }
 
@@ -2371,21 +1921,21 @@ class OrderManager {
             <input type="text" id="edit-client-name" name="client_name" value="${Utils.escapeHtml(order.client_name)}" required>
           </div>
           <div class="form-group">
-            <label for="edit-phone-number">Numéro de téléphone *</label>
+            <label for="edit-phone-number">Num├⌐ro de t├⌐l├⌐phone *</label>
             <input type="tel" id="edit-phone-number" name="phone_number" value="${Utils.escapeHtml(order.phone_number)}" required>
           </div>
           <div class="form-group" id="edit-adresse-source-group">
             <label for="edit-adresse-source">Adresse source</label>
-            <textarea id="edit-adresse-source" name="adresse_source" rows="2" placeholder="Adresse de départ">${order.adresse_source ? Utils.escapeHtml(order.adresse_source) : ''}</textarea>
+            <textarea id="edit-adresse-source" name="adresse_source" rows="2" placeholder="Adresse de d├⌐part">${order.adresse_source ? Utils.escapeHtml(order.adresse_source) : ''}</textarea>
           </div>
           <div class="form-group" id="edit-adresse-destination-group">
             <label for="edit-adresse-destination">Adresse destination *</label>
-            <textarea id="edit-adresse-destination" name="adresse_destination" rows="2" placeholder="Adresse d'arrivée" required>${order.adresse_destination ? Utils.escapeHtml(order.adresse_destination) : ''}</textarea>
+            <textarea id="edit-adresse-destination" name="adresse_destination" rows="2" placeholder="Adresse d'arriv├⌐e" required>${order.adresse_destination ? Utils.escapeHtml(order.adresse_destination) : ''}</textarea>
           </div>
           <div class="form-group" id="edit-point-vente-group" style="display: none;">
             <label for="edit-point-vente">Point de vente *</label>
             <select id="edit-point-vente" name="point_de_vente">
-              <option value="">Sélectionner un point de vente</option>
+              <option value="">S├⌐lectionner un point de vente</option>
               <option value="O.Foire" ${order.point_de_vente === 'O.Foire' ? 'selected' : ''}>O.Foire</option>
               <option value="Mbao" ${order.point_de_vente === 'Mbao' ? 'selected' : ''}>Mbao</option>
               <option value="Keur Massar" ${order.point_de_vente === 'Keur Massar' ? 'selected' : ''}>Keur Massar</option>
@@ -2485,34 +2035,34 @@ class OrderManager {
           delete orderData.subscription_id;
         }
         if (!Utils.validatePhoneNumber(orderData.phone_number)) {
-          ToastManager.error('Numéro de téléphone invalide (doit contenir entre 6 et 20 chiffres)');
+          ToastManager.error('Num├⌐ro de t├⌐l├⌐phone invalide (doit contenir entre 6 et 20 chiffres)');
           return;
         }
         try {
           await ApiClient.updateOrder(orderId, orderData);
           ModalManager.hide();
-          ToastManager.success('Commande modifiée avec succès');
+          ToastManager.success('Commande modifi├⌐e avec succ├¿s');
           await this.loadOrders(AppState.currentOrdersPage);
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la modification');
         }
       });
     } catch (error) {
-      console.error('Erreur lors de l\'édition de la commande:', error);
-      ToastManager.error('Erreur lors de l\'édition de la commande');
+      console.error('Erreur lors de l\'├⌐dition de la commande:', error);
+      ToastManager.error('Erreur lors de l\'├⌐dition de la commande');
     }
   }
 
   static async deleteOrder(orderId) {
     ModalManager.confirm(
       'Supprimer la commande',
-      'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
+      '├ètes-vous s├╗r de vouloir supprimer cette commande ? Cette action est irr├⌐versible.',
       async () => {
         try {
           await ApiClient.deleteOrder(orderId);
-          ToastManager.success('Commande supprimée avec succès');
+          ToastManager.success('Commande supprim├⌐e avec succ├¿s');
           await this.loadOrders(AppState.currentOrdersPage);
-          // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
+          // Rafra├«chir la liste des abonnements si la page active est 'subscriptions'
           if (AppState.currentPage === 'subscriptions') {
             await SubscriptionManager.loadSubscriptions();
           }
@@ -2524,11 +2074,11 @@ class OrderManager {
   }
 }
 
-// ===== GESTIONNAIRE DES DÉPENSES =====
+// ===== GESTIONNAIRE DES D├ëPENSES =====
 class ExpenseManager {
   static async loadExpenses() {
     try {
-      // Obtenir la date sélectionnée ou utiliser aujourd'hui par défaut
+      // Obtenir la date s├⌐lectionn├⌐e ou utiliser aujourd'hui par d├⌐faut
       let selectedDate = document.getElementById('expenses-date-filter')?.value;
       const today = new Date().toISOString().split('T')[0];
 
@@ -2540,22 +2090,22 @@ class ExpenseManager {
         }
       }
 
-      // Mettre à jour le titre de la page avec la date sélectionnée
+      // Mettre ├á jour le titre de la page avec la date s├⌐lectionn├⌐e
       this.updatePageTitle(selectedDate);
 
-      // Charger le récapitulatif des dépenses
+      // Charger le r├⌐capitulatif des d├⌐penses
       const response = await ApiClient.getExpensesSummary(selectedDate);
       this.displayExpensesSummary(response.summary || []);
 
       // Configurer les event listeners
       this.setupEventListeners();
 
-      // Vérifier que le champ de date est bien interactif
+      // V├⌐rifier que le champ de date est bien interactif
       this.ensureDateFieldIsClickable();
 
     } catch (error) {
-      console.error('Erreur lors du chargement des dépenses:', error);
-      ToastManager.error('Erreur lors du chargement des dépenses');
+      console.error('Erreur lors du chargement des d├⌐penses:', error);
+      ToastManager.error('Erreur lors du chargement des d├⌐penses');
     }
   }
 
@@ -2567,7 +2117,7 @@ class ExpenseManager {
       const formattedDate = selectedDate ? Utils.formatDisplayDate(selectedDate) : '';
       container.innerHTML = `
         <div class="text-center" style="padding: 2rem; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;">📊 Aucune donnée disponible</p>
+          <p style="color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;">≡ƒôè Aucune donn├⌐e disponible</p>
           <p style="color: #9ca3af; font-size: 0.9rem;">pour la date du ${formattedDate}</p>
         </div>
       `;
@@ -2581,7 +2131,7 @@ class ExpenseManager {
             <tr>
               <th>Livreur</th>
               <th>Carburant</th>
-              <th>Réparations</th>
+              <th>R├⌐parations</th>
               <th>Police</th>
               <th>Autres</th>
               <th>Total</th>
@@ -2603,12 +2153,12 @@ class ExpenseManager {
                 <td>${item.commentaire ? Utils.escapeHtml(item.commentaire) : '-'}</td>
                 <td>
                   <button class="btn btn-sm btn-primary expense-edit-btn" data-livreur-id="${item.livreur_id}" data-expense-id="${item.expense_id || ''}">
-                    <span class="icon">✏️</span>
+                    <span class="icon">Γ£Å∩╕Å</span>
                     ${item.expense_id ? 'Modifier' : 'Ajouter'}
                   </button>
                   ${item.expense_id ? `
                     <button class="btn btn-sm btn-danger expense-delete-btn" data-expense-id="${item.expense_id}">
-                      <span class="icon">🗑️</span>
+                      <span class="icon">≡ƒùæ∩╕Å</span>
                       Supprimer
                     </button>
                   ` : ''}
@@ -2639,14 +2189,14 @@ class ExpenseManager {
       dateFilter.style.pointerEvents = 'auto';
       dateFilter.style.cursor = 'pointer';
       
-      console.log('✅ Event listeners configurés pour le champ de date des dépenses');
+      console.log('Γ£à Event listeners configur├⌐s pour le champ de date des d├⌐penses');
     }
 
-    // Configurer le bouton d'aide pour le sélecteur de date
+    // Configurer le bouton d'aide pour le s├⌐lecteur de date
     const datePickerHelper = document.getElementById('date-picker-helper');
     if (datePickerHelper) {
       datePickerHelper.addEventListener('click', () => {
-        console.log('🆘 Bouton d\'aide cliqué');
+        console.log('≡ƒåÿ Bouton d\'aide cliqu├⌐');
         const dateFilter = document.getElementById('expenses-date-filter');
         if (dateFilter) {
           dateFilter.focus();
@@ -2655,24 +2205,24 @@ class ExpenseManager {
             try {
               dateFilter.showPicker();
             } catch (e) {
-              console.warn('showPicker non supporté:', e);
+              console.warn('showPicker non support├⌐:', e);
             }
           }
         }
       });
-      console.log('✅ Bouton d\'aide configuré');
+      console.log('Γ£à Bouton d\'aide configur├⌐');
     } else {
-      console.warn('⚠️ Champ de date des dépenses non trouvé');
+      console.warn('ΓÜá∩╕Å Champ de date des d├⌐penses non trouv├⌐');
     }
 
-    // Bouton nouvelle dépense
+    // Bouton nouvelle d├⌐pense
     const addExpenseBtn = document.getElementById('add-expense-btn');
     if (addExpenseBtn) {
       addExpenseBtn.removeEventListener('click', this.showAddExpenseModal);
       addExpenseBtn.addEventListener('click', this.showAddExpenseModal.bind(this));
     }
 
-    // Boutons d'édition des dépenses
+    // Boutons d'├⌐dition des d├⌐penses
     document.querySelectorAll('.expense-edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const livreurId = e.currentTarget.dataset.livreurId;
@@ -2681,7 +2231,7 @@ class ExpenseManager {
       });
     });
 
-    // Boutons de suppression des dépenses
+    // Boutons de suppression des d├⌐penses
     document.querySelectorAll('.expense-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const expenseId = e.currentTarget.dataset.expenseId;
@@ -2691,29 +2241,29 @@ class ExpenseManager {
   }
 
   static handleDateChange() {
-    console.log('📅 Date changée dans le menu des dépenses');
+    console.log('≡ƒôà Date chang├⌐e dans le menu des d├⌐penses');
     
     // Afficher un indicateur de chargement
     const container = document.getElementById('expenses-summary');
     if (container) {
-      container.innerHTML = '<div class="text-center"><p>Chargement des données...</p></div>';
+      container.innerHTML = '<div class="text-center"><p>Chargement des donn├⌐es...</p></div>';
     }
     
-    // Recharger les données
+    // Recharger les donn├⌐es
     this.loadExpenses();
   }
 
   static handleDateClick() {
-    console.log('🖱️ Clic sur le champ de date des dépenses');
+    console.log('≡ƒû▒∩╕Å Clic sur le champ de date des d├⌐penses');
     const dateFilter = document.getElementById('expenses-date-filter');
     if (dateFilter) {
-      // Forcer l'ouverture du sélecteur de date
+      // Forcer l'ouverture du s├⌐lecteur de date
       dateFilter.showPicker && dateFilter.showPicker();
     }
   }
 
   static handleDateFocus() {
-    console.log('🎯 Focus sur le champ de date des dépenses');
+    console.log('≡ƒÄ» Focus sur le champ de date des d├⌐penses');
     const dateFilter = document.getElementById('expenses-date-filter');
     if (dateFilter) {
       dateFilter.style.borderColor = 'var(--primary-color)';
@@ -2721,29 +2271,29 @@ class ExpenseManager {
   }
 
   static showAddExpenseModal() {
-    // Cette fonction sera appelée pour ajouter une nouvelle dépense
-    // Pour l'instant, on peut la laisser vide ou rediriger vers l'édition d'un livreur spécifique
-    ToastManager.info('Sélectionnez un livreur dans le tableau pour ajouter/modifier ses dépenses');
+    // Cette fonction sera appel├⌐e pour ajouter une nouvelle d├⌐pense
+    // Pour l'instant, on peut la laisser vide ou rediriger vers l'├⌐dition d'un livreur sp├⌐cifique
+    ToastManager.info('S├⌐lectionnez un livreur dans le tableau pour ajouter/modifier ses d├⌐penses');
   }
 
   static async editExpense(livreurId, date) {
     try {
-      // Récupérer les informations du livreur
+      // R├⌐cup├⌐rer les informations du livreur
       const usersResponse = await ApiClient.getUsers();
       const livreur = usersResponse.users.find(u => u.id === livreurId);
       
       if (!livreur) {
-        ToastManager.error('Livreur non trouvé');
+        ToastManager.error('Livreur non trouv├⌐');
         return;
       }
 
-      // Récupérer les dépenses existantes pour ce livreur et cette date
+      // R├⌐cup├⌐rer les d├⌐penses existantes pour ce livreur et cette date
       let existingExpense = null;
       try {
         const expenseResponse = await ApiClient.getExpenseByLivreurAndDate(livreurId, date);
         existingExpense = expenseResponse.expense;
       } catch (error) {
-        // Pas de dépense existante, c'est normal
+        // Pas de d├⌐pense existante, c'est normal
       }
 
       const content = `
@@ -2767,7 +2317,7 @@ class ExpenseManager {
           </div>
           
           <div class="form-group">
-            <label for="reparations">Réparations (FCFA)</label>
+            <label for="reparations">R├⌐parations (FCFA)</label>
             <input type="number" id="reparations" name="reparations" step="0.01" min="0" 
                    value="${existingExpense ? existingExpense.reparations : 0}" class="form-control">
           </div>
@@ -2785,10 +2335,10 @@ class ExpenseManager {
           </div>
           
           <div class="form-group">
-            <label for="km_parcourus">Kilomètres parcourus</label>
+            <label for="km_parcourus">Kilom├¿tres parcourus</label>
             <input type="number" id="km_parcourus" name="km_parcourus" step="0.1" min="0" 
                    value="${existingExpense ? existingExpense.km_parcourus : 0}" class="form-control" 
-                   placeholder="Nombre de kilomètres parcourus">
+                   placeholder="Nombre de kilom├¿tres parcourus">
           </div>
           
           <div class="form-group">
@@ -2799,14 +2349,14 @@ class ExpenseManager {
           
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-              ${existingExpense ? 'Mettre à jour' : 'Enregistrer'}
+              ${existingExpense ? 'Mettre ├á jour' : 'Enregistrer'}
             </button>
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
           </div>
         </form>
       `;
 
-      ModalManager.show(`Dépenses - ${livreur.username}`, content);
+      ModalManager.show(`D├⌐penses - ${livreur.username}`, content);
 
       // Gestionnaire pour le bouton d'annulation
       document.querySelector('.modal-cancel-btn').addEventListener('click', () => {
@@ -2822,7 +2372,7 @@ class ExpenseManager {
         try {
           await ApiClient.createOrUpdateExpense(expenseData);
           ModalManager.hide();
-          ToastManager.success('Dépenses enregistrées avec succès');
+          ToastManager.success('D├⌐penses enregistr├⌐es avec succ├¿s');
           await this.loadExpenses();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de l\'enregistrement');
@@ -2830,19 +2380,19 @@ class ExpenseManager {
       });
 
     } catch (error) {
-      console.error('Erreur lors de l\'édition des dépenses:', error);
-      ToastManager.error('Erreur lors de l\'édition des dépenses');
+      console.error('Erreur lors de l\'├⌐dition des d├⌐penses:', error);
+      ToastManager.error('Erreur lors de l\'├⌐dition des d├⌐penses');
     }
   }
 
   static async deleteExpense(expenseId) {
     ModalManager.confirm(
-      'Supprimer les dépenses',
-      'Êtes-vous sûr de vouloir supprimer ces dépenses ? Cette action est irréversible.',
+      'Supprimer les d├⌐penses',
+      '├ètes-vous s├╗r de vouloir supprimer ces d├⌐penses ? Cette action est irr├⌐versible.',
       async () => {
         try {
           await ApiClient.deleteExpense(expenseId);
-          ToastManager.success('Dépenses supprimées avec succès');
+          ToastManager.success('D├⌐penses supprim├⌐es avec succ├¿s');
           await this.loadExpenses();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la suppression');
@@ -2858,9 +2408,9 @@ class ExpenseManager {
       const formattedDate = Utils.formatDisplayDate(selectedDate);
       
       if (selectedDate === today) {
-        pageHeader.textContent = 'Gestion des dépenses - Aujourd\'hui';
+        pageHeader.textContent = 'Gestion des d├⌐penses - Aujourd\'hui';
       } else {
-        pageHeader.textContent = `Gestion des dépenses - ${formattedDate}`;
+        pageHeader.textContent = `Gestion des d├⌐penses - ${formattedDate}`;
       }
     }
   }
@@ -2879,17 +2429,17 @@ class ExpenseManager {
       // Ajouter un event listener de test
       dateFilter.addEventListener('mouseenter', function() {
         this.style.borderColor = '#2563eb';
-        console.log('🖱️ Survol du champ de date détecté');
+        console.log('≡ƒû▒∩╕Å Survol du champ de date d├⌐tect├⌐');
       });
       
       dateFilter.addEventListener('mouseleave', function() {
         this.style.borderColor = '#d1d5db';
       });
       
-      console.log('✅ Champ de date configuré comme cliquable');
-      console.log('📍 Position du champ:', dateFilter.getBoundingClientRect());
+      console.log('Γ£à Champ de date configur├⌐ comme cliquable');
+      console.log('≡ƒôì Position du champ:', dateFilter.getBoundingClientRect());
     } else {
-      console.error('❌ Impossible de trouver le champ de date des dépenses');
+      console.error('Γ¥î Impossible de trouver le champ de date des d├⌐penses');
     }
   }
 }
@@ -2911,7 +2461,7 @@ class UserManager {
     const container = document.getElementById('users-list');
     
     if (AppState.users.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucun utilisateur trouvé</p>';
+      container.innerHTML = '<p class="text-center">Aucun utilisateur trouv├⌐</p>';
       return;
     }
 
@@ -2922,19 +2472,19 @@ class UserManager {
             <div class="user-title">${Utils.escapeHtml(user.username)}</div>
             <div class="user-meta">
               <span class="role-badge ${user.role}">${user.role}</span>
-              • Créé le ${Utils.formatDate(user.created_at)}
+              ΓÇó Cr├⌐├⌐ le ${Utils.formatDate(user.created_at)}
             </div>
           </div>
           <div class="user-actions">
             ${this.canEditUser(user) ? `
               <button class="btn btn-sm btn-secondary edit-user-btn" data-user-id="${user.id}">
-                <span class="icon">✏️</span>
+                <span class="icon">Γ£Å∩╕Å</span>
                 Modifier
               </button>
             ` : ''}
             ${this.canDeleteUser(user) ? `
               <button class="btn btn-sm btn-danger delete-user-btn" data-user-id="${user.id}">
-                <span class="icon">🗑️</span>
+                <span class="icon">≡ƒùæ∩╕Å</span>
                 Supprimer
               </button>
             ` : ''}
@@ -2943,12 +2493,12 @@ class UserManager {
       </div>
     `).join('');
 
-    // Ajouter les event listeners après avoir créé le HTML
+    // Ajouter les event listeners apr├¿s avoir cr├⌐├⌐ le HTML
     this.setupUserEventListeners();
   }
 
   static setupUserEventListeners() {
-    // Boutons édition
+    // Boutons ├⌐dition
     document.querySelectorAll('.edit-user-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const userId = e.currentTarget.dataset.userId;
@@ -2972,7 +2522,7 @@ class UserManager {
   }
 
   static canDeleteUser(user) {
-    if (AppState.user.id === user.id) return false; // Ne peut pas se supprimer soi-même
+    if (AppState.user.id === user.id) return false; // Ne peut pas se supprimer soi-m├¬me
     return AppState.user.role === 'ADMIN';
   }
 
@@ -2990,9 +2540,9 @@ class UserManager {
         </div>
         
         <div class="form-group">
-          <label for="create-role">Rôle *</label>
+          <label for="create-role">R├┤le *</label>
           <select id="create-role" name="role" required>
-            <option value="">Sélectionner un rôle</option>
+            <option value="">S├⌐lectionner un r├┤le</option>
             <option value="LIVREUR">LIVREUR</option>
             <option value="MANAGER">MANAGER</option>
             ${AppState.user.role === 'ADMIN' ? '<option value="ADMIN">ADMIN</option>' : ''}
@@ -3000,7 +2550,7 @@ class UserManager {
         </div>
         
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Créer</button>
+          <button type="submit" class="btn btn-primary">Cr├⌐er</button>
           <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
         </div>
       </form>
@@ -3022,10 +2572,10 @@ class UserManager {
       try {
         await ApiClient.createUser(userData);
         ModalManager.hide();
-        ToastManager.success('Utilisateur créé avec succès');
+        ToastManager.success('Utilisateur cr├⌐├⌐ avec succ├¿s');
         await this.loadUsers();
       } catch (error) {
-        ToastManager.error(error.message || 'Erreur lors de la création');
+        ToastManager.error(error.message || 'Erreur lors de la cr├⌐ation');
       }
     });
   }
@@ -3034,7 +2584,7 @@ class UserManager {
     try {
       const user = AppState.users.find(u => u.id === userId);
       if (!user) {
-        ToastManager.error('Utilisateur non trouvé');
+        ToastManager.error('Utilisateur non trouv├⌐');
         return;
       }
 
@@ -3046,7 +2596,7 @@ class UserManager {
           </div>
           
           <div class="form-group">
-            <label for="edit-role">Rôle *</label>
+            <label for="edit-role">R├┤le *</label>
             <select id="edit-role" name="role" required>
               <option value="LIVREUR" ${user.role === 'LIVREUR' ? 'selected' : ''}>LIVREUR</option>
               <option value="MANAGER" ${user.role === 'MANAGER' ? 'selected' : ''}>MANAGER</option>
@@ -3077,7 +2627,7 @@ class UserManager {
         try {
           await ApiClient.updateUser(userId, userData);
           ModalManager.hide();
-          ToastManager.success('Utilisateur modifié avec succès');
+          ToastManager.success('Utilisateur modifi├⌐ avec succ├¿s');
           await this.loadUsers();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la modification');
@@ -3085,8 +2635,8 @@ class UserManager {
       });
 
     } catch (error) {
-      console.error('Erreur lors de l\'édition de l\'utilisateur:', error);
-      ToastManager.error('Erreur lors de l\'édition de l\'utilisateur');
+      console.error('Erreur lors de l\'├⌐dition de l\'utilisateur:', error);
+      ToastManager.error('Erreur lors de l\'├⌐dition de l\'utilisateur');
     }
   }
 
@@ -3096,11 +2646,11 @@ class UserManager {
 
     ModalManager.confirm(
       'Supprimer l\'utilisateur',
-      `Êtes-vous sûr de vouloir supprimer l'utilisateur "${user.username}" ? Cette action est irréversible.`,
+      `├ètes-vous s├╗r de vouloir supprimer l'utilisateur "${user.username}" ? Cette action est irr├⌐versible.`,
       async () => {
         try {
           await ApiClient.deleteUser(userId);
-          ToastManager.success('Utilisateur supprimé avec succès');
+          ToastManager.success('Utilisateur supprim├⌐ avec succ├¿s');
           await this.loadUsers();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la suppression');
@@ -3131,35 +2681,35 @@ class LivreurManager {
   }
 
   static ensureActionButtonsVisible() {
-    console.log('🎯 Vérification des boutons d\'action de la page livreurs...');
+    console.log('≡ƒÄ» V├⌐rification des boutons d\'action de la page livreurs...');
     
-    // Vérifier si la page header existe
+    // V├⌐rifier si la page header existe
     const pageHeader = document.querySelector('#livreurs-page .page-header');
     if (!pageHeader) {
-      console.error('❌ Page header de la page livreurs non trouvée');
+      console.error('Γ¥î Page header de la page livreurs non trouv├⌐e');
       return;
     }
     
-    // Vérifier si la section page-actions existe
+    // V├⌐rifier si la section page-actions existe
     let pageActions = document.querySelector('#livreurs-page .page-actions');
     if (!pageActions) {
-      console.log('🔧 Création de la section page-actions...');
+      console.log('≡ƒöº Cr├⌐ation de la section page-actions...');
       pageActions = document.createElement('div');
       pageActions.className = 'page-actions';
       pageHeader.appendChild(pageActions);
     }
     
     const actionButtons = [
-      { id: 'add-livreur-btn', text: '➕ Nouveau livreur', class: 'btn btn-primary btn-sm' },
-      { id: 'show-all-livreurs', text: '👁️ Voir tous', class: 'btn btn-secondary btn-sm' },
-      { id: 'show-active-livreurs', text: '✅ Actifs seulement', class: 'btn btn-secondary btn-sm' }
+      { id: 'add-livreur-btn', text: 'Γ₧ò Nouveau livreur', class: 'btn btn-primary btn-sm' },
+      { id: 'show-all-livreurs', text: '≡ƒæü∩╕Å Voir tous', class: 'btn btn-secondary btn-sm' },
+      { id: 'show-active-livreurs', text: 'Γ£à Actifs seulement', class: 'btn btn-secondary btn-sm' }
     ];
     
     actionButtons.forEach(buttonConfig => {
       let button = document.getElementById(buttonConfig.id);
       
       if (!button) {
-        console.log(`🔧 Création du bouton ${buttonConfig.id}...`);
+        console.log(`≡ƒöº Cr├⌐ation du bouton ${buttonConfig.id}...`);
         button = document.createElement('button');
         button.id = buttonConfig.id;
         button.className = buttonConfig.class;
@@ -3183,7 +2733,7 @@ class LivreurManager {
       button.style.opacity = '1';
       button.removeAttribute('hidden');
       
-      console.log(`✅ Bouton ${buttonConfig.id} rendu visible:`, {
+      console.log(`Γ£à Bouton ${buttonConfig.id} rendu visible:`, {
         element: button,
         classList: button.className,
         style: button.style.cssText,
@@ -3220,14 +2770,14 @@ class LivreurManager {
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
           transition: all 0.3s ease;
         ">
-          ➕ AJOUTER UN NOUVEAU LIVREUR
+          Γ₧ò AJOUTER UN NOUVEAU LIVREUR
         </button>
-        <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour créer un nouveau livreur</p>
+        <p style="color: white; margin-top: 10px; font-size: 14px;">Cliquez ici pour cr├⌐er un nouveau livreur</p>
       </div>
     `;
     
     if (AppState.livreurs.length === 0) {
-      container.innerHTML = addButtonHtml + '<p class="text-center">Aucun livreur trouvé</p>';
+      container.innerHTML = addButtonHtml + '<p class="text-center">Aucun livreur trouv├⌐</p>';
       return;
     }
 
@@ -3238,29 +2788,29 @@ class LivreurManager {
             <div class="livreur-title">
               ${Utils.escapeHtml(livreur.username)}
               <span class="status-badge ${livreur.is_active ? 'active' : 'inactive'}">
-                ${livreur.is_active ? '✅ Actif' : '❌ Inactif'}
+                ${livreur.is_active ? 'Γ£à Actif' : 'Γ¥î Inactif'}
               </span>
             </div>
             <div class="livreur-meta">
               <span class="role-badge ${livreur.role}">${livreur.role}</span>
-              • Créé le ${Utils.formatDate(livreur.created_at)}
+              ΓÇó Cr├⌐├⌐ le ${Utils.formatDate(livreur.created_at)}
             </div>
           </div>
           <div class="livreur-actions">
             <button class="btn btn-sm ${livreur.is_active ? 'btn-warning' : 'btn-success'} toggle-livreur-btn" 
                     data-livreur-id="${livreur.id}">
-              <span class="icon">${livreur.is_active ? '⏸️' : '▶️'}</span>
-              ${livreur.is_active ? 'Désactiver' : 'Activer'}
+              <span class="icon">${livreur.is_active ? 'ΓÅ╕∩╕Å' : 'Γû╢∩╕Å'}</span>
+              ${livreur.is_active ? 'D├⌐sactiver' : 'Activer'}
             </button>
             ${this.canEditLivreur(livreur) ? `
               <button class="btn btn-sm btn-secondary edit-livreur-btn" data-livreur-id="${livreur.id}">
-                <span class="icon">✏️</span>
+                <span class="icon">Γ£Å∩╕Å</span>
                 Modifier
               </button>
             ` : ''}
             ${this.canDeleteLivreur(livreur) ? `
               <button class="btn btn-sm btn-danger delete-livreur-btn" data-livreur-id="${livreur.id}">
-                <span class="icon">🗑️</span>
+                <span class="icon">≡ƒùæ∩╕Å</span>
                 Supprimer
               </button>
             ` : ''}
@@ -3269,14 +2819,14 @@ class LivreurManager {
       </div>
     `).join('');
 
-    // Ajouter les event listeners après avoir créé le HTML
+    // Ajouter les event listeners apr├¿s avoir cr├⌐├⌐ le HTML
     this.setupLivreurEventListeners();
     
     // SUPER IMPORTANT: Add event listener for the BIG ADD BUTTON
     const superAddBtn = document.getElementById('super-add-livreur-btn');
     if (superAddBtn) {
       superAddBtn.addEventListener('click', () => {
-        console.log('🎯 SUPER ADD BUTTON CLICKED!');
+        console.log('≡ƒÄ» SUPER ADD BUTTON CLICKED!');
         this.createLivreur();
       });
       
@@ -3289,7 +2839,7 @@ class LivreurManager {
         superAddBtn.style.transform = 'scale(1)';
       });
       
-      console.log('✅ SUPER ADD BUTTON EVENT LISTENERS ADDED!');
+      console.log('Γ£à SUPER ADD BUTTON EVENT LISTENERS ADDED!');
     }
   }
 
@@ -3302,7 +2852,7 @@ class LivreurManager {
       });
     });
 
-    // Boutons édition
+    // Boutons ├⌐dition
     document.querySelectorAll('.edit-livreur-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const livreurId = e.currentTarget.dataset.livreurId;
@@ -3326,7 +2876,7 @@ class LivreurManager {
   }
 
   static canDeleteLivreur(livreur) {
-    if (AppState.user.id === livreur.id) return false; // Ne peut pas se supprimer soi-même
+    if (AppState.user.id === livreur.id) return false; // Ne peut pas se supprimer soi-m├¬me
     return AppState.user.role === 'ADMIN';
   }
 
@@ -3334,19 +2884,19 @@ class LivreurManager {
     try {
       const livreur = AppState.livreurs.find(l => l.id === livreurId);
       if (!livreur) {
-        ToastManager.error('Livreur non trouvé');
+        ToastManager.error('Livreur non trouv├⌐');
         return;
       }
 
-      const action = livreur.is_active ? 'désactiver' : 'activer';
+      const action = livreur.is_active ? 'd├⌐sactiver' : 'activer';
       
       ModalManager.confirm(
         `${action.charAt(0).toUpperCase() + action.slice(1)} le livreur`,
-        `Êtes-vous sûr de vouloir ${action} le livreur "${livreur.username}" ?`,
+        `├ètes-vous s├╗r de vouloir ${action} le livreur "${livreur.username}" ?`,
         async () => {
           try {
             await ApiClient.toggleUserActive(livreurId);
-            ToastManager.success(`Livreur ${action === 'activer' ? 'activé' : 'désactivé'} avec succès`);
+            ToastManager.success(`Livreur ${action === 'activer' ? 'activ├⌐' : 'd├⌐sactiv├⌐'} avec succ├¿s`);
             await this.loadLivreurs();
           } catch (error) {
             ToastManager.error(error.message || `Erreur lors de la modification du statut`);
@@ -3371,11 +2921,11 @@ class LivreurManager {
           <label for="create-livreur-password">Mot de passe *</label>
           <input type="password" id="create-livreur-password" name="password" required>
           <small style="color: #6b7280; font-size: 0.8rem; margin-top: 4px; display: block;">
-            Le mot de passe doit contenir au moins 8 caractères avec:<br>
-            • Une majuscule (A-Z)<br>
-            • Une minuscule (a-z)<br>
-            • Un chiffre (0-9)<br>
-            • Un caractère spécial (@$!%*?&)
+            Le mot de passe doit contenir au moins 8 caract├¿res avec:<br>
+            ΓÇó Une majuscule (A-Z)<br>
+            ΓÇó Une minuscule (a-z)<br>
+            ΓÇó Un chiffre (0-9)<br>
+            ΓÇó Un caract├¿re sp├⌐cial (@$!%*?&)
           </small>
         </div>
         
@@ -3388,7 +2938,7 @@ class LivreurManager {
         </div>
         
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Créer le livreur</button>
+          <button type="submit" class="btn btn-primary">Cr├⌐er le livreur</button>
           <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
         </div>
       </form>
@@ -3407,23 +2957,23 @@ class LivreurManager {
       const formData = new FormData(e.target);
       const userData = Object.fromEntries(formData.entries());
       
-      // Forcer le rôle à LIVREUR
+      // Forcer le r├┤le ├á LIVREUR
       userData.role = 'LIVREUR';
       userData.is_active = userData.is_active === 'true';
 
       try {
         await ApiClient.createUser(userData);
         ModalManager.hide();
-        ToastManager.success('Livreur créé avec succès');
+        ToastManager.success('Livreur cr├⌐├⌐ avec succ├¿s');
         await this.loadLivreurs();
       } catch (error) {
-        console.error('Erreur création livreur:', error);
+        console.error('Erreur cr├⌐ation livreur:', error);
         
         // Show specific validation errors if available
-        if (error.message.includes('Données invalides')) {
-          ToastManager.error('Erreur de validation: Vérifiez que le mot de passe respecte tous les critères requis');
+        if (error.message.includes('Donn├⌐es invalides')) {
+          ToastManager.error('Erreur de validation: V├⌐rifiez que le mot de passe respecte tous les crit├¿res requis');
         } else {
-          ToastManager.error(error.message || 'Erreur lors de la création');
+          ToastManager.error(error.message || 'Erreur lors de la cr├⌐ation');
         }
       }
     });
@@ -3433,7 +2983,7 @@ class LivreurManager {
     try {
       const livreur = AppState.livreurs.find(l => l.id === livreurId);
       if (!livreur) {
-        ToastManager.error('Livreur non trouvé');
+        ToastManager.error('Livreur non trouv├⌐');
         return;
       }
 
@@ -3476,7 +3026,7 @@ class LivreurManager {
         try {
           await ApiClient.updateUser(livreurId, userData);
           ModalManager.hide();
-          ToastManager.success('Livreur modifié avec succès');
+          ToastManager.success('Livreur modifi├⌐ avec succ├¿s');
           await this.loadLivreurs();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la modification');
@@ -3484,8 +3034,8 @@ class LivreurManager {
       });
 
     } catch (error) {
-      console.error('Erreur lors de l\'édition du livreur:', error);
-      ToastManager.error('Erreur lors de l\'édition du livreur');
+      console.error('Erreur lors de l\'├⌐dition du livreur:', error);
+      ToastManager.error('Erreur lors de l\'├⌐dition du livreur');
     }
   }
 
@@ -3495,11 +3045,11 @@ class LivreurManager {
 
     ModalManager.confirm(
       'Supprimer le livreur',
-      `Êtes-vous sûr de vouloir supprimer le livreur "${livreur.username}" ? Cette action est irréversible.`,
+      `├ètes-vous s├╗r de vouloir supprimer le livreur "${livreur.username}" ? Cette action est irr├⌐versible.`,
       async () => {
         try {
           await ApiClient.deleteUser(livreurId);
-          ToastManager.success('Livreur supprimé avec succès');
+          ToastManager.success('Livreur supprim├⌐ avec succ├¿s');
           await this.loadLivreurs();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la suppression');
@@ -3552,7 +3102,7 @@ class SubscriptionManager {
     const container = document.getElementById('subscriptions-list');
     
     if (this.subscriptions.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune carte d\'abonnement trouvée</p>';
+      container.innerHTML = '<p class="text-center">Aucune carte d\'abonnement trouv├⌐e</p>';
       return;
     }
 
@@ -3569,7 +3119,7 @@ class SubscriptionManager {
               <div class="subscription-title">${Utils.escapeHtml(subscription.client_name)}</div>
               <div class="subscription-card-number">${subscription.card_number}</div>
               <div class="subscription-meta">
-                <span>📞 ${Utils.escapeHtml(subscription.phone_number)}</span>
+                <span>≡ƒô₧ ${Utils.escapeHtml(subscription.phone_number)}</span>
                 <span class="subscription-status ${statusClass}">${statusText}</span>
               </div>
             </div>
@@ -3578,26 +3128,26 @@ class SubscriptionManager {
                 <button class="btn btn-sm btn-secondary edit-subscription-btn" 
                         data-subscription-id="${subscription.id}"
                         title="Modifier">
-                  <span class="icon">✏️</span>
+                  <span class="icon">Γ£Å∩╕Å</span>
                 </button>
               ` : ''}
               ${subscription.is_active ? `
                 <button class="btn btn-sm btn-warning deactivate-subscription-btn" 
                         data-subscription-id="${subscription.id}"
-                        title="Désactiver">
-                  <span class="icon">⏸️</span>
+                        title="D├⌐sactiver">
+                  <span class="icon">ΓÅ╕∩╕Å</span>
                 </button>
               ` : `
                 <button class="btn btn-sm btn-success reactivate-subscription-btn" 
                         data-subscription-id="${subscription.id}"
-                        title="Réactiver">
-                  <span class="icon">▶️</span>
+                        title="R├⌐activer">
+                  <span class="icon">Γû╢∩╕Å</span>
                 </button>
               `}
               <button class="btn btn-sm btn-primary check-card-btn" 
                       data-card-number="${subscription.card_number}"
-                      title="Vérifier la carte">
-                <span class="icon">🔍</span>
+                      title="V├⌐rifier la carte">
+                <span class="icon">≡ƒöì</span>
               </button>
             </div>
           </div>
@@ -3632,7 +3182,7 @@ class SubscriptionManager {
               <span class="value">${Utils.formatDisplayDate(subscription.expiry_date)}</span>
             </div>
             <div class="subscription-detail">
-              <span class="label">Créé par</span>
+              <span class="label">Cr├⌐├⌐ par</span>
               <span class="value">${Utils.escapeHtml(subscription.created_by || 'N/A')}</span>
             </div>
           </div>
@@ -3652,8 +3202,8 @@ class SubscriptionManager {
 
   static getStatusText(subscription) {
     if (!subscription.is_active) return 'Inactive';
-    if (subscription.remaining_deliveries === 0) return 'Terminée';
-    if (new Date(subscription.expiry_date) < new Date()) return 'Expirée';
+    if (subscription.remaining_deliveries === 0) return 'Termin├⌐e';
+    if (new Date(subscription.expiry_date) < new Date()) return 'Expir├⌐e';
     return 'Active';
   }
 
@@ -3750,7 +3300,7 @@ class SubscriptionManager {
           <input type="text" id="subscription-client-name" name="client_name" required>
         </div>
         <div class="form-group">
-          <label for="subscription-phone-number">Numéro de téléphone *</label>
+          <label for="subscription-phone-number">Num├⌐ro de t├⌐l├⌐phone *</label>
           <input type="tel" id="subscription-phone-number" name="phone_number" required 
                  placeholder="Ex: 773920000">
         </div>
@@ -3764,7 +3314,7 @@ class SubscriptionManager {
                  value="10" min="1" max="50" required>
         </div>
         <div class="form-group">
-          <label for="subscription-expiry-months">Durée de validité (mois)</label>
+          <label for="subscription-expiry-months">Dur├⌐e de validit├⌐ (mois)</label>
           <input type="number" id="subscription-expiry-months" name="expiry_months" 
                  value="6" min="1" max="24" required>
         </div>
@@ -3774,8 +3324,8 @@ class SubscriptionManager {
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
-            <span class="icon">🎫</span>
-            Créer la carte
+            <span class="icon">≡ƒÄ½</span>
+            Cr├⌐er la carte
           </button>
           <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
             Annuler
@@ -3806,15 +3356,15 @@ class SubscriptionManager {
       const response = await ApiClient.createSubscription(subscriptionData);
       
       if (response.success) {
-        ToastManager.success(`Carte créée avec succès: ${response.subscription.card_number}`);
+        ToastManager.success(`Carte cr├⌐├⌐e avec succ├¿s: ${response.subscription.card_number}`);
         ModalManager.hide();
         await this.loadSubscriptions();
       } else {
-        ToastManager.error(response.message || 'Erreur lors de la création');
+        ToastManager.error(response.message || 'Erreur lors de la cr├⌐ation');
       }
     } catch (error) {
-      console.error('Erreur lors de la création:', error);
-      ToastManager.error('Erreur lors de la création de la carte');
+      console.error('Erreur lors de la cr├⌐ation:', error);
+      ToastManager.error('Erreur lors de la cr├⌐ation de la carte');
     }
   }
 
@@ -3831,7 +3381,7 @@ class SubscriptionManager {
                    value="${Utils.escapeHtml(subscription.client_name)}" required>
           </div>
           <div class="form-group">
-            <label for="edit-subscription-phone-number">Numéro de téléphone *</label>
+            <label for="edit-subscription-phone-number">Num├⌐ro de t├⌐l├⌐phone *</label>
             <input type="tel" id="edit-subscription-phone-number" name="phone_number" 
                    value="${Utils.escapeHtml(subscription.phone_number)}" required>
           </div>
@@ -3840,7 +3390,7 @@ class SubscriptionManager {
             <textarea id="edit-subscription-address" name="address" rows="2" placeholder="Adresse du client (optionnel)">${subscription.address ? Utils.escapeHtml(subscription.address) : ''}</textarea>
           </div>
           <div class="form-group">
-            <label>Numéro de carte</label>
+            <label>Num├⌐ro de carte</label>
             <input type="text" value="${subscription.card_number}" disabled class="subscription-card-number" style="${subscription.modified_by ? 'font-style:italic;' : ''}">
           </div>
           <div class="form-group">
@@ -3848,7 +3398,7 @@ class SubscriptionManager {
             <input type="number" name="total_deliveries" value="${subscription.total_deliveries}" ${isAdmin ? '' : 'disabled'}>
           </div>
           <div class="form-group">
-            <label>Livraisons utilisées</label>
+            <label>Livraisons utilis├⌐es</label>
             <input type="number" name="used_deliveries" value="${subscription.used_deliveries}" ${isAdmin ? '' : 'disabled'} min="0" max="50">
           </div>
           <div class="form-group">
@@ -3861,7 +3411,7 @@ class SubscriptionManager {
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-              <span class="icon">💾</span>
+              <span class="icon">≡ƒÆ╛</span>
               Sauvegarder
             </button>
             <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
@@ -3876,8 +3426,8 @@ class SubscriptionManager {
         await this.updateSubscription(subscriptionId, new FormData(e.target));
       });
     } catch (error) {
-      console.error('Erreur lors de l\'édition:', error);
-      ToastManager.error('Erreur lors de l\'édition');
+      console.error('Erreur lors de l\'├⌐dition:', error);
+      ToastManager.error('Erreur lors de l\'├⌐dition');
     }
   }
 
@@ -3893,7 +3443,7 @@ class SubscriptionManager {
         remaining_deliveries !== null &&
         (total_deliveries !== used_deliveries + remaining_deliveries)
       ) {
-        ToastManager.error('Le nombre de livraisons doit être égal à la somme des livraisons utilisées et restantes.');
+        ToastManager.error('Le nombre de livraisons doit ├¬tre ├⌐gal ├á la somme des livraisons utilis├⌐es et restantes.');
         return;
       }
       const subscriptionData = {
@@ -3909,15 +3459,15 @@ class SubscriptionManager {
       }
       const response = await ApiClient.updateSubscription(subscriptionId, subscriptionData);
       if (response.success) {
-        ToastManager.success('Carte mise à jour avec succès');
+        ToastManager.success('Carte mise ├á jour avec succ├¿s');
         ModalManager.hide();
         await this.loadSubscriptions();
       } else {
-        ToastManager.error(response.message || 'Erreur lors de la mise à jour');
+        ToastManager.error(response.message || 'Erreur lors de la mise ├á jour');
       }
     } catch (error) {
-      console.error('Erreur lors de la mise à jour:', error);
-      ToastManager.error('Erreur lors de la mise à jour');
+      console.error('Erreur lors de la mise ├á jour:', error);
+      ToastManager.error('Erreur lors de la mise ├á jour');
     }
   }
 
@@ -3926,20 +3476,20 @@ class SubscriptionManager {
     if (!subscription) return;
 
     ModalManager.confirm(
-      'Désactiver la carte',
-      `Êtes-vous sûr de vouloir désactiver la carte ${subscription.card_number} de ${subscription.client_name} ?`,
+      'D├⌐sactiver la carte',
+      `├ètes-vous s├╗r de vouloir d├⌐sactiver la carte ${subscription.card_number} de ${subscription.client_name} ?`,
       async () => {
         try {
           const response = await ApiClient.deactivateSubscription(subscriptionId);
           if (response.success) {
-            ToastManager.success('Carte désactivée avec succès');
+            ToastManager.success('Carte d├⌐sactiv├⌐e avec succ├¿s');
             await this.loadSubscriptions();
           } else {
-            ToastManager.error(response.message || 'Erreur lors de la désactivation');
+            ToastManager.error(response.message || 'Erreur lors de la d├⌐sactivation');
           }
         } catch (error) {
-          console.error('Erreur lors de la désactivation:', error);
-          ToastManager.error('Erreur lors de la désactivation');
+          console.error('Erreur lors de la d├⌐sactivation:', error);
+          ToastManager.error('Erreur lors de la d├⌐sactivation');
         }
       }
     );
@@ -3949,14 +3499,14 @@ class SubscriptionManager {
     try {
       const response = await ApiClient.reactivateSubscription(subscriptionId);
       if (response.success) {
-        ToastManager.success('Carte réactivée avec succès');
+        ToastManager.success('Carte r├⌐activ├⌐e avec succ├¿s');
         await this.loadSubscriptions();
       } else {
-        ToastManager.error(response.message || 'Erreur lors de la réactivation');
+        ToastManager.error(response.message || 'Erreur lors de la r├⌐activation');
       }
     } catch (error) {
-      console.error('Erreur lors de la réactivation:', error);
-      ToastManager.error('Erreur lors de la réactivation');
+      console.error('Erreur lors de la r├⌐activation:', error);
+      ToastManager.error('Erreur lors de la r├⌐activation');
     }
   }
 
@@ -3964,7 +3514,7 @@ class SubscriptionManager {
     try {
       const response = await ApiClient.checkCardValidity(cardNumber);
       
-      const statusIcon = response.valid ? '✅' : '❌';
+      const statusIcon = response.valid ? 'Γ£à' : 'Γ¥î';
       const statusText = response.valid ? 'Valide' : 'Invalide';
       
       let details = `<p><strong>Statut:</strong> ${statusIcon} ${statusText}</p>`;
@@ -3973,22 +3523,22 @@ class SubscriptionManager {
         const sub = response.subscription;
         details += `
           <p><strong>Client:</strong> ${Utils.escapeHtml(sub.client_name)}</p>
-          <p><strong>Téléphone:</strong> ${Utils.escapeHtml(sub.phone_number)}</p>
+          <p><strong>T├⌐l├⌐phone:</strong> ${Utils.escapeHtml(sub.phone_number)}</p>
           <p><strong>Livraisons restantes:</strong> ${sub.remaining_deliveries}/${sub.total_deliveries}</p>
           <p><strong>Expiration:</strong> ${Utils.formatDisplayDate(sub.expiry_date)}</p>
         `;
       }
       
-      ModalManager.show(`Vérification de la carte ${cardNumber}`, details);
+      ModalManager.show(`V├⌐rification de la carte ${cardNumber}`, details);
       
       if (response.valid) {
         ToastManager.success('Carte valide');
       } else {
-        ToastManager.warning('Carte invalide ou expirée');
+        ToastManager.warning('Carte invalide ou expir├⌐e');
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification:', error);
-      ToastManager.error('Erreur lors de la vérification');
+      console.error('Erreur lors de la v├⌐rification:', error);
+      ToastManager.error('Erreur lors de la v├⌐rification');
     }
   }
 }
@@ -4020,7 +3570,7 @@ class ProfileManager {
           <div class="password-input">
             <input type="password" id="current-password" name="currentPassword" required>
             <button type="button" class="password-toggle" data-target="current-password">
-              <span class="icon">👁️</span>
+              <span class="icon">≡ƒæü∩╕Å</span>
             </button>
           </div>
         </div>
@@ -4030,10 +3580,10 @@ class ProfileManager {
           <div class="password-input">
             <input type="password" id="new-password" name="newPassword" required>
             <button type="button" class="password-toggle" data-target="new-password">
-              <span class="icon">👁️</span>
+              <span class="icon">≡ƒæü∩╕Å</span>
             </button>
           </div>
-          <small>Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.</small>
+          <small>Le mot de passe doit contenir au moins 8 caract├¿res avec une majuscule, une minuscule, un chiffre et un caract├¿re sp├⌐cial.</small>
         </div>
         
         <div class="form-group">
@@ -4041,7 +3591,7 @@ class ProfileManager {
           <div class="password-input">
             <input type="password" id="confirm-password" name="confirmPassword" required>
             <button type="button" class="password-toggle" data-target="confirm-password">
-              <span class="icon">👁️</span>
+              <span class="icon">≡ƒæü∩╕Å</span>
             </button>
           </div>
         </div>
@@ -4069,10 +3619,10 @@ class ProfileManager {
         
         if (input.type === 'password') {
           input.type = 'text';
-          icon.textContent = '🙈';
+          icon.textContent = '≡ƒÖê';
         } else {
           input.type = 'password';
-          icon.textContent = '👁️';
+          icon.textContent = '≡ƒæü∩╕Å';
         }
       });
     });
@@ -4083,7 +3633,7 @@ class ProfileManager {
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData.entries());
 
-      // Validation côté client
+      // Validation c├┤t├⌐ client
       if (data.newPassword !== data.confirmPassword) {
         ToastManager.error('Les mots de passe ne correspondent pas');
         return;
@@ -4091,14 +3641,14 @@ class ProfileManager {
 
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
       if (!passwordRegex.test(data.newPassword) || data.newPassword.length < 8) {
-        ToastManager.error('Le mot de passe ne respecte pas les critères de sécurité');
+        ToastManager.error('Le mot de passe ne respecte pas les crit├¿res de s├⌐curit├⌐');
         return;
       }
 
       try {
         await ApiClient.changePassword(data.currentPassword, data.newPassword, data.confirmPassword);
         ModalManager.hide();
-        ToastManager.success('Mot de passe modifié avec succès');
+        ToastManager.success('Mot de passe modifi├⌐ avec succ├¿s');
       } catch (error) {
         ToastManager.error(error.message || 'Erreur lors du changement de mot de passe');
       }
@@ -4106,890 +3656,392 @@ class ProfileManager {
   }
 }
 
-// ===== GESTIONNAIRE D'ANALYTICS =====
-class AnalyticsManager {
-  static async loadAnalytics() {
-    try {
-      // Initialiser les filtres de date
-      this.initializeDateFilters();
-      
-      // Charger les livreurs pour les filtres
-      await this.loadLivreursForFilters();
-      
-      // Charger les pondérations du score
-      await this.loadScoreWeights();
-      
-      // Charger les données initiales
-      await this.loadAnalyticsData();
-      
-      // Configurer les event listeners
-      this.setupEventListeners();
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des analytics:', error);
-      ToastManager.error('Erreur lors du chargement des analytics');
-    }
-  }
-
-  static initializeDateFilters() {
-    const today = new Date();
-    const startDate = new Date(2025, 4, 25); // 25 mai 2025 (mois 4 = mai)
-    const endDate = new Date(2025, 4, 30);   // 30 mai 2025
-    
-    const startDateInput = document.getElementById('analytics-date-start');
-    const endDateInput = document.getElementById('analytics-date-end');
-    const salaryDateInput = document.getElementById('salary-date');
-    
-    if (startDateInput && endDateInput) {
-      startDateInput.value = startDate.toISOString().split('T')[0];
-      endDateInput.value = endDate.toISOString().split('T')[0];
-    }
-    
-    if (salaryDateInput) {
-      salaryDateInput.value = today.toISOString().split('T')[0];
-    }
-  }
-
-  static async loadLivreursForFilters() {
-    try {
-      const response = await ApiClient.getLivreurs();
-      const livreurs = response.livreurs || [];
-      
-      // Remplir les sélecteurs de livreurs
-      const selectors = [
-        'analytics-livreur-filter',
-        'salary-livreur',
-        'compare-livreur1',
-        'compare-livreur2'
-      ];
-      
-      selectors.forEach(selectorId => {
-        const select = document.getElementById(selectorId);
-        if (select) {
-          const defaultOption = select.querySelector('option[value=""]');
-          select.innerHTML = '';
-          if (defaultOption) {
-            select.appendChild(defaultOption.cloneNode(true));
-          }
-          
-          livreurs.forEach(livreur => {
-            const option = document.createElement('option');
-            option.value = livreur.id;
-            option.textContent = livreur.username;
-            select.appendChild(option);
-          });
-        }
-      });
-      
-        } catch (error) {
-      console.error('Erreur lors du chargement des livreurs:', error);
-    }
-  }
-
-  static async loadAnalyticsData() {
-    try {
-      const filters = this.getFilters();
-      
-      // Charger toutes les données en parallèle
-      const [
-        globalStats,
-        typeStats,
-        rankings,
-        livreurDetails,
-        salaryHistory,
-        currentSalaries
-      ] = await Promise.all([
-        ApiClient.getAnalyticsGlobal(filters),
-        ApiClient.getAnalyticsByType(filters),
-        ApiClient.getAnalyticsRanking(filters),
-        ApiClient.getAnalyticsLivreurDetails(filters),
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      // Mettre à jour l'interface
-      this.updateGlobalStats(globalStats);
-      this.updateTypeAnalysis(typeStats);
-      this.updateRankings(rankings);
-      this.updateLivreurDetails(livreurDetails);
-      this.updateSalaryHistory(salaryHistory);
-      this.updateCurrentSalaries(currentSalaries);
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des données analytics:', error);
-      ToastManager.error('Erreur lors du chargement des données');
-    }
-  }
-
-  static getFilters() {
-    return {
-      startDate: document.getElementById('analytics-date-start')?.value || '',
-      endDate: document.getElementById('analytics-date-end')?.value || '',
-      livreurId: document.getElementById('analytics-livreur-filter')?.value || '',
-      orderType: document.getElementById('analytics-type-filter')?.value || ''
-    };
-  }
-
-  static updateGlobalStats(stats) {
-    document.getElementById('analytics-total-orders').textContent = stats.totalOrders || 0;
-    document.getElementById('analytics-total-revenue').textContent = Utils.formatAmount(stats.totalRevenue);
-    document.getElementById('analytics-total-expenses').textContent = Utils.formatAmount(stats.totalExpenses);
-    document.getElementById('analytics-total-km').textContent = (stats.totalKm || 0) + ' km';
-    document.getElementById('analytics-total-profit').textContent = Utils.formatAmount(stats.totalProfit);
-    document.getElementById('analytics-fuel-expenses').textContent = Utils.formatAmount(stats.fuelExpenses);
-  }
-
-  static updateTypeAnalysis(typeStats) {
-    const container = document.getElementById('type-analysis-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    typeStats.forEach(type => {
-      const typeCard = document.createElement('div');
-      typeCard.className = 'stat-card';
-      typeCard.innerHTML = `
-        <div class="stat-icon">${this.getTypeIcon(type.type)}</div>
-        <div class="stat-content">
-          <h3>${type.count}</h3>
-          <p>${this.getTypeName(type.type)}</p>
-          <small>${Utils.formatAmount(type.revenue)} • ${type.totalKm || 0} km</small>
-        </div>
-      `;
-      container.appendChild(typeCard);
-    });
-  }
-
-  static updateRankings(rankings) {
-    this.updateRankingList('global-ranking', rankings.global, 'global');
-    this.updateRankingList('orders-ranking', rankings.orders, 'orders');
-    this.updateRankingList('revenue-ranking', rankings.revenue, 'revenue');
-    this.updateRankingList('net-profit-with-salary-ranking', rankings.netProfitWithSalary, 'netProfitWithSalary');
-    this.updateRankingList('km-ranking', rankings.km, 'km');
-  }
-
-  static updateRankingList(containerId, data, type) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (!data || data.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #666; padding: 1rem;">Aucune donnée disponible</p>';
-      return;
-    }
-    
-    data.forEach((item, index) => {
-      const rank = index + 1;
-      const medal = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `${rank}.`;
-      
-      const rankItem = document.createElement('div');
-      rankItem.className = 'ranking-item';
-      rankItem.style.cssText = `
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem;
-        margin-bottom: 0.5rem;
-        background: ${rank <= 3 ? '#f8f9fa' : 'white'};
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-      `;
-      
-      let value = '';
-      switch (type) {
-        case 'orders':
-          value = `${item.totalorders} courses`;
-          break;
-        case 'revenue':
-          value = Utils.formatAmount(item.totalrevenue);
-          break;
-        case 'netProfitWithSalary':
-          value = Utils.formatAmount(item.netprofitwithsalary || 0);
-          break;
-        case 'km':
-          value = `${item.totalkm || 0} km`;
-          break;
-        default: // global
-          value = `Score: ${Math.round(item.globalscore || 0)}`;
-      }
-      
-      rankItem.innerHTML = `
-        <span style="font-weight: bold;">${medal} ${Utils.escapeHtml(item.username)}</span>
-        <span style="color: ${type === 'netProfitWithSalary' && (item.netprofitwithsalary || 0) < 0 ? 'red' : '#666'};">${value}</span>
-      `;
-      
-      container.appendChild(rankItem);
-    });
-  }
-
-  static updateLivreurDetails(details) {
-    const container = document.getElementById('livreur-details-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (details.length === 0) {
-      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 1rem;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">Livreur</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Courses</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Dépenses</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net (avec salaire)</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Kilomètres</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${details.map(livreur => `
-          <tr>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(livreur.username)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalorders || 0}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalrevenue)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalExpenses)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${(livreur.netProfitWithSalary || 0) >= 0 ? 'green' : 'red'}; font-weight: bold;">${Utils.formatAmount(livreur.netProfitWithSalary || 0)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalKm || 0} km</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-  }
-
-  static updateSalaryHistory(salaries) {
-    const container = document.getElementById('salary-history');
-    if (!container) return;
-    
-    container.innerHTML = '<h4>Historique des salaires</h4>';
-    
-    if (salaries.length === 0) {
-      container.innerHTML += '<p>Aucun salaire enregistré.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 0.5rem;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: left;">Livreur</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: right;">Salaire</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">Date d'effet</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: left;">Commentaire</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${salaries.slice(0, 10).map(salary => `
-          <tr>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6;">${Utils.escapeHtml(salary.livreur_name || 'N/A')}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${Utils.formatAmount(salary.amount)}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">${Utils.formatDisplayDate(salary.effective_date)}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6;">${Utils.escapeHtml(salary.comment || '-')}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">
-              <button onclick="AnalyticsManager.deleteSalary(${salary.id})" class="btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🗑️</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-  }
-
-  static async compareDeliverers() {
-    const livreur1Id = document.getElementById('compare-livreur1')?.value;
-    const livreur2Id = document.getElementById('compare-livreur2')?.value;
-    
-    if (!livreur1Id || !livreur2Id) {
-      ToastManager.warning('Veuillez sélectionner deux livreurs à comparer');
-      return;
-    }
-    
-    if (livreur1Id === livreur2Id) {
-      ToastManager.warning('Veuillez sélectionner deux livreurs différents');
-      return;
-    }
-    
-    try {
-      const filters = this.getFilters();
-      const comparison = await ApiClient.getAnalyticsComparison({
-        livreur1Id,
-        livreur2Id,
-        startDate: filters.startDate,
-        endDate: filters.endDate
-      });
-      
-      this.displayComparison(comparison);
-      
-    } catch (error) {
-      console.error('Erreur lors de la comparaison:', error);
-      ToastManager.error('Erreur lors de la comparaison des livreurs');
-    }
-  }
-
-  static displayComparison(comparison) {
-    const container = document.getElementById('comparison-results');
-    if (!container) return;
-    
-    const { livreur1, livreur2 } = comparison;
-    
-    if (!livreur1 || !livreur2) {
-      container.innerHTML = '<p>Aucune donnée trouvée pour les livreurs sélectionnés.</p>';
-      return;
-    }
-    
-    container.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-          <h4 style="margin-bottom: 1rem; color: #0066cc;">${Utils.escapeHtml(livreur1.username || 'Livreur 1')}</h4>
-          <div style="display: grid; gap: 0.5rem;">
-            <div style="display: flex; justify-content: space-between;"><span>Courses:</span><strong>${livreur1.totalorders || 0}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Revenus:</span><strong>${Utils.formatAmount(livreur1.totalrevenue)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Dépenses:</span><strong>${Utils.formatAmount(livreur1.totalExpenses)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Bénéfice net:</span><strong style="color: ${livreur1.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur1.netProfit)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Kilomètres:</span><strong>${livreur1.totalKm || 0} km</strong></div>
-          </div>
-        </div>
-        
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-          <h4 style="margin-bottom: 1rem; color: #cc6600;">${Utils.escapeHtml(livreur2.username || 'Livreur 2')}</h4>
-          <div style="display: grid; gap: 0.5rem;">
-            <div style="display: flex; justify-content: space-between;"><span>Courses:</span><strong>${livreur2.totalorders || 0}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Revenus:</span><strong>${Utils.formatAmount(livreur2.totalrevenue)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Dépenses:</span><strong>${Utils.formatAmount(livreur2.totalExpenses)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Bénéfice net:</span><strong style="color: ${livreur2.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur2.netProfit)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Kilomètres:</span><strong>${livreur2.totalKm || 0} km</strong></div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  static async addSalary() {
-    const livreurId = document.getElementById('salary-livreur')?.value;
-    const amount = document.getElementById('salary-amount')?.value;
-    const effectiveDate = document.getElementById('salary-date')?.value;
-    
-    console.log('🔍 Valeurs du formulaire salaire:', {
-      livreurId,
-      amount,
-      effectiveDate,
-      amountParsed: parseFloat(amount)
-    });
-    
-    if (!livreurId || !amount || !effectiveDate) {
-      ToastManager.warning('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-    
-    const parsedAmount = parseFloat(amount);
-    
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      ToastManager.warning('Veuillez vérifier les valeurs saisies');
-      return;
-    }
-    
-    try {
-      const salaryData = {
-        user_id: livreurId, // Garder l'UUID tel quel
-        amount: parsedAmount,
-        effective_date: effectiveDate
-      };
-      
-      console.log('📤 Données envoyées au serveur:', salaryData);
-      
-      await ApiClient.createSalary(salaryData);
-      
-      ToastManager.success('Salaire ajouté avec succès');
-      
-      // Recharger l'historique des salaires et le tableau des salaires actuels
-      const [salaries, currentSalaries] = await Promise.all([
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      this.updateSalaryHistory(salaries);
-      this.updateCurrentSalaries(currentSalaries);
-      
-      // Réinitialiser le formulaire
-      document.getElementById('salary-livreur').value = '';
-      document.getElementById('salary-amount').value = '';
-      document.getElementById('salary-date').value = new Date().toISOString().split('T')[0];
-      
-        } catch (error) {
-      console.error('Erreur lors de l\'ajout du salaire:', error);
-      ToastManager.error('Erreur lors de l\'ajout du salaire');
-        }
-  }
-
-  static async deleteSalary(salaryId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce salaire ?')) {
-        return;
-      }
-      
-    try {
-      await ApiClient.deleteSalary(salaryId);
-      ToastManager.success('Salaire supprimé avec succès');
-      
-      // Recharger l'historique des salaires et le tableau des salaires actuels
-      const [salaries, currentSalaries] = await Promise.all([
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      this.updateSalaryHistory(salaries);
-      this.updateCurrentSalaries(currentSalaries);
-      
-      } catch (error) {
-      console.error('Erreur lors de la suppression du salaire:', error);
-      ToastManager.error('Erreur lors de la suppression du salaire');
-    }
+// ===== INITIALISATION DE L'APPLICATION =====
+class App {
+  static async init() {
+    this.setupEventListeners();
+    await AuthManager.init();
   }
 
   static setupEventListeners() {
-    // Bouton analyser
-    const analyzeBtn = document.getElementById('apply-analytics-filters');
-    if (analyzeBtn) {
-      analyzeBtn.addEventListener('click', () => this.loadAnalyticsData());
-    }
-    
-    // Bouton actualiser
-    const refreshBtn = document.getElementById('refresh-analytics');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => this.loadAnalyticsData());
-    }
-    
-    // Bouton comparer
-    const compareBtn = document.getElementById('compare-livreurs-btn');
-    if (compareBtn) {
-      compareBtn.addEventListener('click', () => this.compareDeliverers());
-    }
-    
-    // Bouton ajouter salaire
-    const addSalaryBtn = document.getElementById('add-salary-btn');
-    if (addSalaryBtn) {
-      addSalaryBtn.addEventListener('click', () => this.addSalary());
-    }
-    
-    // Bouton toggle section salaires
-    const toggleSalaryBtn = document.getElementById('toggle-salary-section');
-    if (toggleSalaryBtn) {
-      toggleSalaryBtn.addEventListener('click', () => this.toggleSalarySection());
-    }
-    
-    // Bouton toggle section score
-    const toggleScoreBtn = document.getElementById('toggle-score-section');
-    if (toggleScoreBtn) {
-      toggleScoreBtn.addEventListener('click', () => this.toggleScoreSection());
-    }
-  }
+    // Formulaire de connexion
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const username = formData.get('username');
+      const password = formData.get('password');
 
-  static getTypeIcon(type) {
-    const icons = {
-      'MATA': '🛒',
-      'MLC': '🚚',
-      'MLC_SUBSCRIPTION': '🎫',
-      'AUTRE': '📦'
-    };
-    return icons[type] || '📦';
-  }
-
-  static getTypeName(type) {
-    const names = {
-      'MATA': 'MATA',
-      'MLC': 'MLC classique',
-      'MLC_SUBSCRIPTION': 'MLC abonnement',
-      'AUTRE': 'Autre'
-    };
-    return names[type] || type;
-  }
-
-  static async getAnalyticsComparison(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/compare?${queryString}`);
-  }
-
-  static async getScoreWeights() {
-    return this.request('/analytics/score-weights');
-  }
-
-  static async updateScoreWeights(weights) {
-    return this.request('/analytics/score-weights', {
-      method: 'PUT',
-      body: JSON.stringify(weights)
-    });
-  }
-
-  static async loadScoreWeights() {
-    try {
-      const weights = await ApiClient.getScoreWeights();
-      this.updateScoreWeights(weights);
+      try {
+        await AuthManager.login(username, password);
       } catch (error) {
-      console.error('Erreur lors du chargement des pondérations:', error);
-      ToastManager.error('Erreur lors du chargement des pondérations');
-    }
-  }
-
-  static updateScoreWeights(data) {
-    const container = document.getElementById('score-weights-container');
-    if (!container) return;
-    
-    const { weights, formula, description } = data;
-    
-    container.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <div>
-          <h4 style="margin-bottom: 1rem;">📐 Formule de calcul</h4>
-          <p style="font-family: monospace; background: white; padding: 1rem; border-radius: 4px; border: 1px solid #ddd;">
-            ${Utils.escapeHtml(formula)}
-          </p>
-          
-          <h4 style="margin: 1.5rem 0 1rem 0;">⚖️ Pondérations</h4>
-          <form id="score-weights-form" style="display: grid; gap: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #ddd;">
-              <span>🎯 Points par course:</span>
-              <input type="number" id="weight-courses" value="${weights.COURSES}" step="0.1" min="0" max="10" 
-                     style="width: 80px; padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #ddd;">
-              <span>💰 Points par FCFA de bénéfice:</span>
-              <input type="number" id="weight-profit" value="${weights.PROFIT}" step="0.0001" min="0" max="1" 
-                     style="width: 80px; padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-              <button type="submit" class="btn btn-primary btn-sm">
-                <span class="icon">💾</span>
-                Sauvegarder
-              </button>
-              <button type="button" id="reset-weights-btn" class="btn btn-secondary btn-sm">
-                <span class="icon">🔄</span>
-                Réinitialiser
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        <div>
-          <h4 style="margin-bottom: 1rem;">💡 Explications</h4>
-          <div style="display: grid; gap: 0.75rem; font-size: 0.9rem;">
-            <div style="padding: 0.75rem; background: #e8f4fd; border-radius: 4px; border-left: 4px solid #0066cc;">
-              <strong>Courses:</strong><br>${Utils.escapeHtml(description.COURSES)}
-            </div>
-            <div style="padding: 0.75rem; background: #e8f5e8; border-radius: 4px; border-left: 4px solid #28a745;">
-              <strong>Bénéfice:</strong><br>${Utils.escapeHtml(description.PROFIT)}
-            </div>
-            <div style="padding: 0.75rem; background: #fff8e1; border-radius: 4px; border-left: 4px solid #ffc107;">
-              <strong>Exemple:</strong><br>${Utils.escapeHtml(description.example)}
-            </div>
-            <div style="padding: 0.75rem; background: #f8e8e8; border-radius: 4px; border-left: 4px solid #dc3545;">
-              <strong>💡 Conseil:</strong><br>
-              Augmentez la pondération des courses pour favoriser le volume, 
-              ou celle du bénéfice pour favoriser la rentabilité.
-            </div>
-          </div>
-          
-          <div style="margin-top: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 0.8rem; color: #666;">
-            <strong>📅 Dernière modification:</strong><br>
-            Valeurs sauvegardées automatiquement dans le fichier de configuration
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Ajouter les event listeners pour le formulaire
-    const form = document.getElementById('score-weights-form');
-    if (form) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.saveScoreWeights();
-      });
-    }
-    
-    const resetBtn = document.getElementById('reset-weights-btn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        this.resetScoreWeights();
-      });
-    }
-  }
-
-  static async saveScoreWeights() {
-    try {
-      const coursesValue = parseFloat(document.getElementById('weight-courses').value);
-      const profitValue = parseFloat(document.getElementById('weight-profit').value);
-      
-      if (isNaN(coursesValue) || isNaN(profitValue)) {
-        ToastManager.error('Veuillez entrer des valeurs numériques valides');
-        return;
+        const errorElement = document.getElementById('login-error');
+        errorElement.textContent = error.message || 'Erreur de connexion';
+        errorElement.classList.remove('hidden');
       }
-      
-      if (coursesValue < 0 || profitValue < 0) {
-        ToastManager.error('Les pondérations ne peuvent pas être négatives');
-        return;
-      }
-      
-      const weights = {
-        courses: coursesValue,
-        profit: profitValue
-      };
-      
-      const response = await ApiClient.updateScoreWeights(weights);
-      
-      if (response.success) {
-        ToastManager.success('Pondérations mises à jour avec succès');
-        // Recharger les pondérations pour afficher la nouvelle formule
-        await this.loadScoreWeights();
-        // Recharger les données analytics pour voir l'impact
-        await this.loadAnalyticsData();
-      } else {
-        ToastManager.error(response.message || 'Erreur lors de la mise à jour');
-      }
-      
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des pondérations:', error);
-      ToastManager.error(error.message || 'Erreur lors de la sauvegarde');
-    }
-  }
+    });
 
-  static async resetScoreWeights() {
-    // Valeurs par défaut
-    const defaultWeights = {
-      courses: 0.4,
-      profit: 0.0002
-    };
-    
-    // Remplir les champs avec les valeurs par défaut
-    document.getElementById('weight-courses').value = defaultWeights.courses;
-    document.getElementById('weight-profit').value = defaultWeights.profit;
-    
-    ToastManager.info('Valeurs réinitialisées. Cliquez sur "Sauvegarder" pour appliquer.');
-  }
+    // Bouton de d├⌐connexion
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await AuthManager.logout();
+    });
 
-  static updateCurrentSalaries(salaries) {
-    const container = document.getElementById('current-salaries-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (salaries.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #666; margin: 1rem 0;">Aucun salaire configuré.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">👤 Livreur</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">💰 Salaire actuel</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">📅 En vigueur depuis</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">📊 Statut</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${salaries.map(salary => {
-          const hasAmount = salary.current_salary !== null;
-          const effectiveDate = salary.effective_date ? Utils.formatDisplayDate(salary.effective_date) : '-';
-          const statusText = hasAmount ? '✅ Configuré' : '⚠️ Non configuré';
-          const statusColor = hasAmount ? 'green' : 'orange';
-          const amount = hasAmount ? Utils.formatAmount(salary.current_salary) : 'Non défini';
-          
-          return `
-            <tr>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(salary.username)}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: ${hasAmount ? 'black' : '#999'};">${amount}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">${effectiveDate}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center; color: ${statusColor};">${statusText}</td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-    
-    // Ajouter un résumé
-    const configured = salaries.filter(s => s.current_salary !== null).length;
-    const total = salaries.length;
-    
-    const summary = document.createElement('div');
-    summary.style.cssText = 'margin-top: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; font-size: 0.9rem; color: #666;';
-    summary.innerHTML = `
-      📊 <strong>Résumé:</strong> ${configured}/${total} livreurs ont un salaire configuré
-      ${configured < total ? ` • <span style="color: orange;">${total - configured} livreur(s) sans salaire</span>` : ' • <span style="color: green;">Tous les salaires sont configurés</span>'}
-    `;
-    
-    container.appendChild(summary);
-  }
-
-  static toggleSalarySection() {
-    const salaryContent = document.getElementById('salary-content');
-    const toggleText = document.getElementById('toggle-salary-text');
-    const toggleIcon = document.querySelector('#toggle-salary-section .icon');
-    
-    if (!salaryContent || !toggleText || !toggleIcon) return;
-    
-    const isHidden = salaryContent.style.display === 'none';
-    
-    if (isHidden) {
-      // Afficher la section
-      salaryContent.style.display = 'block';
-      toggleText.textContent = 'Masquer';
-      toggleIcon.textContent = '🙈';
-        } else {
-      // Cacher la section
-      salaryContent.style.display = 'none';
-      toggleText.textContent = 'Afficher';
-      toggleIcon.textContent = '👁️';
-    }
-  }
-
-  static toggleScoreSection() {
-    const scoreContent = document.getElementById('score-content');
-    const toggleText = document.getElementById('toggle-score-text');
-    const toggleIcon = document.querySelector('#toggle-score-section .icon');
-    
-    if (!scoreContent || !toggleText || !toggleIcon) return;
-    
-    const isHidden = scoreContent.style.display === 'none';
-    
-    if (isHidden) {
-      // Afficher la section
-      scoreContent.style.display = 'block';
-      toggleText.textContent = 'Masquer';
-      toggleIcon.textContent = '🙈';
-    } else {
-      // Cacher la section
-      scoreContent.style.display = 'none';
-      toggleText.textContent = 'Afficher';
-      toggleIcon.textContent = '👁️';
-    }
-  }
-}
-
-// ===== GESTIONNAIRE PRINCIPAL DE L'APPLICATION =====
-class App {
-  static async init() {
-    try {
-      console.log('🚀 Initialisation de l\'application...');
-      
-      // Configurer les event listeners de navigation
-      this.setupNavigationListeners();
-      
-      // Démarrer l'authentification
-      await AuthManager.init();
-      
-      console.log('✅ Application initialisée avec succès');
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
-      ToastManager.error('Erreur lors du démarrage de l\'application');
-    }
-  }
-
-  static setupNavigationListeners() {
-    // Configurer les boutons de navigation
-    document.querySelectorAll('.nav-item').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const pageId = button.dataset.page;
-        if (pageId) {
-          PageManager.showPage(pageId);
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        if (page) {
+          PageManager.showPage(page);
         }
       });
     });
 
-    // Configurer les autres event listeners globaux
-    this.setupGlobalListeners();
-  }
+    // Gestion du type de commande pour afficher/masquer les champs
+    document.getElementById('order-type').addEventListener('change', (e) => {
+      const orderType = e.target.value;
+      const coursePriceGroup = document.getElementById('course-price-group');
+      const amountGroup = document.getElementById('amount-group');
+      const subscriptionToggleGroup = document.getElementById('subscription-toggle-group');
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const coursePriceInput = document.getElementById('course-price');
+      
+      if (orderType === 'MATA') {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'block';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '1500';
+        coursePriceInput.readOnly = true;
+      } else if (orderType === 'MLC') {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'block';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      } else {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      }
+    });
 
-  static setupGlobalListeners() {
-    // Bouton de déconnexion
-    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+    // Gestion du toggle d'abonnement
+    document.getElementById('use-subscription').addEventListener('change', async (e) => {
+      const useSubscription = e.target.checked;
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const coursePriceInput = document.getElementById('course-price');
+      
+      if (useSubscription) {
+        subscriptionSelectGroup.style.display = 'block';
+        coursePriceInput.value = '1500';
+        coursePriceInput.readOnly = true;
+        
+        // Charger les abonnements actifs
+        try {
+          const response = await ApiClient.getActiveSubscriptions();
+          const select = document.getElementById('subscription-select');
+          select.innerHTML = '<option value="">S├⌐lectionner un abonnement...</option>';
+          
+          response.subscriptions.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = `${sub.card_number} - ${sub.client_name} (${sub.remaining_deliveries} livraisons restantes)`;
+            option.dataset.clientName = sub.client_name;
+            option.dataset.phoneNumber = sub.phone_number;
+            option.dataset.price = sub.price;
+            option.dataset.totalDeliveries = sub.total_deliveries;
+            option.dataset.address = sub.address || '';
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Erreur lors du chargement des abonnements:', error);
+          ToastManager.error('Erreur lors du chargement des abonnements');
+        }
+      } else {
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      }
+    });
+
+    // Gestion de la s├⌐lection d'un abonnement
+    document.getElementById('subscription-select').addEventListener('change', (e) => {
+      const selectedOption = e.target.selectedOptions[0];
+      if (selectedOption.value) {
+        document.getElementById('client-name').value = selectedOption.dataset.clientName;
+        document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
+        document.getElementById('address').value = selectedOption.dataset.address;
+        // Calcul automatique du prix de la course
+        const price = parseFloat(selectedOption.dataset.price);
+        const totalDeliveries = parseInt(selectedOption.dataset.totalDeliveries);
+        if (price && totalDeliveries) {
+          const coursePrice = Math.round(price / totalDeliveries);
+          document.getElementById('course-price').value = coursePrice;
+        }
+      }
+    });
+
+    // Gestion de la soumission du formulaire
+    document.getElementById('new-order-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      AuthManager.logout();
-    });
-
-    // Fermeture de modal avec échap
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        ModalManager.hide();
+      
+      const formData = new FormData(e.target);
+      const orderData = Object.fromEntries(formData.entries());
+      
+      // Convertir les montants en nombres
+      if (orderData.course_price) {
+        orderData.course_price = parseFloat(orderData.course_price);
+      }
+      if (orderData.amount) {
+        orderData.amount = parseFloat(orderData.amount);
+      }
+      
+      // Pour MLC avec abonnement, utiliser la route sp├⌐ciale
+      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
+        try {
+          const response = await ApiClient.createMLCOrderWithSubscription(orderData);
+          if (response.success) {
+            ToastManager.success('Commande cr├⌐├⌐e avec succ├¿s');
+            document.getElementById('new-order-form').reset();
+            await OrderManager.loadLastUserOrders();
+          } else {
+            ToastManager.error(response.message || 'Erreur lors de la cr├⌐ation de la commande');
+          }
+        } catch (error) {
+          console.error('Erreur lors de la cr├⌐ation de la commande:', error);
+          ToastManager.error('Erreur lors de la cr├⌐ation de la commande');
+        }
+        return;
+      }
+      
+      // Pour les autres types de commandes, utiliser la route normale
+      try {
+        await OrderManager.createOrder(orderData);
+      } catch (error) {
+        console.error('Erreur lors de la cr├⌐ation de la commande:', error);
+        ToastManager.error('Erreur lors de la cr├⌐ation de la commande');
       }
     });
 
-    // Fermeture de modal avec overlay
-    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
-      if (e.target.id === 'modal-overlay') {
-        ModalManager.hide();
+    // Filtre par date pour les commandes
+    document.getElementById('orders-date-filter').addEventListener('change', (e) => {
+      const date = e.target.value;
+      if (date) {
+        OrderManager.loadOrdersByDate(date);
+      } else {
+        OrderManager.loadOrders();
       }
     });
 
-    // Bouton de fermeture de modal
-    document.getElementById('modal-close')?.addEventListener('click', () => {
+    // Pagination des commandes
+    document.getElementById('prev-page').addEventListener('click', () => {
+      if (AppState.currentOrdersPage > 1) {
+        OrderManager.loadOrders(AppState.currentOrdersPage - 1);
+      }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+      if (AppState.currentOrdersPage < AppState.totalOrdersPages) {
+        OrderManager.loadOrders(AppState.currentOrdersPage + 1);
+      }
+    });
+
+    // Export Excel
+    document.getElementById('export-excel').addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const startDate = prompt('Date de d├⌐but (YYYY-MM-DD):', today);
+      if (!startDate) return;
+      
+      const endDate = prompt('Date de fin (YYYY-MM-DD):', today);
+      if (!endDate) return;
+
+      try {
+        ApiClient.exportOrders(startDate, endDate);
+        ToastManager.success('Export en cours...');
+      } catch (error) {
+        ToastManager.error('Erreur lors de l\'export');
+      }
+    });
+
+    // Boutons utilisateurs
+    document.getElementById('add-user-btn').addEventListener('click', () => {
+      UserManager.createUser();
+    });
+
+    // Boutons livreurs
+    document.getElementById('add-livreur-btn').addEventListener('click', () => {
+      LivreurManager.createLivreur();
+    });
+
+    document.getElementById('show-all-livreurs').addEventListener('click', () => {
+      LivreurManager.loadLivreurs(false);
+    });
+
+    document.getElementById('show-active-livreurs').addEventListener('click', () => {
+      LivreurManager.loadLivreurs(true);
+    });
+
+    // Bouton changement de mot de passe
+    document.getElementById('change-password-btn').addEventListener('click', () => {
+      ProfileManager.showChangePasswordModal();
+    });
+
+    document.getElementById('change-password-link').addEventListener('click', () => {
+      ProfileManager.showChangePasswordModal();
+    });
+
+    // Actualiser le dashboard
+    document.getElementById('refresh-dashboard').addEventListener('click', () => {
+      DashboardManager.loadDashboard();
+    });
+
+    // Nouveau: Event listener pour le filtre de date du dashboard
+    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
+    if (dashboardDateFilter) {
+      dashboardDateFilter.addEventListener('change', () => {
+        DashboardManager.loadDashboard();
+      });
+    }
+
+    // Event listeners pour le tableau de bord mensuel
+    MonthlyDashboardManager.setupEventListeners();
+
+    // Event listeners pour le tableau de bord MATA mensuel
+    MataMonthlyDashboardManager.setupEventListeners();
+
+    // Fermeture des modales
+    document.getElementById('modal-close').addEventListener('click', () => {
       ModalManager.hide();
     });
 
-    // Gestion du formulaire de connexion
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username-input').value.trim();
-        const password = document.getElementById('password-input').value;
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        ModalManager.hide();
+      }
+    });
+
+    // Toggles de mot de passe
+    document.querySelectorAll('.password-toggle').forEach(toggle => {
+      toggle.addEventListener('click', (e) => {
+        const targetId = e.currentTarget.dataset.target;
+        const input = document.getElementById(targetId);
+        const icon = e.currentTarget.querySelector('.icon');
         
-        if (!username || !password) {
-          ToastManager.error('Veuillez remplir tous les champs');
-          return;
-        }
-
-        try {
-          document.getElementById('login-btn').disabled = true;
-          document.getElementById('login-btn').textContent = 'Connexion...';
-          
-          await AuthManager.login(username, password);
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur de connexion');
-        } finally {
-          document.getElementById('login-btn').disabled = false;
-          document.getElementById('login-btn').textContent = 'Se connecter';
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.textContent = '≡ƒÖê';
+        } else {
+          input.type = 'password';
+          icon.textContent = '≡ƒæü∩╕Å';
         }
       });
+    });
+
+    // Initialiser la date d'aujourd'hui dans le filtre
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('orders-date-filter').value = today;
+
+    // Gestion des erreurs globales
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Erreur non g├⌐r├⌐e:', event.reason);
+      ToastManager.error('Une erreur inattendue s\'est produite');
+    });
+
+    // Gestion de la perte de connexion
+    window.addEventListener('online', () => {
+      ToastManager.success('Connexion r├⌐tablie');
+    });
+
+    window.addEventListener('offline', () => {
+      ToastManager.warning('Connexion perdue');
+    });
+
+    // Affichage du champ livreur pour managers/admins
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      const livreurGroup = document.getElementById('livreur-select-group');
+      livreurGroup.style.display = 'block';
+      // Charger la liste des livreurs
+      ApiClient.getLivreurs().then(response => {
+        const select = document.getElementById('livreur-select');
+        select.innerHTML = '<option value="">S├⌐lectionner un livreur</option>';
+        (response.livreurs || []).forEach(livreur => {
+          select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+        });
+      });
+    } else {
+      document.getElementById('livreur-select-group').style.display = 'none';
     }
 
-    // Gestion du formulaire de commande
-    const orderForm = document.getElementById('order-form');
-    if (orderForm) {
-      orderForm.addEventListener('submit', async (e) => {
+    // --- Order form dynamic fields logic ---
+    const orderTypeSelect = document.getElementById('order-type');
+    const adresseSourceGroup = document.getElementById('adresse-source-group');
+    const adresseDestinationGroup = document.getElementById('adresse-destination-group');
+    const pointVenteGroup = document.getElementById('point-vente-group');
+    const addressGroup = document.getElementById('address-group');
+    const pointVenteSelect = document.getElementById('point-vente');
+
+    orderTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        const adresseSourceLabel = document.querySelector('label[for="adresse-source"]');
+        if (type === 'MLC' || type === 'AUTRE') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = true;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source <span style="color:red">*</span>';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        } else if (type === 'MATA') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = '';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = true;
+        } else {
+            // Default: show adresse source/destination, hide old Adresse
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = false;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        }
+    });
+
+    // On page load, trigger change to set correct fields
+    if (orderTypeSelect) orderTypeSelect.dispatchEvent(new Event('change'));
+
+    // --- Form validation on submit ---
+    document.getElementById('new-order-form').addEventListener('submit', function(e) {
+        const type = orderTypeSelect.value;
+        if ((type === 'MLC' || type === 'AUTRE')) {
+            if (!document.getElementById('adresse-source').value.trim() || !document.getElementById('adresse-destination').value.trim()) {
                 e.preventDefault();
-        const formData = new FormData(e.target);
-        try {
-          await OrderManager.createOrder(formData);
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur lors de la création de la commande');
+                ToastManager.error('Adresse source et destination sont obligatoires pour ce type de commande.');
+                return false;
+            }
         }
-      });
-    }
+        if (type === 'MATA') {
+            if (!pointVenteSelect.value) {
+                e.preventDefault();
+                ToastManager.error('Le point de vente est obligatoire pour MATA.');
+                return false;
+            }
+        }
+    });
   }
 }
 
-// ===== DÉMARRAGE DE L'APPLICATION =====
+// ===== D├ëMARRAGE DE L'APPLICATION =====
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
 });
@@ -5002,5 +4054,4 @@ window.ExpenseManager = ExpenseManager;
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
-window.AnalyticsManager = AnalyticsManager;
 window.ModalManager = ModalManager; 

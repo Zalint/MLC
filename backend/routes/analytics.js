@@ -54,92 +54,6 @@ loadScoreWeights();
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
-// GET /api/analytics/summary - Statistiques globales (alias pour /global)
-router.get('/summary', requireManagerOrAdmin, async (req, res) => {
-    try {
-        const { startDate, endDate, livreurId, orderType } = req.query;
-        
-        let orderWhereClause = '1=1';
-        let expenseWhereClause = '1=1';
-        let orderParams = [];
-        let expenseParams = [];
-        
-        if (startDate) {
-            orderWhereClause += ` AND DATE(orders.created_at) >= $1`;
-            expenseWhereClause += ` AND DATE(expenses.expense_date) >= $1`;
-            orderParams.push(startDate);
-            expenseParams.push(startDate);
-        }
-        
-        if (endDate) {
-            orderWhereClause += ` AND DATE(orders.created_at) <= $${orderParams.length + 1}`;
-            expenseWhereClause += ` AND DATE(expenses.expense_date) <= $${expenseParams.length + 1}`;
-            orderParams.push(endDate);
-            expenseParams.push(endDate);
-        }
-        
-        if (livreurId) {
-            orderWhereClause += ` AND orders.created_by = $${orderParams.length + 1}`;
-            expenseWhereClause += ` AND expenses.livreur_id = $${expenseParams.length + 1}`;
-            orderParams.push(livreurId);
-            expenseParams.push(livreurId);
-        }
-        
-        if (orderType) {
-            if (orderType === 'MLC_SUBSCRIPTION') {
-                orderWhereClause += ` AND orders.order_type = 'MLC' AND orders.subscription_id IS NOT NULL`;
-            } else if (orderType === 'MLC') {
-                orderWhereClause += ` AND orders.order_type = 'MLC' AND orders.subscription_id IS NULL`;
-            } else {
-                orderWhereClause += ` AND orders.order_type = $${orderParams.length + 1}`;
-                orderParams.push(orderType);
-            }
-        }
-
-        // Statistiques des commandes
-        const ordersResult = await db.query(`
-            SELECT 
-                COUNT(*) as totalOrders,
-                COALESCE(SUM(course_price), 0) as totalRevenue,
-                COALESCE(AVG(course_price), 0) as avgOrderValue,
-                COUNT(DISTINCT created_by) as activeLivreurs
-            FROM orders 
-            WHERE ${orderWhereClause}
-        `, orderParams);
-
-        const ordersStats = ordersResult.rows[0];
-
-        // Statistiques des dépenses et kilomètres
-        const expensesResult = await db.query(`
-            SELECT 
-                COALESCE(SUM(carburant + reparations + police + autres), 0) as totalExpenses,
-                COALESCE(SUM(carburant), 0) as fuelExpenses,
-                COALESCE(SUM(km_parcourus), 0) as totalKm
-            FROM expenses 
-            WHERE ${expenseWhereClause}
-        `, expenseParams);
-
-        const expensesStats = expensesResult.rows[0];
-
-        // Bénéfices nets
-        const totalProfit = (parseFloat(ordersStats?.totalrevenue) || 0) - (parseFloat(expensesStats?.totalexpenses) || 0);
-
-        res.json({
-            totalOrders: parseInt(ordersStats?.totalorders) || 0,
-            totalRevenue: parseFloat(ordersStats?.totalrevenue) || 0,
-            avgOrderValue: parseFloat(ordersStats?.avgordervalue) || 0,
-            activeLivreurs: parseInt(ordersStats?.activelivreurs) || 0,
-            totalKm: parseFloat(expensesStats?.totalkm) || 0,
-            totalExpenses: parseFloat(expensesStats?.totalexpenses) || 0,
-            fuelExpenses: parseFloat(expensesStats?.fuelexpenses) || 0,
-            totalProfit: totalProfit
-        });
-    } catch (error) {
-        console.error('Erreur lors de la récupération des statistiques globales:', error);
-        res.status(500).json({ error: 'Erreur interne du serveur' });
-    }
-});
-
 // GET /api/analytics/global - Statistiques globales
 router.get('/global', requireManagerOrAdmin, async (req, res) => {
     try {
@@ -462,22 +376,13 @@ router.get('/ranking', requireManagerOrAdmin, async (req, res) => {
                 COALESCE(le.total_expenses, 0) as totalExpenses,
                 (ls.total_revenue - COALESCE(le.total_expenses, 0)) as netProfit,
                 lsal.current_salary as currentSalary,
-                -- Calculer le nombre de jours du mois en cours
-                EXTRACT(DAY FROM DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day') as daysInMonth,
-                -- Calculer le nombre de jours dans la période
-                CASE 
-                    WHEN $${params.length + 1}::date IS NOT NULL AND $${params.length + 2}::date IS NOT NULL THEN
-                        ($${params.length + 2}::date - $${params.length + 1}::date) + 1
-                    ELSE 
-                        EXTRACT(DAY FROM DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')
-                END as periodDays,
                 -- Calculer le coût du salaire pour la période
                 (lsal.current_salary / 
                  EXTRACT(DAY FROM DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')
                 ) * 
                 CASE 
                     WHEN $${params.length + 1}::date IS NOT NULL AND $${params.length + 2}::date IS NOT NULL THEN
-                        ($${params.length + 2}::date - $${params.length + 1}::date) + 1
+                        EXTRACT(DAY FROM $${params.length + 2}::date - $${params.length + 1}::date) + 1
                     ELSE 
                         EXTRACT(DAY FROM DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')
                 END as periodSalaryCost,
@@ -488,7 +393,7 @@ router.get('/ranking', requireManagerOrAdmin, async (req, res) => {
                  ) * 
                  CASE 
                      WHEN $${params.length + 1}::date IS NOT NULL AND $${params.length + 2}::date IS NOT NULL THEN
-                         ($${params.length + 2}::date - $${params.length + 1}::date) + 1
+                         EXTRACT(DAY FROM $${params.length + 2}::date - $${params.length + 1}::date) + 1
                      ELSE 
                          EXTRACT(DAY FROM DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')
                  END
