@@ -497,71 +497,6 @@ class ApiClient {
   static async getActiveSubscriptions() {
     return this.request('/subscriptions/active');
   }
-
-  // Analytics endpoints
-  static async getAnalyticsGlobal(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/global?${queryString}`);
-  }
-
-  static async getAnalyticsByType(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/by-type?${queryString}`);
-  }
-
-  static async getAnalyticsRanking(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/ranking?${queryString}`);
-  }
-
-  static async getAnalyticsLivreurDetails(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/livreur-details?${queryString}`);
-  }
-
-  static async getAnalyticsComparison(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/compare?${queryString}`);
-  }
-
-  static async getScoreWeights() {
-    return this.request('/analytics/score-weights');
-  }
-
-  static async updateScoreWeights(weights) {
-    return this.request('/analytics/score-weights', {
-      method: 'PUT',
-      body: JSON.stringify(weights)
-    });
-  }
-
-  // Salaries endpoints
-  static async getSalaries(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/salaries?${queryString}`);
-  }
-
-  static async getCurrentSalaries() {
-    return this.request('/salaries/current');
-  }
-
-  static async createSalary(salaryData) {
-    return this.request('/salaries', {
-      method: 'POST',
-      body: JSON.stringify(salaryData)
-    });
-  }
-
-  static async updateSalary(id, salaryData) {
-    return this.request(`/salaries/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(salaryData)
-    });
-  }
-
-  static async deleteSalary(id) {
-    return this.request(`/salaries/${id}`, { method: 'DELETE' });
-  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
@@ -640,11 +575,6 @@ class PageManager {
         case 'subscriptions':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await SubscriptionManager.loadSubscriptions();
-          }
-          break;
-        case 'analytics':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-            await AnalyticsManager.loadAnalytics();
           }
           break;
         case 'livreurs':
@@ -749,7 +679,6 @@ class AuthManager {
     // Afficher/masquer les éléments selon le rôle
     const navUsers = document.getElementById('nav-users');
     const navSubscriptions = document.getElementById('nav-subscriptions');
-    const navAnalytics = document.getElementById('nav-analytics');
     const navLivreurs = document.getElementById('nav-livreurs');
     const navExpenses = document.getElementById('nav-expenses');
     const navMonthlyDashboard = document.getElementById('nav-monthly-dashboard');
@@ -766,10 +695,6 @@ class AuthManager {
       if (navSubscriptions) {
         navSubscriptions.classList.remove('hidden');
         navSubscriptions.style.display = 'flex';
-      }
-      if (navAnalytics) {
-        navAnalytics.classList.remove('hidden');
-        navAnalytics.style.display = 'flex';
       }
       if (navLivreurs) {
         navLivreurs.classList.remove('hidden');
@@ -813,10 +738,6 @@ class AuthManager {
       if (navSubscriptions) {
         navSubscriptions.classList.add('hidden');
         navSubscriptions.style.display = 'none';
-      }
-      if (navAnalytics) {
-        navAnalytics.classList.add('hidden');
-        navAnalytics.style.display = 'none';
       }
       if (navLivreurs) {
         navLivreurs.classList.add('hidden');
@@ -865,7 +786,6 @@ class AuthManager {
       const elementsToCheck = [
         'nav-users',
         'nav-subscriptions',
-        'nav-analytics',
         'nav-expenses', 
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard'
@@ -2135,27 +2055,6 @@ class MataMonthlyDashboardManager {
         ToastManager.success('Export Excel MATA en cours...');
       });
     }
-  }
-
-  static updateTypeAnalysis(typeStats) {
-    const container = document.getElementById('type-analysis-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    typeStats.forEach(type => {
-      const typeCard = document.createElement('div');
-      typeCard.className = 'stat-card';
-      typeCard.innerHTML = `
-        <div class="stat-icon">${this.getTypeIcon(type.type)}</div>
-        <div class="stat-content">
-          <h3>${type.count}</h3>
-          <p>${this.getTypeName(type.type)}</p>
-          <small>${Utils.formatAmount(type.revenue)} • ${type.totalKm || 0} km</small>
-        </div>
-      `;
-      container.appendChild(typeCard);
-    });
   }
 }
 
@@ -4106,886 +4005,465 @@ class ProfileManager {
   }
 }
 
-// ===== GESTIONNAIRE D'ANALYTICS =====
-class AnalyticsManager {
-  static async loadAnalytics() {
-    try {
-      // Initialiser les filtres de date
-      this.initializeDateFilters();
-      
-      // Charger les livreurs pour les filtres
-      await this.loadLivreursForFilters();
-      
-      // Charger les pondérations du score
-      await this.loadScoreWeights();
-      
-      // Charger les données initiales
-      await this.loadAnalyticsData();
-      
-      // Configurer les event listeners
-      this.setupEventListeners();
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des analytics:', error);
-      ToastManager.error('Erreur lors du chargement des analytics');
-    }
-  }
-
-  static initializeDateFilters() {
-    const today = new Date();
-    const startDate = new Date(2025, 4, 25); // 25 mai 2025 (mois 4 = mai)
-    const endDate = new Date(2025, 4, 30);   // 30 mai 2025
-    
-    const startDateInput = document.getElementById('analytics-date-start');
-    const endDateInput = document.getElementById('analytics-date-end');
-    const salaryDateInput = document.getElementById('salary-date');
-    
-    if (startDateInput && endDateInput) {
-      startDateInput.value = startDate.toISOString().split('T')[0];
-      endDateInput.value = endDate.toISOString().split('T')[0];
-    }
-    
-    if (salaryDateInput) {
-      salaryDateInput.value = today.toISOString().split('T')[0];
-    }
-  }
-
-  static async loadLivreursForFilters() {
-    try {
-      const response = await ApiClient.getLivreurs();
-      const livreurs = response.livreurs || [];
-      
-      // Remplir les sélecteurs de livreurs
-      const selectors = [
-        'analytics-livreur-filter',
-        'salary-livreur',
-        'compare-livreur1',
-        'compare-livreur2'
-      ];
-      
-      selectors.forEach(selectorId => {
-        const select = document.getElementById(selectorId);
-        if (select) {
-          const defaultOption = select.querySelector('option[value=""]');
-          select.innerHTML = '';
-          if (defaultOption) {
-            select.appendChild(defaultOption.cloneNode(true));
-          }
-          
-          livreurs.forEach(livreur => {
-            const option = document.createElement('option');
-            option.value = livreur.id;
-            option.textContent = livreur.username;
-            select.appendChild(option);
-          });
-        }
-      });
-      
-        } catch (error) {
-      console.error('Erreur lors du chargement des livreurs:', error);
-    }
-  }
-
-  static async loadAnalyticsData() {
-    try {
-      const filters = this.getFilters();
-      
-      // Charger toutes les données en parallèle
-      const [
-        globalStats,
-        typeStats,
-        rankings,
-        livreurDetails,
-        salaryHistory,
-        currentSalaries
-      ] = await Promise.all([
-        ApiClient.getAnalyticsGlobal(filters),
-        ApiClient.getAnalyticsByType(filters),
-        ApiClient.getAnalyticsRanking(filters),
-        ApiClient.getAnalyticsLivreurDetails(filters),
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      // Mettre à jour l'interface
-      this.updateGlobalStats(globalStats);
-      this.updateTypeAnalysis(typeStats);
-      this.updateRankings(rankings);
-      this.updateLivreurDetails(livreurDetails);
-      this.updateSalaryHistory(salaryHistory);
-      this.updateCurrentSalaries(currentSalaries);
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des données analytics:', error);
-      ToastManager.error('Erreur lors du chargement des données');
-    }
-  }
-
-  static getFilters() {
-    return {
-      startDate: document.getElementById('analytics-date-start')?.value || '',
-      endDate: document.getElementById('analytics-date-end')?.value || '',
-      livreurId: document.getElementById('analytics-livreur-filter')?.value || '',
-      orderType: document.getElementById('analytics-type-filter')?.value || ''
-    };
-  }
-
-  static updateGlobalStats(stats) {
-    document.getElementById('analytics-total-orders').textContent = stats.totalOrders || 0;
-    document.getElementById('analytics-total-revenue').textContent = Utils.formatAmount(stats.totalRevenue);
-    document.getElementById('analytics-total-expenses').textContent = Utils.formatAmount(stats.totalExpenses);
-    document.getElementById('analytics-total-km').textContent = (stats.totalKm || 0) + ' km';
-    document.getElementById('analytics-total-profit').textContent = Utils.formatAmount(stats.totalProfit);
-    document.getElementById('analytics-fuel-expenses').textContent = Utils.formatAmount(stats.fuelExpenses);
-  }
-
-  static updateTypeAnalysis(typeStats) {
-    const container = document.getElementById('type-analysis-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    typeStats.forEach(type => {
-      const typeCard = document.createElement('div');
-      typeCard.className = 'stat-card';
-      typeCard.innerHTML = `
-        <div class="stat-icon">${this.getTypeIcon(type.type)}</div>
-        <div class="stat-content">
-          <h3>${type.count}</h3>
-          <p>${this.getTypeName(type.type)}</p>
-          <small>${Utils.formatAmount(type.revenue)} • ${type.totalKm || 0} km</small>
-        </div>
-      `;
-      container.appendChild(typeCard);
-    });
-  }
-
-  static updateRankings(rankings) {
-    this.updateRankingList('global-ranking', rankings.global, 'global');
-    this.updateRankingList('orders-ranking', rankings.orders, 'orders');
-    this.updateRankingList('revenue-ranking', rankings.revenue, 'revenue');
-    this.updateRankingList('net-profit-with-salary-ranking', rankings.netProfitWithSalary, 'netProfitWithSalary');
-    this.updateRankingList('km-ranking', rankings.km, 'km');
-  }
-
-  static updateRankingList(containerId, data, type) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (!data || data.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #666; padding: 1rem;">Aucune donnée disponible</p>';
-      return;
-    }
-    
-    data.forEach((item, index) => {
-      const rank = index + 1;
-      const medal = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `${rank}.`;
-      
-      const rankItem = document.createElement('div');
-      rankItem.className = 'ranking-item';
-      rankItem.style.cssText = `
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem;
-        margin-bottom: 0.5rem;
-        background: ${rank <= 3 ? '#f8f9fa' : 'white'};
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-      `;
-      
-      let value = '';
-      switch (type) {
-        case 'orders':
-          value = `${item.totalorders} courses`;
-          break;
-        case 'revenue':
-          value = Utils.formatAmount(item.totalrevenue);
-          break;
-        case 'netProfitWithSalary':
-          value = Utils.formatAmount(item.netprofitwithsalary || 0);
-          break;
-        case 'km':
-          value = `${item.totalkm || 0} km`;
-          break;
-        default: // global
-          value = `Score: ${Math.round(item.globalscore || 0)}`;
-      }
-      
-      rankItem.innerHTML = `
-        <span style="font-weight: bold;">${medal} ${Utils.escapeHtml(item.username)}</span>
-        <span style="color: ${type === 'netProfitWithSalary' && (item.netprofitwithsalary || 0) < 0 ? 'red' : '#666'};">${value}</span>
-      `;
-      
-      container.appendChild(rankItem);
-    });
-  }
-
-  static updateLivreurDetails(details) {
-    const container = document.getElementById('livreur-details-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (details.length === 0) {
-      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 1rem;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">Livreur</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Courses</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Dépenses</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net (avec salaire)</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Kilomètres</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${details.map(livreur => `
-          <tr>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(livreur.username)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalorders || 0}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalrevenue)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalExpenses)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${(livreur.netProfitWithSalary || 0) >= 0 ? 'green' : 'red'}; font-weight: bold;">${Utils.formatAmount(livreur.netProfitWithSalary || 0)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalKm || 0} km</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-  }
-
-  static updateSalaryHistory(salaries) {
-    const container = document.getElementById('salary-history');
-    if (!container) return;
-    
-    container.innerHTML = '<h4>Historique des salaires</h4>';
-    
-    if (salaries.length === 0) {
-      container.innerHTML += '<p>Aucun salaire enregistré.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 0.5rem;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: left;">Livreur</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: right;">Salaire</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">Date d'effet</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: left;">Commentaire</th>
-          <th style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${salaries.slice(0, 10).map(salary => `
-          <tr>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6;">${Utils.escapeHtml(salary.livreur_name || 'N/A')}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${Utils.formatAmount(salary.amount)}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">${Utils.formatDisplayDate(salary.effective_date)}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6;">${Utils.escapeHtml(salary.comment || '-')}</td>
-            <td style="padding: 0.5rem; border: 1px solid #dee2e6; text-align: center;">
-              <button onclick="AnalyticsManager.deleteSalary(${salary.id})" class="btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🗑️</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-  }
-
-  static async compareDeliverers() {
-    const livreur1Id = document.getElementById('compare-livreur1')?.value;
-    const livreur2Id = document.getElementById('compare-livreur2')?.value;
-    
-    if (!livreur1Id || !livreur2Id) {
-      ToastManager.warning('Veuillez sélectionner deux livreurs à comparer');
-      return;
-    }
-    
-    if (livreur1Id === livreur2Id) {
-      ToastManager.warning('Veuillez sélectionner deux livreurs différents');
-      return;
-    }
-    
-    try {
-      const filters = this.getFilters();
-      const comparison = await ApiClient.getAnalyticsComparison({
-        livreur1Id,
-        livreur2Id,
-        startDate: filters.startDate,
-        endDate: filters.endDate
-      });
-      
-      this.displayComparison(comparison);
-      
-    } catch (error) {
-      console.error('Erreur lors de la comparaison:', error);
-      ToastManager.error('Erreur lors de la comparaison des livreurs');
-    }
-  }
-
-  static displayComparison(comparison) {
-    const container = document.getElementById('comparison-results');
-    if (!container) return;
-    
-    const { livreur1, livreur2 } = comparison;
-    
-    if (!livreur1 || !livreur2) {
-      container.innerHTML = '<p>Aucune donnée trouvée pour les livreurs sélectionnés.</p>';
-      return;
-    }
-    
-    container.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-          <h4 style="margin-bottom: 1rem; color: #0066cc;">${Utils.escapeHtml(livreur1.username || 'Livreur 1')}</h4>
-          <div style="display: grid; gap: 0.5rem;">
-            <div style="display: flex; justify-content: space-between;"><span>Courses:</span><strong>${livreur1.totalorders || 0}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Revenus:</span><strong>${Utils.formatAmount(livreur1.totalrevenue)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Dépenses:</span><strong>${Utils.formatAmount(livreur1.totalExpenses)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Bénéfice net:</span><strong style="color: ${livreur1.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur1.netProfit)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Kilomètres:</span><strong>${livreur1.totalKm || 0} km</strong></div>
-          </div>
-        </div>
-        
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-          <h4 style="margin-bottom: 1rem; color: #cc6600;">${Utils.escapeHtml(livreur2.username || 'Livreur 2')}</h4>
-          <div style="display: grid; gap: 0.5rem;">
-            <div style="display: flex; justify-content: space-between;"><span>Courses:</span><strong>${livreur2.totalorders || 0}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Revenus:</span><strong>${Utils.formatAmount(livreur2.totalrevenue)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Dépenses:</span><strong>${Utils.formatAmount(livreur2.totalExpenses)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Bénéfice net:</span><strong style="color: ${livreur2.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur2.netProfit)}</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Kilomètres:</span><strong>${livreur2.totalKm || 0} km</strong></div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  static async addSalary() {
-    const livreurId = document.getElementById('salary-livreur')?.value;
-    const amount = document.getElementById('salary-amount')?.value;
-    const effectiveDate = document.getElementById('salary-date')?.value;
-    
-    console.log('🔍 Valeurs du formulaire salaire:', {
-      livreurId,
-      amount,
-      effectiveDate,
-      amountParsed: parseFloat(amount)
-    });
-    
-    if (!livreurId || !amount || !effectiveDate) {
-      ToastManager.warning('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-    
-    const parsedAmount = parseFloat(amount);
-    
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      ToastManager.warning('Veuillez vérifier les valeurs saisies');
-      return;
-    }
-    
-    try {
-      const salaryData = {
-        user_id: livreurId, // Garder l'UUID tel quel
-        amount: parsedAmount,
-        effective_date: effectiveDate
-      };
-      
-      console.log('📤 Données envoyées au serveur:', salaryData);
-      
-      await ApiClient.createSalary(salaryData);
-      
-      ToastManager.success('Salaire ajouté avec succès');
-      
-      // Recharger l'historique des salaires et le tableau des salaires actuels
-      const [salaries, currentSalaries] = await Promise.all([
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      this.updateSalaryHistory(salaries);
-      this.updateCurrentSalaries(currentSalaries);
-      
-      // Réinitialiser le formulaire
-      document.getElementById('salary-livreur').value = '';
-      document.getElementById('salary-amount').value = '';
-      document.getElementById('salary-date').value = new Date().toISOString().split('T')[0];
-      
-        } catch (error) {
-      console.error('Erreur lors de l\'ajout du salaire:', error);
-      ToastManager.error('Erreur lors de l\'ajout du salaire');
-        }
-  }
-
-  static async deleteSalary(salaryId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce salaire ?')) {
-        return;
-      }
-      
-    try {
-      await ApiClient.deleteSalary(salaryId);
-      ToastManager.success('Salaire supprimé avec succès');
-      
-      // Recharger l'historique des salaires et le tableau des salaires actuels
-      const [salaries, currentSalaries] = await Promise.all([
-        ApiClient.getSalaries(),
-        ApiClient.getCurrentSalaries()
-      ]);
-      
-      this.updateSalaryHistory(salaries);
-      this.updateCurrentSalaries(currentSalaries);
-      
-      } catch (error) {
-      console.error('Erreur lors de la suppression du salaire:', error);
-      ToastManager.error('Erreur lors de la suppression du salaire');
-    }
+// ===== INITIALISATION DE L'APPLICATION =====
+class App {
+  static async init() {
+    this.setupEventListeners();
+    await AuthManager.init();
   }
 
   static setupEventListeners() {
-    // Bouton analyser
-    const analyzeBtn = document.getElementById('apply-analytics-filters');
-    if (analyzeBtn) {
-      analyzeBtn.addEventListener('click', () => this.loadAnalyticsData());
-    }
-    
-    // Bouton actualiser
-    const refreshBtn = document.getElementById('refresh-analytics');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => this.loadAnalyticsData());
-    }
-    
-    // Bouton comparer
-    const compareBtn = document.getElementById('compare-livreurs-btn');
-    if (compareBtn) {
-      compareBtn.addEventListener('click', () => this.compareDeliverers());
-    }
-    
-    // Bouton ajouter salaire
-    const addSalaryBtn = document.getElementById('add-salary-btn');
-    if (addSalaryBtn) {
-      addSalaryBtn.addEventListener('click', () => this.addSalary());
-    }
-    
-    // Bouton toggle section salaires
-    const toggleSalaryBtn = document.getElementById('toggle-salary-section');
-    if (toggleSalaryBtn) {
-      toggleSalaryBtn.addEventListener('click', () => this.toggleSalarySection());
-    }
-    
-    // Bouton toggle section score
-    const toggleScoreBtn = document.getElementById('toggle-score-section');
-    if (toggleScoreBtn) {
-      toggleScoreBtn.addEventListener('click', () => this.toggleScoreSection());
-    }
-  }
+    // Formulaire de connexion
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const username = formData.get('username');
+      const password = formData.get('password');
 
-  static getTypeIcon(type) {
-    const icons = {
-      'MATA': '🛒',
-      'MLC': '🚚',
-      'MLC_SUBSCRIPTION': '🎫',
-      'AUTRE': '📦'
-    };
-    return icons[type] || '📦';
-  }
-
-  static getTypeName(type) {
-    const names = {
-      'MATA': 'MATA',
-      'MLC': 'MLC classique',
-      'MLC_SUBSCRIPTION': 'MLC abonnement',
-      'AUTRE': 'Autre'
-    };
-    return names[type] || type;
-  }
-
-  static async getAnalyticsComparison(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/compare?${queryString}`);
-  }
-
-  static async getScoreWeights() {
-    return this.request('/analytics/score-weights');
-  }
-
-  static async updateScoreWeights(weights) {
-    return this.request('/analytics/score-weights', {
-      method: 'PUT',
-      body: JSON.stringify(weights)
-    });
-  }
-
-  static async loadScoreWeights() {
-    try {
-      const weights = await ApiClient.getScoreWeights();
-      this.updateScoreWeights(weights);
+      try {
+        await AuthManager.login(username, password);
       } catch (error) {
-      console.error('Erreur lors du chargement des pondérations:', error);
-      ToastManager.error('Erreur lors du chargement des pondérations');
-    }
-  }
-
-  static updateScoreWeights(data) {
-    const container = document.getElementById('score-weights-container');
-    if (!container) return;
-    
-    const { weights, formula, description } = data;
-    
-    container.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <div>
-          <h4 style="margin-bottom: 1rem;">📐 Formule de calcul</h4>
-          <p style="font-family: monospace; background: white; padding: 1rem; border-radius: 4px; border: 1px solid #ddd;">
-            ${Utils.escapeHtml(formula)}
-          </p>
-          
-          <h4 style="margin: 1.5rem 0 1rem 0;">⚖️ Pondérations</h4>
-          <form id="score-weights-form" style="display: grid; gap: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #ddd;">
-              <span>🎯 Points par course:</span>
-              <input type="number" id="weight-courses" value="${weights.COURSES}" step="0.1" min="0" max="10" 
-                     style="width: 80px; padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #ddd;">
-              <span>💰 Points par FCFA de bénéfice:</span>
-              <input type="number" id="weight-profit" value="${weights.PROFIT}" step="0.0001" min="0" max="1" 
-                     style="width: 80px; padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-              <button type="submit" class="btn btn-primary btn-sm">
-                <span class="icon">💾</span>
-                Sauvegarder
-              </button>
-              <button type="button" id="reset-weights-btn" class="btn btn-secondary btn-sm">
-                <span class="icon">🔄</span>
-                Réinitialiser
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        <div>
-          <h4 style="margin-bottom: 1rem;">💡 Explications</h4>
-          <div style="display: grid; gap: 0.75rem; font-size: 0.9rem;">
-            <div style="padding: 0.75rem; background: #e8f4fd; border-radius: 4px; border-left: 4px solid #0066cc;">
-              <strong>Courses:</strong><br>${Utils.escapeHtml(description.COURSES)}
-            </div>
-            <div style="padding: 0.75rem; background: #e8f5e8; border-radius: 4px; border-left: 4px solid #28a745;">
-              <strong>Bénéfice:</strong><br>${Utils.escapeHtml(description.PROFIT)}
-            </div>
-            <div style="padding: 0.75rem; background: #fff8e1; border-radius: 4px; border-left: 4px solid #ffc107;">
-              <strong>Exemple:</strong><br>${Utils.escapeHtml(description.example)}
-            </div>
-            <div style="padding: 0.75rem; background: #f8e8e8; border-radius: 4px; border-left: 4px solid #dc3545;">
-              <strong>💡 Conseil:</strong><br>
-              Augmentez la pondération des courses pour favoriser le volume, 
-              ou celle du bénéfice pour favoriser la rentabilité.
-            </div>
-          </div>
-          
-          <div style="margin-top: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 0.8rem; color: #666;">
-            <strong>📅 Dernière modification:</strong><br>
-            Valeurs sauvegardées automatiquement dans le fichier de configuration
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Ajouter les event listeners pour le formulaire
-    const form = document.getElementById('score-weights-form');
-    if (form) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.saveScoreWeights();
-      });
-    }
-    
-    const resetBtn = document.getElementById('reset-weights-btn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        this.resetScoreWeights();
-      });
-    }
-  }
-
-  static async saveScoreWeights() {
-    try {
-      const coursesValue = parseFloat(document.getElementById('weight-courses').value);
-      const profitValue = parseFloat(document.getElementById('weight-profit').value);
-      
-      if (isNaN(coursesValue) || isNaN(profitValue)) {
-        ToastManager.error('Veuillez entrer des valeurs numériques valides');
-        return;
+        const errorElement = document.getElementById('login-error');
+        errorElement.textContent = error.message || 'Erreur de connexion';
+        errorElement.classList.remove('hidden');
       }
-      
-      if (coursesValue < 0 || profitValue < 0) {
-        ToastManager.error('Les pondérations ne peuvent pas être négatives');
-        return;
-      }
-      
-      const weights = {
-        courses: coursesValue,
-        profit: profitValue
-      };
-      
-      const response = await ApiClient.updateScoreWeights(weights);
-      
-      if (response.success) {
-        ToastManager.success('Pondérations mises à jour avec succès');
-        // Recharger les pondérations pour afficher la nouvelle formule
-        await this.loadScoreWeights();
-        // Recharger les données analytics pour voir l'impact
-        await this.loadAnalyticsData();
-      } else {
-        ToastManager.error(response.message || 'Erreur lors de la mise à jour');
-      }
-      
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des pondérations:', error);
-      ToastManager.error(error.message || 'Erreur lors de la sauvegarde');
-    }
-  }
+    });
 
-  static async resetScoreWeights() {
-    // Valeurs par défaut
-    const defaultWeights = {
-      courses: 0.4,
-      profit: 0.0002
-    };
-    
-    // Remplir les champs avec les valeurs par défaut
-    document.getElementById('weight-courses').value = defaultWeights.courses;
-    document.getElementById('weight-profit').value = defaultWeights.profit;
-    
-    ToastManager.info('Valeurs réinitialisées. Cliquez sur "Sauvegarder" pour appliquer.');
-  }
+    // Bouton de déconnexion
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await AuthManager.logout();
+    });
 
-  static updateCurrentSalaries(salaries) {
-    const container = document.getElementById('current-salaries-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (salaries.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #666; margin: 1rem 0;">Aucun salaire configuré.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">👤 Livreur</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">💰 Salaire actuel</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">📅 En vigueur depuis</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">📊 Statut</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${salaries.map(salary => {
-          const hasAmount = salary.current_salary !== null;
-          const effectiveDate = salary.effective_date ? Utils.formatDisplayDate(salary.effective_date) : '-';
-          const statusText = hasAmount ? '✅ Configuré' : '⚠️ Non configuré';
-          const statusColor = hasAmount ? 'green' : 'orange';
-          const amount = hasAmount ? Utils.formatAmount(salary.current_salary) : 'Non défini';
-          
-          return `
-            <tr>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(salary.username)}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: ${hasAmount ? 'black' : '#999'};">${amount}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center;">${effectiveDate}</td>
-              <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center; color: ${statusColor};">${statusText}</td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
-    
-    // Ajouter un résumé
-    const configured = salaries.filter(s => s.current_salary !== null).length;
-    const total = salaries.length;
-    
-    const summary = document.createElement('div');
-    summary.style.cssText = 'margin-top: 1rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; font-size: 0.9rem; color: #666;';
-    summary.innerHTML = `
-      📊 <strong>Résumé:</strong> ${configured}/${total} livreurs ont un salaire configuré
-      ${configured < total ? ` • <span style="color: orange;">${total - configured} livreur(s) sans salaire</span>` : ' • <span style="color: green;">Tous les salaires sont configurés</span>'}
-    `;
-    
-    container.appendChild(summary);
-  }
-
-  static toggleSalarySection() {
-    const salaryContent = document.getElementById('salary-content');
-    const toggleText = document.getElementById('toggle-salary-text');
-    const toggleIcon = document.querySelector('#toggle-salary-section .icon');
-    
-    if (!salaryContent || !toggleText || !toggleIcon) return;
-    
-    const isHidden = salaryContent.style.display === 'none';
-    
-    if (isHidden) {
-      // Afficher la section
-      salaryContent.style.display = 'block';
-      toggleText.textContent = 'Masquer';
-      toggleIcon.textContent = '🙈';
-        } else {
-      // Cacher la section
-      salaryContent.style.display = 'none';
-      toggleText.textContent = 'Afficher';
-      toggleIcon.textContent = '👁️';
-    }
-  }
-
-  static toggleScoreSection() {
-    const scoreContent = document.getElementById('score-content');
-    const toggleText = document.getElementById('toggle-score-text');
-    const toggleIcon = document.querySelector('#toggle-score-section .icon');
-    
-    if (!scoreContent || !toggleText || !toggleIcon) return;
-    
-    const isHidden = scoreContent.style.display === 'none';
-    
-    if (isHidden) {
-      // Afficher la section
-      scoreContent.style.display = 'block';
-      toggleText.textContent = 'Masquer';
-      toggleIcon.textContent = '🙈';
-    } else {
-      // Cacher la section
-      scoreContent.style.display = 'none';
-      toggleText.textContent = 'Afficher';
-      toggleIcon.textContent = '👁️';
-    }
-  }
-}
-
-// ===== GESTIONNAIRE PRINCIPAL DE L'APPLICATION =====
-class App {
-  static async init() {
-    try {
-      console.log('🚀 Initialisation de l\'application...');
-      
-      // Configurer les event listeners de navigation
-      this.setupNavigationListeners();
-      
-      // Démarrer l'authentification
-      await AuthManager.init();
-      
-      console.log('✅ Application initialisée avec succès');
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
-      ToastManager.error('Erreur lors du démarrage de l\'application');
-    }
-  }
-
-  static setupNavigationListeners() {
-    // Configurer les boutons de navigation
-    document.querySelectorAll('.nav-item').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const pageId = button.dataset.page;
-        if (pageId) {
-          PageManager.showPage(pageId);
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        if (page) {
+          PageManager.showPage(page);
         }
       });
     });
 
-    // Configurer les autres event listeners globaux
-    this.setupGlobalListeners();
-  }
+    // Gestion du type de commande pour afficher/masquer les champs
+    document.getElementById('order-type').addEventListener('change', (e) => {
+      const orderType = e.target.value;
+      const coursePriceGroup = document.getElementById('course-price-group');
+      const amountGroup = document.getElementById('amount-group');
+      const subscriptionToggleGroup = document.getElementById('subscription-toggle-group');
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      const coursePriceInput = document.getElementById('course-price');
+      
+      // Réinitialiser les suppléments
+      document.getElementById('add-supplement').checked = false;
+      supplementToggleGroup.style.display = 'none';
+      supplementOptionsGroup.style.display = 'none';
+      supplementCustomGroup.style.display = 'none';
+      
+      if (orderType === 'MATA') {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'block';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '1500';
+        coursePriceInput.readOnly = true;
+      } else if (orderType === 'MLC') {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'block';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      } else {
+        coursePriceGroup.style.display = 'block';
+        amountGroup.style.display = 'none';
+        subscriptionToggleGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      }
+    });
 
-  static setupGlobalListeners() {
-    // Bouton de déconnexion
-    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+    // Gestion du toggle d'abonnement
+    document.getElementById('use-subscription').addEventListener('change', async (e) => {
+      const useSubscription = e.target.checked;
+      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
+      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      const coursePriceInput = document.getElementById('course-price');
+      
+      if (useSubscription) {
+        subscriptionSelectGroup.style.display = 'block';
+        supplementToggleGroup.style.display = 'block';
+        coursePriceInput.value = '1500';
+        coursePriceInput.readOnly = true;
+        
+        // Charger les abonnements actifs
+        try {
+          const response = await ApiClient.getActiveSubscriptions();
+          const select = document.getElementById('subscription-select');
+          select.innerHTML = '<option value="">Sélectionner un abonnement...</option>';
+          
+          response.subscriptions.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = `${sub.card_number} - ${sub.client_name} (${sub.remaining_deliveries} livraisons restantes)`;
+            option.dataset.clientName = sub.client_name;
+            option.dataset.phoneNumber = sub.phone_number;
+            option.dataset.price = sub.price;
+            option.dataset.totalDeliveries = sub.total_deliveries;
+            option.dataset.address = sub.address || '';
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Erreur lors du chargement des abonnements:', error);
+          ToastManager.error('Erreur lors du chargement des abonnements');
+        }
+      } else {
+        subscriptionSelectGroup.style.display = 'none';
+        supplementToggleGroup.style.display = 'none';
+        supplementOptionsGroup.style.display = 'none';
+        supplementCustomGroup.style.display = 'none';
+        document.getElementById('add-supplement').checked = false;
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = false;
+      }
+    });
+    
+    // Gestion du toggle de supplément
+    document.getElementById('add-supplement').addEventListener('change', (e) => {
+      const addSupplement = e.target.checked;
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      
+      if (addSupplement) {
+        supplementOptionsGroup.style.display = 'block';
+      } else {
+        supplementOptionsGroup.style.display = 'none';
+        supplementCustomGroup.style.display = 'none';
+        // Décocher tous les boutons radio
+        document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
+          radio.checked = false;
+        });
+        document.getElementById('supplement-custom-amount').value = '';
+      }
+    });
+    
+    // Gestion des boutons radio de supplément
+    document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const supplementCustomGroup = document.getElementById('supplement-custom-group');
+        const supplementCustomAmount = document.getElementById('supplement-custom-amount');
+        
+        if (e.target.value === 'other') {
+          supplementCustomGroup.style.display = 'block';
+          supplementCustomAmount.required = true;
+        } else {
+          supplementCustomGroup.style.display = 'none';
+          supplementCustomAmount.required = false;
+          supplementCustomAmount.value = '';
+        }
+      });
+    });
+
+    // Gestion de la sélection d'un abonnement
+    document.getElementById('subscription-select').addEventListener('change', (e) => {
+      const selectedOption = e.target.selectedOptions[0];
+      if (selectedOption.value) {
+        document.getElementById('client-name').value = selectedOption.dataset.clientName;
+        document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
+        document.getElementById('address').value = selectedOption.dataset.address;
+        // Calcul automatique du prix de la course
+        const price = parseFloat(selectedOption.dataset.price);
+        const totalDeliveries = parseInt(selectedOption.dataset.totalDeliveries);
+        if (price && totalDeliveries) {
+          const coursePrice = Math.round(price / totalDeliveries);
+          document.getElementById('course-price').value = coursePrice;
+        }
+      }
+    });
+
+    // Gestion de la soumission du formulaire
+    document.getElementById('new-order-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      AuthManager.logout();
-    });
-
-    // Fermeture de modal avec échap
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        ModalManager.hide();
+      
+      const formData = new FormData(e.target);
+      const orderData = Object.fromEntries(formData.entries());
+      
+      // Convertir les montants en nombres
+      if (orderData.course_price) {
+        orderData.course_price = parseFloat(orderData.course_price);
+      }
+      if (orderData.amount) {
+        orderData.amount = parseFloat(orderData.amount);
+      }
+      
+      // Traitement des données de supplément pour MLC avec abonnement
+      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.add_supplement === 'on') {
+        let supplementAmount = 0;
+        
+        if (orderData.supplement_amount === 'other') {
+          supplementAmount = parseFloat(orderData.supplement_custom_amount) || 0;
+        } else if (orderData.supplement_amount) {
+          supplementAmount = parseFloat(orderData.supplement_amount);
+        }
+        
+        if (supplementAmount > 0) {
+          orderData.supplement_amount = supplementAmount;
+          // Ajouter le supplément au prix de la course
+          orderData.course_price = (orderData.course_price || 0) + supplementAmount;
+        }
+        
+        // Nettoyer les champs non nécessaires
+        delete orderData.supplement_custom_amount;
+      }
+      
+      // Pour MLC avec abonnement, utiliser la route spéciale
+      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
+        try {
+          const response = await ApiClient.createMLCOrderWithSubscription(orderData);
+          if (response.success) {
+            ToastManager.success('Commande créée avec succès');
+            document.getElementById('new-order-form').reset();
+            // Réinitialiser les groupes de supplément
+            document.getElementById('supplement-toggle-group').style.display = 'none';
+            document.getElementById('supplement-options-group').style.display = 'none';
+            document.getElementById('supplement-custom-group').style.display = 'none';
+            await OrderManager.loadLastUserOrders();
+          } else {
+            ToastManager.error(response.message || 'Erreur lors de la création de la commande');
+          }
+        } catch (error) {
+          console.error('Erreur lors de la création de la commande:', error);
+          ToastManager.error('Erreur lors de la création de la commande');
+        }
+        return;
+      }
+      
+      // Pour les autres types de commandes, utiliser la route normale
+      try {
+        await OrderManager.createOrder(orderData);
+      } catch (error) {
+        console.error('Erreur lors de la création de la commande:', error);
+        ToastManager.error('Erreur lors de la création de la commande');
       }
     });
 
-    // Fermeture de modal avec overlay
-    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
-      if (e.target.id === 'modal-overlay') {
-        ModalManager.hide();
+    // Filtre par date pour les commandes
+    document.getElementById('orders-date-filter').addEventListener('change', (e) => {
+      const date = e.target.value;
+      if (date) {
+        OrderManager.loadOrdersByDate(date);
+      } else {
+        OrderManager.loadOrders();
       }
     });
 
-    // Bouton de fermeture de modal
-    document.getElementById('modal-close')?.addEventListener('click', () => {
+    // Pagination des commandes
+    document.getElementById('prev-page').addEventListener('click', () => {
+      if (AppState.currentOrdersPage > 1) {
+        OrderManager.loadOrders(AppState.currentOrdersPage - 1);
+      }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+      if (AppState.currentOrdersPage < AppState.totalOrdersPages) {
+        OrderManager.loadOrders(AppState.currentOrdersPage + 1);
+      }
+    });
+
+    // Export Excel
+    document.getElementById('export-excel').addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const startDate = prompt('Date de début (YYYY-MM-DD):', today);
+      if (!startDate) return;
+      
+      const endDate = prompt('Date de fin (YYYY-MM-DD):', today);
+      if (!endDate) return;
+
+      try {
+        ApiClient.exportOrders(startDate, endDate);
+        ToastManager.success('Export en cours...');
+      } catch (error) {
+        ToastManager.error('Erreur lors de l\'export');
+      }
+    });
+
+    // Boutons utilisateurs
+    document.getElementById('add-user-btn').addEventListener('click', () => {
+      UserManager.createUser();
+    });
+
+    // Boutons livreurs
+    document.getElementById('add-livreur-btn').addEventListener('click', () => {
+      LivreurManager.createLivreur();
+    });
+
+    document.getElementById('show-all-livreurs').addEventListener('click', () => {
+      LivreurManager.loadLivreurs(false);
+    });
+
+    document.getElementById('show-active-livreurs').addEventListener('click', () => {
+      LivreurManager.loadLivreurs(true);
+    });
+
+    // Bouton changement de mot de passe
+    document.getElementById('change-password-btn').addEventListener('click', () => {
+      ProfileManager.showChangePasswordModal();
+    });
+
+    document.getElementById('change-password-link').addEventListener('click', () => {
+      ProfileManager.showChangePasswordModal();
+    });
+
+    // Actualiser le dashboard
+    document.getElementById('refresh-dashboard').addEventListener('click', () => {
+      DashboardManager.loadDashboard();
+    });
+
+    // Nouveau: Event listener pour le filtre de date du dashboard
+    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
+    if (dashboardDateFilter) {
+      dashboardDateFilter.addEventListener('change', () => {
+        DashboardManager.loadDashboard();
+      });
+    }
+
+    // Event listeners pour le tableau de bord mensuel
+    MonthlyDashboardManager.setupEventListeners();
+
+    // Event listeners pour le tableau de bord MATA mensuel
+    MataMonthlyDashboardManager.setupEventListeners();
+
+    // Fermeture des modales
+    document.getElementById('modal-close').addEventListener('click', () => {
       ModalManager.hide();
     });
 
-    // Gestion du formulaire de connexion
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username-input').value.trim();
-        const password = document.getElementById('password-input').value;
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        ModalManager.hide();
+      }
+    });
+
+    // Toggles de mot de passe
+    document.querySelectorAll('.password-toggle').forEach(toggle => {
+      toggle.addEventListener('click', (e) => {
+        const targetId = e.currentTarget.dataset.target;
+        const input = document.getElementById(targetId);
+        const icon = e.currentTarget.querySelector('.icon');
         
-        if (!username || !password) {
-          ToastManager.error('Veuillez remplir tous les champs');
-          return;
-        }
-
-        try {
-          document.getElementById('login-btn').disabled = true;
-          document.getElementById('login-btn').textContent = 'Connexion...';
-          
-          await AuthManager.login(username, password);
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur de connexion');
-        } finally {
-          document.getElementById('login-btn').disabled = false;
-          document.getElementById('login-btn').textContent = 'Se connecter';
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.textContent = '🙈';
+        } else {
+          input.type = 'password';
+          icon.textContent = '👁️';
         }
       });
+    });
+
+    // Initialiser la date d'aujourd'hui dans le filtre
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('orders-date-filter').value = today;
+
+    // Gestion des erreurs globales
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Erreur non gérée:', event.reason);
+      ToastManager.error('Une erreur inattendue s\'est produite');
+    });
+
+    // Gestion de la perte de connexion
+    window.addEventListener('online', () => {
+      ToastManager.success('Connexion rétablie');
+    });
+
+    window.addEventListener('offline', () => {
+      ToastManager.warning('Connexion perdue');
+    });
+
+    // Affichage du champ livreur pour managers/admins
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      const livreurGroup = document.getElementById('livreur-select-group');
+      livreurGroup.style.display = 'block';
+      // Charger la liste des livreurs
+      ApiClient.getLivreurs().then(response => {
+        const select = document.getElementById('livreur-select');
+        select.innerHTML = '<option value="">Sélectionner un livreur</option>';
+        (response.livreurs || []).forEach(livreur => {
+          select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+        });
+      });
+    } else {
+      document.getElementById('livreur-select-group').style.display = 'none';
     }
 
-    // Gestion du formulaire de commande
-    const orderForm = document.getElementById('order-form');
-    if (orderForm) {
-      orderForm.addEventListener('submit', async (e) => {
+    // --- Order form dynamic fields logic ---
+    const orderTypeSelect = document.getElementById('order-type');
+    const adresseSourceGroup = document.getElementById('adresse-source-group');
+    const adresseDestinationGroup = document.getElementById('adresse-destination-group');
+    const pointVenteGroup = document.getElementById('point-vente-group');
+    const addressGroup = document.getElementById('address-group');
+    const pointVenteSelect = document.getElementById('point-vente');
+
+    orderTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        const adresseSourceLabel = document.querySelector('label[for="adresse-source"]');
+        if (type === 'MLC' || type === 'AUTRE') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = true;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source <span style="color:red">*</span>';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        } else if (type === 'MATA') {
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = '';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = true;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = true;
+        } else {
+            // Default: show adresse source/destination, hide old Adresse
+            adresseSourceGroup.style.display = '';
+            adresseDestinationGroup.style.display = '';
+            pointVenteGroup.style.display = 'none';
+            addressGroup.style.display = 'none';
+            document.getElementById('adresse-source').required = false;
+            document.getElementById('adresse-destination').required = false;
+            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
+            if (pointVenteSelect) pointVenteSelect.required = false;
+        }
+    });
+
+    // On page load, trigger change to set correct fields
+    if (orderTypeSelect) orderTypeSelect.dispatchEvent(new Event('change'));
+
+    // --- Form validation on submit ---
+    document.getElementById('new-order-form').addEventListener('submit', function(e) {
+        const type = orderTypeSelect.value;
+        if ((type === 'MLC' || type === 'AUTRE')) {
+            if (!document.getElementById('adresse-source').value.trim() || !document.getElementById('adresse-destination').value.trim()) {
                 e.preventDefault();
-        const formData = new FormData(e.target);
-        try {
-          await OrderManager.createOrder(formData);
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur lors de la création de la commande');
+                ToastManager.error('Adresse source et destination sont obligatoires pour ce type de commande.');
+                return false;
+            }
         }
-      });
-    }
+        if (type === 'MATA') {
+            if (!pointVenteSelect.value) {
+                e.preventDefault();
+                ToastManager.error('Le point de vente est obligatoire pour MATA.');
+                return false;
+            }
+        }
+    });
   }
 }
 
@@ -5002,5 +4480,4 @@ window.ExpenseManager = ExpenseManager;
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
-window.AnalyticsManager = AnalyticsManager;
 window.ModalManager = ModalManager; 
