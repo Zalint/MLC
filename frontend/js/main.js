@@ -497,6 +497,72 @@ class ApiClient {
   static async getActiveSubscriptions() {
     return this.request('/subscriptions/active');
   }
+
+  // ===== MÉTHODES ANALYTICS =====
+  static async getAnalyticsGlobal(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/analytics/global?${queryString}`);
+  }
+
+  static async getAnalyticsByType(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/analytics/by-type?${queryString}`);
+  }
+
+  static async getAnalyticsRanking(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/analytics/ranking?${queryString}`);
+  }
+
+  static async getAnalyticsLivreurDetails(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/analytics/livreur-details?${queryString}`);
+  }
+
+  static async getAnalyticsComparison(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/analytics/comparison?${queryString}`);
+  }
+
+  static async getScoreWeights() {
+    return this.request('/analytics/score-weights');
+  }
+
+  static async updateScoreWeights(weights) {
+    return this.request('/analytics/score-weights', {
+      method: 'PUT',
+      body: JSON.stringify(weights)
+    });
+  }
+
+  static async getSalaries(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/salaries?${queryString}`);
+  }
+
+  static async getCurrentSalaries() {
+    return this.request('/salaries/current');
+  }
+
+  static async createSalary(salaryData) {
+    return this.request('/salaries', {
+      method: 'POST',
+      body: JSON.stringify(salaryData)
+    });
+  }
+
+  static async updateSalary(id, salaryData) {
+    return this.request(`/salaries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(salaryData)
+    });
+  }
+
+  static async deleteSalary(id) {
+    return this.request(`/salaries/${id}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
@@ -584,6 +650,11 @@ class PageManager {
           break;
         case 'profile':
           await ProfileManager.loadProfile();
+          break;
+        case 'analytics':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await AnalyticsManager.loadAnalytics();
+          }
           break;
       }
     } catch (error) {
@@ -683,6 +754,7 @@ class AuthManager {
     const navExpenses = document.getElementById('nav-expenses');
     const navMonthlyDashboard = document.getElementById('nav-monthly-dashboard');
     const navMataMonthlyDashboard = document.getElementById('nav-mata-monthly-dashboard');
+    const navAnalytics = document.getElementById('nav-analytics');
     const exportExcel = document.getElementById('export-excel');
     const statLivreurs = document.getElementById('stat-livreurs');
     const managerSummary = document.getElementById('manager-summary-section');
@@ -722,6 +794,7 @@ class AuthManager {
         navMataMonthlyDashboard.classList.remove('hidden');
         navMataMonthlyDashboard.style.display = 'flex';
       }
+      if (navAnalytics) navAnalytics.classList.remove('hidden');
       if (exportExcel) exportExcel.classList.remove('hidden');
       if (statLivreurs) statLivreurs.classList.remove('hidden');
       if (managerSummary) managerSummary.classList.remove('hidden');
@@ -755,6 +828,7 @@ class AuthManager {
         navMataMonthlyDashboard.classList.add('hidden');
         navMataMonthlyDashboard.style.display = 'none';
       }
+      if (navAnalytics) navAnalytics.classList.add('hidden');
       if (exportExcel) exportExcel.classList.add('hidden');
       if (statLivreurs) statLivreurs.classList.add('hidden');
       if (managerSummary) managerSummary.classList.add('hidden');
@@ -4005,244 +4079,397 @@ class ProfileManager {
   }
 }
 
-// ===== INITIALISATION DE L'APPLICATION =====
-class App {
-  static async init() {
-    this.setupEventListeners();
-    await AuthManager.init();
+// ===== GESTIONNAIRE ANALYTICS =====
+class AnalyticsManager {
+  static async loadAnalytics() {
+    try {
+      this.initializeDateFilters();
+      await this.loadLivreursForFilters();
+      await this.loadAnalyticsData();
+      await this.loadScoreWeights();
+      this.setupEventListeners();
+    } catch (error) {
+      console.error('Erreur lors du chargement des analytics:', error);
+      ToastManager.error('Erreur lors du chargement des analytics');
+    }
   }
 
-  static setupEventListeners() {
-    // Formulaire de connexion
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const formData = new FormData(e.target);
-      const username = formData.get('username');
-      const password = formData.get('password');
-
-      try {
-        await AuthManager.login(username, password);
-      } catch (error) {
-        const errorElement = document.getElementById('login-error');
-        errorElement.textContent = error.message || 'Erreur de connexion';
-        errorElement.classList.remove('hidden');
-      }
-    });
-
-    // Bouton de déconnexion
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      await AuthManager.logout();
-    });
-
-    // Navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const page = item.dataset.page;
-        if (page) {
-          PageManager.showPage(page);
-        }
-      });
-    });
-
-    // Gestion du type de commande pour afficher/masquer les champs
-    document.getElementById('order-type').addEventListener('change', (e) => {
-      const orderType = e.target.value;
-      const coursePriceGroup = document.getElementById('course-price-group');
-      const amountGroup = document.getElementById('amount-group');
-      const subscriptionToggleGroup = document.getElementById('subscription-toggle-group');
-      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
-      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
-      const supplementOptionsGroup = document.getElementById('supplement-options-group');
-      const supplementCustomGroup = document.getElementById('supplement-custom-group');
-      const coursePriceInput = document.getElementById('course-price');
-      
-      // Réinitialiser les suppléments
-      document.getElementById('add-supplement').checked = false;
-      supplementToggleGroup.style.display = 'none';
-      supplementOptionsGroup.style.display = 'none';
-      supplementCustomGroup.style.display = 'none';
-      
-      if (orderType === 'MATA') {
-        coursePriceGroup.style.display = 'block';
-        amountGroup.style.display = 'block';
-        subscriptionToggleGroup.style.display = 'none';
-        subscriptionSelectGroup.style.display = 'none';
-        coursePriceInput.value = '1500';
-        coursePriceInput.readOnly = true;
-      } else if (orderType === 'MLC') {
-        coursePriceGroup.style.display = 'block';
-        amountGroup.style.display = 'none';
-        subscriptionToggleGroup.style.display = 'block';
-        coursePriceInput.value = '';
-        coursePriceInput.readOnly = false;
-      } else {
-        coursePriceGroup.style.display = 'block';
-        amountGroup.style.display = 'none';
-        subscriptionToggleGroup.style.display = 'none';
-        subscriptionSelectGroup.style.display = 'none';
-        coursePriceInput.value = '';
-        coursePriceInput.readOnly = false;
-      }
-    });
-
-    // Gestion du toggle d'abonnement
-    document.getElementById('use-subscription').addEventListener('change', async (e) => {
-      const useSubscription = e.target.checked;
-      const subscriptionSelectGroup = document.getElementById('subscription-select-group');
-      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
-      const supplementOptionsGroup = document.getElementById('supplement-options-group');
-      const supplementCustomGroup = document.getElementById('supplement-custom-group');
-      const coursePriceInput = document.getElementById('course-price');
-      
-      if (useSubscription) {
-        subscriptionSelectGroup.style.display = 'block';
-        supplementToggleGroup.style.display = 'block';
-        coursePriceInput.value = '1500';
-        coursePriceInput.readOnly = true;
-        
-        // Charger les abonnements actifs
-        try {
-          const response = await ApiClient.getActiveSubscriptions();
-          const select = document.getElementById('subscription-select');
-          select.innerHTML = '<option value="">Sélectionner un abonnement...</option>';
-          
-          response.subscriptions.forEach(sub => {
-            const option = document.createElement('option');
-            option.value = sub.id;
-            option.textContent = `${sub.card_number} - ${sub.client_name} (${sub.remaining_deliveries} livraisons restantes)`;
-            option.dataset.clientName = sub.client_name;
-            option.dataset.phoneNumber = sub.phone_number;
-            option.dataset.price = sub.price;
-            option.dataset.totalDeliveries = sub.total_deliveries;
-            option.dataset.address = sub.address || '';
-            select.appendChild(option);
-          });
-        } catch (error) {
-          console.error('Erreur lors du chargement des abonnements:', error);
-          ToastManager.error('Erreur lors du chargement des abonnements');
-        }
-      } else {
-        subscriptionSelectGroup.style.display = 'none';
-        supplementToggleGroup.style.display = 'none';
-        supplementOptionsGroup.style.display = 'none';
-        supplementCustomGroup.style.display = 'none';
-        document.getElementById('add-supplement').checked = false;
-        coursePriceInput.value = '';
-        coursePriceInput.readOnly = false;
-      }
-    });
+  static initializeDateFilters() {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    // Gestion du toggle de supplément
-    document.getElementById('add-supplement').addEventListener('change', (e) => {
-      const addSupplement = e.target.checked;
-      const supplementOptionsGroup = document.getElementById('supplement-options-group');
-      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+    const startDateInput = document.getElementById('analytics-start-date');
+    const endDateInput = document.getElementById('analytics-end-date');
+    const salaryDateInput = document.getElementById('salary-date');
+    
+    if (startDateInput) {
+      startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
+    }
+    if (endDateInput) {
+      endDateInput.value = today.toISOString().split('T')[0];
+    }
+    if (salaryDateInput) {
+      salaryDateInput.value = today.toISOString().split('T')[0];
+    }
+  }
+
+  static async loadLivreursForFilters() {
+    try {
+      const response = await ApiClient.getLivreurs();
+      const livreurs = response.livreurs || [];
       
-      if (addSupplement) {
-        supplementOptionsGroup.style.display = 'block';
-      } else {
-        supplementOptionsGroup.style.display = 'none';
-        supplementCustomGroup.style.display = 'none';
-        // Décocher tous les boutons radio
-        document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
-          radio.checked = false;
+      const analyticsSelect = document.getElementById('analytics-livreur');
+      const salarySelect = document.getElementById('salary-livreur');
+      
+      if (analyticsSelect) {
+        analyticsSelect.innerHTML = '<option value="">Tous les livreurs</option>';
+        livreurs.forEach(livreur => {
+          analyticsSelect.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
         });
-        document.getElementById('supplement-custom-amount').value = '';
       }
-    });
+      
+      if (salarySelect) {
+        salarySelect.innerHTML = '<option value="">Sélectionner un livreur</option>';
+        livreurs.forEach(livreur => {
+          salarySelect.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des livreurs:', error);
+    }
+  }
+
+  static async loadAnalyticsData() {
+    try {
+      const filters = this.getFilters();
+      
+      // Charger toutes les données en parallèle
+      const [
+        globalStats,
+        typeStats,
+        rankings,
+        livreurDetails,
+        currentSalaries
+      ] = await Promise.all([
+        ApiClient.getAnalyticsGlobal(filters),
+        ApiClient.getAnalyticsByType(filters),
+        ApiClient.getAnalyticsRanking(filters),
+        ApiClient.getAnalyticsLivreurDetails(filters),
+        ApiClient.getCurrentSalaries()
+      ]);
+      
+      // Mettre à jour l'interface
+      this.updateGlobalStats(globalStats);
+      this.updateTypeAnalysis(typeStats);
+      this.updateRankings(rankings);
+      this.updateLivreurDetails(livreurDetails);
+      this.updateCurrentSalaries(currentSalaries);
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des données analytics:', error);
+      ToastManager.error('Erreur lors du chargement des données');
+    }
+  }
+
+  static getFilters() {
+    return {
+      startDate: document.getElementById('analytics-start-date')?.value || '',
+      endDate: document.getElementById('analytics-end-date')?.value || '',
+      livreurId: document.getElementById('analytics-livreur')?.value || ''
+    };
+  }
+
+  static updateGlobalStats(stats) {
+    const container = document.getElementById('global-stats-container');
+    if (!container) return;
     
-    // Gestion des boutons radio de supplément
-    document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        const supplementCustomGroup = document.getElementById('supplement-custom-group');
-        const supplementCustomAmount = document.getElementById('supplement-custom-amount');
-        
-        if (e.target.value === 'other') {
-          supplementCustomGroup.style.display = 'block';
-          supplementCustomAmount.required = true;
-        } else {
-          supplementCustomGroup.style.display = 'none';
-          supplementCustomAmount.required = false;
-          supplementCustomAmount.value = '';
-        }
-      });
-    });
+    container.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+          <h3>${stats.totalOrders || 0}</h3>
+          <p>Total commandes</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+          <h3>${Utils.formatAmount(stats.totalRevenue)}</h3>
+          <p>Revenus totaux</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💸</div>
+        <div class="stat-content">
+          <h3>${Utils.formatAmount(stats.totalExpenses)}</h3>
+          <p>Dépenses totales</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div class="stat-content">
+          <h3>${Utils.formatAmount(stats.netProfit)}</h3>
+          <p>Bénéfice net</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🚗</div>
+        <div class="stat-content">
+          <h3>${stats.totalKm || 0} km</h3>
+          <p>Distance totale</p>
+        </div>
+      </div>
+    `;
+  }
 
-    // Gestion de la sélection d'un abonnement
-    document.getElementById('subscription-select').addEventListener('change', (e) => {
-      const selectedOption = e.target.selectedOptions[0];
-      if (selectedOption.value) {
-        document.getElementById('client-name').value = selectedOption.dataset.clientName;
-        document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
-        document.getElementById('address').value = selectedOption.dataset.address;
-        // Calcul automatique du prix de la course
-        const price = parseFloat(selectedOption.dataset.price);
-        const totalDeliveries = parseInt(selectedOption.dataset.totalDeliveries);
-        if (price && totalDeliveries) {
-          const coursePrice = Math.round(price / totalDeliveries);
-          document.getElementById('course-price').value = coursePrice;
-        }
-      }
-    });
+  static updateTypeAnalysis(typeStats) {
+    const container = document.getElementById('type-analysis-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!typeStats || typeStats.length === 0) {
+      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
+      return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    table.style.cssText = 'width: 100%; border-collapse: collapse;';
+    
+    table.innerHTML = `
+      <thead>
+        <tr style="background: #f8f9fa;">
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">Type</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Commandes</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Pourcentage</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${typeStats.map(type => `
+          <tr>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6;">
+              ${this.getTypeIcon(type.type)} ${this.getTypeName(type.type)}
+            </td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${type.totalorders || 0}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(type.totalrevenue)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Math.round(type.percentage || 0)}%</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+    
+    container.appendChild(table);
+  }
 
-    // Gestion de la soumission du formulaire
-    document.getElementById('new-order-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
+  static updateRankings(rankings) {
+    this.updateRankingList('global-ranking', rankings.global, 'global');
+    this.updateRankingList('orders-ranking', rankings.orders, 'orders');
+    this.updateRankingList('revenue-ranking', rankings.revenue, 'revenue');
+    this.updateRankingList('net-profit-with-salary-ranking', rankings.netProfitWithSalary, 'netProfitWithSalary');
+    this.updateRankingList('km-ranking', rankings.km, 'km');
+  }
+
+  static updateRankingList(containerId, data, type) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #666; padding: 1rem;">Aucune donnée disponible</p>';
+      return;
+    }
+    
+    data.forEach((item, index) => {
+      const rank = index + 1;
+      const medal = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `${rank}.`;
       
-      const formData = new FormData(e.target);
-      const orderData = Object.fromEntries(formData.entries());
+      const rankItem = document.createElement('div');
+      rankItem.className = 'ranking-item';
+      rankItem.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: ${rank <= 3 ? '#f8f9fa' : 'white'};
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      `;
       
-      // Convertir les montants en nombres
-      if (orderData.course_price) {
-        orderData.course_price = parseFloat(orderData.course_price);
-      }
-      if (orderData.amount) {
-        orderData.amount = parseFloat(orderData.amount);
-      }
-      
-      // Traitement des données de supplément pour MLC avec abonnement
-      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.add_supplement === 'on') {
-        let supplementAmount = 0;
-        
-        if (orderData.supplement_amount === 'other') {
-          supplementAmount = parseFloat(orderData.supplement_custom_amount) || 0;
-        } else if (orderData.supplement_amount) {
-          supplementAmount = parseFloat(orderData.supplement_amount);
-        }
-        
-        if (supplementAmount > 0) {
-          orderData.supplement_amount = supplementAmount;
-          // Ajouter le supplément au prix de la course
-          orderData.course_price = (orderData.course_price || 0) + supplementAmount;
-        }
-        
-        // Nettoyer les champs non nécessaires
-        delete orderData.supplement_custom_amount;
-      }
-      
-      // Pour MLC avec abonnement, utiliser la route spéciale
-      if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
-        try {
-          const response = await ApiClient.createMLCOrderWithSubscription(orderData);
-          if (response.success) {
-            ToastManager.success('Commande créée avec succès');
-            document.getElementById('new-order-form').reset();
-            // Réinitialiser les groupes de supplément
-            document.getElementById('supplement-toggle-group').style.display = 'none';
-            document.getElementById('supplement-options-group').style.display = 'none';
-            document.getElementById('supplement-custom-group').style.display = 'none';
-            await OrderManager.loadLastUserOrders();
-          } else {
-            ToastManager.error(response.message || 'Erreur lors de la création de la commande');
-          }
-        } catch (error) {
-          console.error('Erreur lors de la création de la commande:', error);
-          ToastManager.error('Erreur lors de la création de la commande');
-        }
-        return;
+      let value = '';
+      switch (type) {
+        case 'orders':
+          value = `${item.totalorders} courses`;
+          break;
+        case 'revenue':
+          value = Utils.formatAmount(item.totalrevenue);
+          break;
+        case 'netProfitWithSalary':
+          value = Utils.formatAmount(item.netprofitwithsalary || 0);
+          break;
+        case 'km':
+          value = `${item.totalkm || 0} km`;
+          break;
+        default: // global
+          value = `Score: ${Math.round(item.globalscore || 0)}`;
       }
       
+      rankItem.innerHTML = `
+        <span style="font-weight: bold;">${medal} ${Utils.escapeHtml(item.username)}</span>
+        <span style="color: ${type === 'netProfitWithSalary' && (item.netprofitwithsalary || 0) < 0 ? 'red' : '#666'};">${value}</span>
+      `;
+      
+      container.appendChild(rankItem);
+    });
+  }
+
+  static updateLivreurDetails(details) {
+    const container = document.getElementById('livreur-details-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (details.length === 0) {
+      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
+      return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 1rem;';
+    
+    table.innerHTML = `
+      <thead>
+        <tr style="background: #f8f9fa;">
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">Livreur</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Courses</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Dépenses</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net (avec salaire)</th>
+          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Kilomètres</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${details.map(livreur => `
+          <tr>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(livreur.username)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalorders || 0}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalrevenue)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalExpenses)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${(livreur.netProfitWithSalary || 0) >= 0 ? 'green' : 'red'}; font-weight: bold;">${Utils.formatAmount(livreur.netProfitWithSalary || 0)}</td>
+            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalKm || 0} km</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+    
+    container.appendChild(table);
+  }
+
+  static async compareDeliverers() {
+    try {
+      const filters = this.getFilters();
+      const comparison = await ApiClient.getAnalyticsComparison(filters);
+      this.displayComparison(comparison);
+    } catch (error) {
+      console.error('Erreur lors de la comparaison:', error);
+      ToastManager.error('Erreur lors de la comparaison des livreurs');
+    }
+  }
+
+  static displayComparison(comparison) {
+    const content = `
+      <div style="max-height: 70vh; overflow-y: auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f8f9fa;">
+              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Livreur</th>
+              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Score Global</th>
+              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Courses</th>
+              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Revenus</th>
+              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Bénéfice</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${comparison.map(livreur => `
+              <tr>
+                <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(livreur.username)}</td>
+                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: #2563eb;">${Math.round(livreur.globalScore || 0)}</td>
+                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalOrders || 0}</td>
+                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalRevenue)}</td>
+                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    ModalManager.show('Comparaison des livreurs', content);
+  }
+
+  static async addSalary() {
+    const livreurId = document.getElementById('salary-livreur')?.value;
+    const amount = document.getElementById('salary-amount')?.value;
+    const effectiveDate = document.getElementById('salary-date')?.value;
+    
+    if (!livreurId || !amount || !effectiveDate) {
+      ToastManager.warning('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    
+    const parsedAmount = parseFloat(amount);
+    
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      ToastManager.warning('Veuillez vérifier les valeurs saisies');
+      return;
+    }
+    
+    try {
+      const salaryData = {
+        user_id: livreurId,
+        amount: parsedAmount,
+        effective_date: effectiveDate
+      };
+      
+      await ApiClient.createSalary(salaryData);
+      
+      ToastManager.success('Salaire ajouté avec succès');
+      
+      // Recharger les salaires actuels
+      const currentSalaries = await ApiClient.getCurrentSalaries();
+      this.updateCurrentSalaries(currentSalaries);
+      
+      // Réinitialiser le formulaire
+      document.getElementById('salary-livreur').value = '';
+      document.getElementById('salary-amount').value = '';
+      document.getElementById('salary-date').value = new Date().toISOString().split('T')[0];
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du salaire:', error);
+      ToastManager.error('Erreur lors de l\'ajout du salaire');
+    }
+  }
+
+  static async deleteSalary(salaryId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce salaire ?')) {
+      return;
+    }
+    
+    try {
+      await ApiClient.deleteSalary(salaryId);
+      ToastManager.success('Salaire supprimé avec succès');
+      
+      // Recharger les salaires actuels
+      const currentSalaries = await ApiClient.getCurrentSalaries();
+      this.updateCurrentSalaries(currentSalaries);
+      
+    } catch (error) {
       // Pour les autres types de commandes, utiliser la route normale
       try {
         await OrderManager.createOrder(orderData);
