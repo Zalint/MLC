@@ -20,8 +20,7 @@ async function loadScoreWeights() {
     try {
         const data = await fs.readFile(SCORE_WEIGHTS_FILE, 'utf8');
         const config = JSON.parse(data);
-        SCORE_WEIGHTS.COURSES = config.COURSES;
-        SCORE_WEIGHTS.PROFIT = config.PROFIT;
+        SCORE_WEIGHTS = { ...SCORE_WEIGHTS, ...config };
         console.log('🎯 Pondérations chargées depuis le fichier:', SCORE_WEIGHTS);
     } catch (error) {
         console.log('⚠️ Fichier de pondérations non trouvé, utilisation des valeurs par défaut');
