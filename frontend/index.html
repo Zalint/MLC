@@ -47,10 +47,6 @@
                 <span class="icon">🛒</span>
                 <span class="text">Tableau MATA mensuel</span>
             </button>
-            <button class="nav-item hidden" id="nav-analytics" data-page="analytics">
-                <span class="icon">📈</span>
-                <span class="text">Analytics</span>
-            </button>
             <button class="nav-item" data-page="new-order">
                 <span class="icon">➕</span>
                 <span class="text">Nouvelle commande</span>
@@ -70,6 +66,10 @@
             <button class="nav-item hidden" id="nav-subscriptions" data-page="subscriptions">
                 <span class="icon">🎫</span>
                 <span class="text">Packs MLC</span>
+            </button>
+            <button class="nav-item hidden" id="nav-analytics" data-page="analytics">
+                <span class="icon">📈</span>
+                <span class="text">Analytics</span>
             </button>
             <button class="nav-item" id="nav-livreurs" data-page="livreurs" style="display: none;">
                 <span class="icon">🚚</span>
@@ -262,10 +262,7 @@
             <div class="page-header">
                 <h2>Tableau de bord mensuel MATA</h2>
                 <div class="page-actions">
-                    <button id="export-mata-monthly-excel" class="btn btn-primary btn-sm hidden">
-                        <span class="icon">📊</span>
-                        Export Excel
-                    </button>
+                    
                     <button id="refresh-mata-monthly-dashboard" class="btn btn-secondary btn-sm">
                         <span class="icon">🔄</span>
                         Actualiser
@@ -311,7 +308,7 @@
                         <h3>Détail des commandes MATA</h3>
                         <button id="export-mata-monthly-excel-table" class="btn btn-primary btn-sm">
                             <span class="icon">📊</span>
-                            Old Export Excel
+                            Export Excel
                         </button>
                     </div>
                     <div id="mata-orders-table-container">
@@ -618,6 +615,194 @@
             </div>
         </div>
 
+        <!-- Page Analytics -->
+        <div id="analytics-page" class="page">
+            <div class="page-header">
+                <h2>Analytics & Statistiques</h2>
+                <div class="page-actions">
+                    <button id="refresh-analytics" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Filtres d'analyse -->
+            <div class="analytics-filters" style="margin-bottom: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                    <div class="form-group">
+                        <label for="analytics-date-start" style="font-weight: bold;">Date début</label>
+                        <input type="date" id="analytics-date-start" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="analytics-date-end" style="font-weight: bold;">Date fin</label>
+                        <input type="date" id="analytics-date-end" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="analytics-livreur-filter" style="font-weight: bold;">Livreur</label>
+                        <select id="analytics-livreur-filter" class="form-control">
+                            <option value="">Tous les livreurs</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="analytics-type-filter" style="font-weight: bold;">Type de course</label>
+                        <select id="analytics-type-filter" class="form-control">
+                            <option value="">Tous types</option>
+                            <option value="MATA">MATA</option>
+                            <option value="MLC">MLC classique</option>
+                            <option value="MLC_SUBSCRIPTION">MLC abonnement</option>
+                            <option value="AUTRE">Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button id="apply-analytics-filters" class="btn btn-primary">
+                            <span class="icon">🔍</span>
+                            Analyser
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiques globales -->
+            <div class="analytics-global-stats">
+                <h3>📊 Statistiques globales</h3>
+                <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-total-orders">0</h3>
+                            <p>Total courses</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-total-revenue">0 FCFA</h3>
+                            <p>Revenus courses</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💸</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-total-expenses">0 FCFA</h3>
+                            <p>Dépenses totales</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚗</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-total-km">0 km</h3>
+                            <p>Total kilomètres</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💹</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-total-profit">0 FCFA</h3>
+                            <p>Bénéfices nets</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⛽</div>
+                        <div class="stat-content">
+                            <h3 id="analytics-fuel-expenses">0 FCFA</h3>
+                            <p>Dépenses carburant</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analyses par type de course -->
+            <div class="analytics-by-type" style="margin-bottom: 2rem;">
+                <h3>📋 Analyse par type de course</h3>
+                <div id="type-analysis-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                    <!-- Les statistiques par type seront générées ici -->
+                </div>
+            </div>
+
+            <!-- Ranking des livreurs -->
+            <div class="analytics-ranking" style="margin-bottom: 2rem;">
+                <h3>🏆 Ranking & Performances</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div class="ranking-section">
+                        <h4>🥇 Top livreurs - Global</h4>
+                        <div id="global-ranking" class="ranking-list">
+                            <!-- Classement global -->
+                        </div>
+                    </div>
+                    <div class="ranking-section">
+                        <h4>📦 Top livreurs - Par nombre de courses</h4>
+                        <div id="orders-ranking" class="ranking-list">
+                            <!-- Classement par nombre de courses -->
+                        </div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                    <div class="ranking-section">
+                        <h4>💰 Top livreurs - Par revenus</h4>
+                        <div id="revenue-ranking" class="ranking-list">
+                            <!-- Classement par revenus -->
+                        </div>
+                    </div>
+                    <div class="ranking-section">
+                        <h4>💸 Top livreurs - Bénéfice net (avec salaire)</h4>
+                        <div id="net-profit-with-salary-ranking" class="ranking-list">
+                            <!-- Classement par bénéfice net avec salaire -->
+                        </div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                    <div class="ranking-section">
+                        <h4>🚗 Top livreurs - Par kilomètres</h4>
+                        <div id="km-ranking" class="ranking-list">
+                            <!-- Classement par kilomètres -->
+                        </div>
+                    </div>
+                    <div class="ranking-section">
+                        <!-- Section vide pour maintenir la grille -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analyse comparative entre livreurs -->
+            <div class="analytics-comparison" style="margin-bottom: 2rem;">
+                <h3>🔍 Analyse comparative</h3>
+                <div style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="compare-livreur1" style="font-weight: bold;">Livreur 1</label>
+                            <select id="compare-livreur1" class="form-control">
+                                <option value="">Sélectionner le premier livreur</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="compare-livreur2" style="font-weight: bold;">Livreur 2</label>
+                            <select id="compare-livreur2" class="form-control">
+                                <option value="">Sélectionner le deuxième livreur</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button id="compare-livreurs-btn" class="btn btn-primary">
+                                <span class="icon">🔍</span>
+                                Comparer
+                            </button>
+                        </div>
+                    </div>
+                    <div id="comparison-results" class="comparison-results">
+                        <!-- Résultats de la comparaison -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Détails par livreur -->
+            <div class="analytics-details">
+                <h3>📋 Détails par livreur</h3>
+                <div id="livreur-details-container">
+                    <!-- Les détails par livreur seront chargés ici -->
+                </div>
+            </div>
+        </div>
+
         <!-- Page gestion livreurs (managers/admins) -->
         <div id="livreurs-page" class="page">
             <div class="page-header">
@@ -697,190 +882,6 @@
                 </button>
             </div>
         </div>
-
-        <!-- Page Analytics -->
-        <div id="analytics-page" class="page">
-            <div class="page-header">
-                <h2>📈 Analytics & Performances</h2>
-                <div class="page-actions">
-                    <button id="refresh-analytics" class="btn btn-secondary btn-sm">
-                        <span class="icon">🔄</span>
-                        Actualiser
-                    </button>
-                </div>
-            </div>
-            
-            <div class="analytics-content">
-                <!-- Filtres -->
-                <div class="analytics-filters" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-                    <h3>🔍 Filtres d'analyse</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end; margin-top: 1rem;">
-                        <div class="form-group">
-                            <label for="analytics-start-date" style="font-weight: bold;">Date de début</label>
-                            <input type="date" id="analytics-start-date" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="analytics-end-date" style="font-weight: bold;">Date de fin</label>
-                            <input type="date" id="analytics-end-date" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="analytics-livreur" style="font-weight: bold;">Livreur spécifique</label>
-                            <select id="analytics-livreur" class="form-control">
-                                <option value="">Tous les livreurs</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button id="apply-analytics-filters" class="btn btn-primary">
-                                <span class="icon">🔍</span>
-                                Analyser
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Statistiques globales -->
-                <div class="global-stats" style="margin-bottom: 2rem;">
-                    <h3>📊 Vue d'ensemble</h3>
-                    <div id="global-stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                        <!-- Les statistiques globales seront chargées ici -->
-                    </div>
-                </div>
-
-                <!-- Analyse par type de commande -->
-                <div class="type-analysis" style="margin-bottom: 2rem;">
-                    <h3>🏷️ Analyse par type de commande</h3>
-                    <div id="type-analysis-container" style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
-                        <!-- L'analyse par type sera chargée ici -->
-                    </div>
-                </div>
-
-                <!-- Rankings & Performances -->
-                <div class="rankings" style="margin-bottom: 2rem;">
-                    <h3>🏆 Rankings & Performances</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-                        <div class="ranking-section">
-                            <h4>🥇 Top livreurs - Global</h4>
-                            <div id="global-ranking" class="ranking-list">
-                                <!-- Classement global -->
-                            </div>
-                        </div>
-                        <div class="ranking-section">
-                            <h4>📦 Top livreurs - Par nombre de courses</h4>
-                            <div id="orders-ranking" class="ranking-list">
-                                <!-- Classement par nombre de courses -->
-                            </div>
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-                        <div class="ranking-section">
-                            <h4>💰 Top livreurs - Par revenus</h4>
-                            <div id="revenue-ranking" class="ranking-list">
-                                <!-- Classement par revenus -->
-                            </div>
-                        </div>
-                        <div class="ranking-section">
-                            <h4>💸 Top livreurs - Bénéfice net (avec salaire)</h4>
-                            <div id="net-profit-with-salary-ranking" class="ranking-list">
-                                <!-- Classement par bénéfice net avec salaire -->
-                            </div>
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-                        <div class="ranking-section">
-                            <h4>🚗 Top livreurs - Par kilomètres</h4>
-                            <div id="km-ranking" class="ranking-list">
-                                <!-- Classement par kilomètres -->
-                            </div>
-                        </div>
-                        <div class="ranking-section">
-                            <!-- Section vide pour maintenir la grille -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Détails par livreur -->
-                <div class="livreur-details" style="margin-bottom: 2rem;">
-                    <h3>👥 Détails par livreur</h3>
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                        <button id="compare-livreurs-btn" class="btn btn-secondary btn-sm">
-                            <span class="icon">⚖️</span>
-                            Comparer les livreurs
-                        </button>
-                    </div>
-                    <div id="livreur-details-container" style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
-                        <!-- Les détails par livreur seront chargés ici -->
-                    </div>
-                </div>
-
-                <!-- Gestion des salaires -->
-                <div class="salary-management" style="margin-bottom: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3>💼 Gestion des salaires</h3>
-                        <button id="toggle-salary-section" class="btn btn-secondary btn-sm" style="background: transparent; border: 1px solid #ccc; color: #666;">
-                            <span class="icon">👁️</span>
-                            <span id="toggle-salary-text">Afficher</span>
-                        </button>
-                    </div>
-                    
-                    <div id="salary-content" style="display: none;">
-                        <!-- Tableau des salaires actuels -->
-                        <div class="current-salaries" style="margin-bottom: 2rem;">
-                            <h4>📊 Salaires actuels des livreurs</h4>
-                            <div id="current-salaries-container" style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
-                                <!-- Le tableau sera chargé ici -->
-                            </div>
-                        </div>
-                        
-                        <!-- Formulaire d'ajout de salaire -->
-                        <div style="background: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
-                            <h4>➕ Ajouter un nouveau salaire</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem;">
-                                <div class="form-group">
-                                    <label for="salary-livreur" style="font-weight: bold;">Livreur</label>
-                                    <select id="salary-livreur" class="form-control">
-                                        <option value="">Sélectionner un livreur</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="salary-amount" style="font-weight: bold;">Salaire (FCFA)</label>
-                                    <input type="number" id="salary-amount" class="form-control" min="0" step="1000">
-                                </div>
-                                <div class="form-group">
-                                    <label for="salary-date" style="font-weight: bold;">Date d'effet</label>
-                                    <input type="date" id="salary-date" class="form-control">
-                                </div>
-                                <div>
-                                    <button id="add-salary-btn" class="btn btn-primary">
-                                        <span class="icon">💼</span>
-                                        Ajouter
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="salary-history" class="salary-history" style="display: none;">
-                                <!-- Historique des salaires -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuration du score global -->
-                <div class="score-config" style="margin-bottom: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3>⚖️ Calcul du score global</h3>
-                        <button id="toggle-score-section" class="btn btn-secondary btn-sm" style="background: transparent; border: 1px solid #ccc; color: #666;">
-                            <span class="icon">👁️</span>
-                            <span id="toggle-score-text">Afficher</span>
-                        </button>
-                    </div>
-                    
-                    <div id="score-content" style="display: none;">
-                        <div id="score-weights-container" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
-                            <!-- Les pondérations seront chargées ici -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <!-- Modales -->
@@ -901,6 +902,5 @@
 
     <!-- Scripts -->
     <script src="js/main.js"></script>
-    <script src="debug_date_field.js"></script>
 </body>
 </html> 

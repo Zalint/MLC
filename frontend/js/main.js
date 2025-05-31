@@ -498,7 +498,7 @@ class ApiClient {
     return this.request('/subscriptions/active');
   }
 
-  // ===== MÉTHODES ANALYTICS =====
+  // Analytics endpoints
   static async getAnalyticsGlobal(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/analytics/global?${queryString}`);
@@ -521,7 +521,7 @@ class ApiClient {
 
   static async getAnalyticsComparison(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/analytics/comparison?${queryString}`);
+    return this.request(`/analytics/compare?${queryString}`);
   }
 
   static async getScoreWeights() {
@@ -535,6 +535,7 @@ class ApiClient {
     });
   }
 
+  // Salaries endpoints
   static async getSalaries(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/salaries?${queryString}`);
@@ -559,8 +560,34 @@ class ApiClient {
   }
 
   static async deleteSalary(id) {
-    return this.request(`/salaries/${id}`, {
-      method: 'DELETE'
+    return this.request(`/salaries/${id}`, { method: 'DELETE' });
+  }
+
+  // Analytics API methods
+  static async getAnalyticsGlobal(params = {}) {
+    return await this.request('/api/analytics/global', { params });
+  }
+
+  static async getAnalyticsByType(params = {}) {
+    return await this.request('/api/analytics/by-type', { params });
+  }
+
+  static async getAnalyticsRanking(params = {}) {
+    return await this.request('/api/analytics/ranking', { params });
+  }
+
+  static async getAnalyticsLivreurDetails(params = {}) {
+    return await this.request('/api/analytics/livreur-details', { params });
+  }
+
+  static async getScoreWeights() {
+    return await this.request('/api/analytics/score-weights');
+  }
+
+  static async updateScoreWeights(weights) {
+    return await this.request('/api/analytics/score-weights', {
+      method: 'PUT',
+      body: weights
     });
   }
 }
@@ -643,6 +670,11 @@ class PageManager {
             await SubscriptionManager.loadSubscriptions();
           }
           break;
+        case 'analytics':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await AnalyticsManager.loadAnalytics();
+          }
+          break;
         case 'livreurs':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await LivreurManager.loadLivreurs();
@@ -650,11 +682,6 @@ class PageManager {
           break;
         case 'profile':
           await ProfileManager.loadProfile();
-          break;
-        case 'analytics':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-            await AnalyticsManager.loadAnalytics();
-          }
           break;
       }
     } catch (error) {
@@ -750,11 +777,11 @@ class AuthManager {
     // Afficher/masquer les éléments selon le rôle
     const navUsers = document.getElementById('nav-users');
     const navSubscriptions = document.getElementById('nav-subscriptions');
+    const navAnalytics = document.getElementById('nav-analytics');
     const navLivreurs = document.getElementById('nav-livreurs');
     const navExpenses = document.getElementById('nav-expenses');
     const navMonthlyDashboard = document.getElementById('nav-monthly-dashboard');
     const navMataMonthlyDashboard = document.getElementById('nav-mata-monthly-dashboard');
-    const navAnalytics = document.getElementById('nav-analytics');
     const exportExcel = document.getElementById('export-excel');
     const statLivreurs = document.getElementById('stat-livreurs');
     const managerSummary = document.getElementById('manager-summary-section');
@@ -767,6 +794,10 @@ class AuthManager {
       if (navSubscriptions) {
         navSubscriptions.classList.remove('hidden');
         navSubscriptions.style.display = 'flex';
+      }
+      if (navAnalytics) {
+        navAnalytics.classList.remove('hidden');
+        navAnalytics.style.display = 'flex';
       }
       if (navLivreurs) {
         navLivreurs.classList.remove('hidden');
@@ -794,7 +825,6 @@ class AuthManager {
         navMataMonthlyDashboard.classList.remove('hidden');
         navMataMonthlyDashboard.style.display = 'flex';
       }
-      if (navAnalytics) navAnalytics.classList.remove('hidden');
       if (exportExcel) exportExcel.classList.remove('hidden');
       if (statLivreurs) statLivreurs.classList.remove('hidden');
       if (managerSummary) managerSummary.classList.remove('hidden');
@@ -812,6 +842,10 @@ class AuthManager {
         navSubscriptions.classList.add('hidden');
         navSubscriptions.style.display = 'none';
       }
+      if (navAnalytics) {
+        navAnalytics.classList.add('hidden');
+        navAnalytics.style.display = 'none';
+      }
       if (navLivreurs) {
         navLivreurs.classList.add('hidden');
         navLivreurs.style.display = 'none';
@@ -828,7 +862,6 @@ class AuthManager {
         navMataMonthlyDashboard.classList.add('hidden');
         navMataMonthlyDashboard.style.display = 'none';
       }
-      if (navAnalytics) navAnalytics.classList.add('hidden');
       if (exportExcel) exportExcel.classList.add('hidden');
       if (statLivreurs) statLivreurs.classList.add('hidden');
       if (managerSummary) managerSummary.classList.add('hidden');
@@ -860,6 +893,7 @@ class AuthManager {
       const elementsToCheck = [
         'nav-users',
         'nav-subscriptions',
+        'nav-analytics',
         'nav-expenses', 
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard'
@@ -2129,6 +2163,27 @@ class MataMonthlyDashboardManager {
         ToastManager.success('Export Excel MATA en cours...');
       });
     }
+  }
+
+  static updateTypeAnalysis(typeStats) {
+    const container = document.getElementById('type-analysis-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    typeStats.forEach(type => {
+      const typeCard = document.createElement('div');
+      typeCard.className = 'stat-card';
+      typeCard.innerHTML = `
+        <div class="stat-icon">${this.getTypeIcon(type.type)}</div>
+        <div class="stat-content">
+          <h3>${type.count}</h3>
+          <p>${this.getTypeName(type.type)}</p>
+          <small>${Utils.formatAmount(type.revenue)} • ${type.totalKm || 0} km</small>
+        </div>
+      `;
+      container.appendChild(typeCard);
+    });
   }
 }
 
@@ -4079,17 +4134,16 @@ class ProfileManager {
   }
 }
 
-// ===== GESTIONNAIRE ANALYTICS =====
+// ===== GESTIONNAIRE D'ANALYTICS =====
 class AnalyticsManager {
   static async loadAnalytics() {
     try {
-      this.initializeDateFilters();
       await this.loadLivreursForFilters();
+      this.initializeDateFilters();
       await this.loadAnalyticsData();
-      await this.loadScoreWeights();
       this.setupEventListeners();
     } catch (error) {
-      console.error('Erreur lors du chargement des analytics:', error);
+      console.error('Erreur chargement analytics:', error);
       ToastManager.error('Erreur lors du chargement des analytics');
     }
   }
@@ -4098,44 +4152,28 @@ class AnalyticsManager {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    const startDateInput = document.getElementById('analytics-start-date');
-    const endDateInput = document.getElementById('analytics-end-date');
-    const salaryDateInput = document.getElementById('salary-date');
+    const startDateInput = document.getElementById('analytics-date-start');
+    const endDateInput = document.getElementById('analytics-date-end');
     
-    if (startDateInput) {
-      startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
-    }
-    if (endDateInput) {
-      endDateInput.value = today.toISOString().split('T')[0];
-    }
-    if (salaryDateInput) {
-      salaryDateInput.value = today.toISOString().split('T')[0];
-    }
+    if (startDateInput) startDateInput.value = Utils.formatDate(firstDayOfMonth);
+    if (endDateInput) endDateInput.value = Utils.formatDate(today);
   }
 
   static async loadLivreursForFilters() {
     try {
-      const response = await ApiClient.getLivreurs();
-      const livreurs = response.livreurs || [];
+      const livreurs = await ApiClient.getLivreurs();
+      const select = document.getElementById('analytics-livreur-filter');
       
-      const analyticsSelect = document.getElementById('analytics-livreur');
-      const salarySelect = document.getElementById('salary-livreur');
-      
-      if (analyticsSelect) {
-        analyticsSelect.innerHTML = '<option value="">Tous les livreurs</option>';
+      if (select && livreurs) {
+        select.innerHTML = '<option value="">Tous les livreurs</option>';
         livreurs.forEach(livreur => {
-          analyticsSelect.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
-        });
-      }
-      
-      if (salarySelect) {
-        salarySelect.innerHTML = '<option value="">Sélectionner un livreur</option>';
-        livreurs.forEach(livreur => {
-          salarySelect.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+          if (livreur.active) {
+            select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
+          }
         });
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des livreurs:', error);
+      console.error('Erreur chargement livreurs:', error);
     }
   }
 
@@ -4143,142 +4181,79 @@ class AnalyticsManager {
     try {
       const filters = this.getFilters();
       
-      // Charger toutes les données en parallèle
-      const [
-        globalStats,
-        typeStats,
-        rankings,
-        livreurDetails,
-        currentSalaries
-      ] = await Promise.all([
+      // Charger les données en parallèle
+      const [globalStats, typeStats, rankings, details] = await Promise.all([
         ApiClient.getAnalyticsGlobal(filters),
         ApiClient.getAnalyticsByType(filters),
         ApiClient.getAnalyticsRanking(filters),
-        ApiClient.getAnalyticsLivreurDetails(filters),
-        ApiClient.getCurrentSalaries()
+        ApiClient.getAnalyticsLivreurDetails(filters)
       ]);
       
-      // Mettre à jour l'interface
       this.updateGlobalStats(globalStats);
       this.updateTypeAnalysis(typeStats);
       this.updateRankings(rankings);
-      this.updateLivreurDetails(livreurDetails);
-      this.updateCurrentSalaries(currentSalaries);
+      this.updateLivreurDetails(details);
       
     } catch (error) {
-      console.error('Erreur lors du chargement des données analytics:', error);
+      console.error('Erreur chargement données:', error);
       ToastManager.error('Erreur lors du chargement des données');
     }
   }
 
   static getFilters() {
     return {
-      startDate: document.getElementById('analytics-start-date')?.value || '',
-      endDate: document.getElementById('analytics-end-date')?.value || '',
-      livreurId: document.getElementById('analytics-livreur')?.value || ''
+      startDate: document.getElementById('analytics-date-start')?.value,
+      endDate: document.getElementById('analytics-date-end')?.value,
+      livreurId: document.getElementById('analytics-livreur-filter')?.value,
+      orderType: document.getElementById('analytics-type-filter')?.value
     };
   }
 
   static updateGlobalStats(stats) {
-    const container = document.getElementById('global-stats-container');
-    if (!container) return;
+    if (!stats) return;
     
-    container.innerHTML = `
-      <div class="stat-card">
-        <div class="stat-icon">📦</div>
-        <div class="stat-content">
-          <h3>${stats.totalOrders || 0}</h3>
-          <p>Total commandes</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div class="stat-content">
-          <h3>${Utils.formatAmount(stats.totalRevenue)}</h3>
-          <p>Revenus totaux</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">💸</div>
-        <div class="stat-content">
-          <h3>${Utils.formatAmount(stats.totalExpenses)}</h3>
-          <p>Dépenses totales</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📈</div>
-        <div class="stat-content">
-          <h3>${Utils.formatAmount(stats.netProfit)}</h3>
-          <p>Bénéfice net</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🚗</div>
-        <div class="stat-content">
-          <h3>${stats.totalKm || 0} km</h3>
-          <p>Distance totale</p>
-        </div>
-      </div>
-    `;
+    document.getElementById('analytics-total-orders')?.textContent = stats.totalOrders;
+    document.getElementById('analytics-total-revenue')?.textContent = Utils.formatAmount(stats.totalRevenue);
+    document.getElementById('analytics-total-expenses')?.textContent = Utils.formatAmount(stats.totalExpenses);
+    document.getElementById('analytics-total-km')?.textContent = `${stats.totalKm} km`;
+    document.getElementById('analytics-total-profit')?.textContent = Utils.formatAmount(stats.totalProfit);
+    document.getElementById('analytics-fuel-expenses')?.textContent = Utils.formatAmount(stats.fuelExpenses);
   }
 
   static updateTypeAnalysis(typeStats) {
+    if (!typeStats?.length) return;
+    
     const container = document.getElementById('type-analysis-container');
     if (!container) return;
     
-    container.innerHTML = '';
-    
-    if (!typeStats || typeStats.length === 0) {
-      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
-      return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'data-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse;';
-    
-    table.innerHTML = `
-      <thead>
-        <tr style="background: #f8f9fa;">
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: left;">Type</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Commandes</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Pourcentage</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${typeStats.map(type => `
-          <tr>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6;">
-              ${this.getTypeIcon(type.type)} ${this.getTypeName(type.type)}
-            </td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${type.totalorders || 0}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(type.totalrevenue)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Math.round(type.percentage || 0)}%</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    `;
-    
-    container.appendChild(table);
+    container.innerHTML = typeStats.map(stat => `
+      <div class="stat-card">
+        <div class="stat-icon">${this.getTypeIcon(stat.type)}</div>
+        <div class="stat-content">
+          <h4>${this.getTypeName(stat.type)}</h4>
+          <p>${stat.count} courses</p>
+          <p>${Utils.formatAmount(stat.revenue)}</p>
+        </div>
+      </div>
+    `).join('');
   }
 
   static updateRankings(rankings) {
+    if (!rankings) return;
+    
     this.updateRankingList('global-ranking', rankings.global, 'global');
     this.updateRankingList('orders-ranking', rankings.orders, 'orders');
     this.updateRankingList('revenue-ranking', rankings.revenue, 'revenue');
-    this.updateRankingList('net-profit-with-salary-ranking', rankings.netProfitWithSalary, 'netProfitWithSalary');
-    this.updateRankingList('km-ranking', rankings.km, 'km');
   }
 
   static updateRankingList(containerId, data, type) {
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container || !data) return;
     
     container.innerHTML = '';
     
-    if (!data || data.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #666; padding: 1rem;">Aucune donnée disponible</p>';
+    if (data.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #666;">Aucune donnée disponible</p>';
       return;
     }
     
@@ -4307,9 +4282,6 @@ class AnalyticsManager {
         case 'revenue':
           value = Utils.formatAmount(item.totalrevenue);
           break;
-        case 'netProfitWithSalary':
-          value = Utils.formatAmount(item.netprofitwithsalary || 0);
-          break;
         case 'km':
           value = `${item.totalkm || 0} km`;
           break;
@@ -4319,7 +4291,7 @@ class AnalyticsManager {
       
       rankItem.innerHTML = `
         <span style="font-weight: bold;">${medal} ${Utils.escapeHtml(item.username)}</span>
-        <span style="color: ${type === 'netProfitWithSalary' && (item.netprofitwithsalary || 0) < 0 ? 'red' : '#666'};">${value}</span>
+        <span style="color: #666;">${value}</span>
       `;
       
       container.appendChild(rankItem);
@@ -4328,14 +4300,9 @@ class AnalyticsManager {
 
   static updateLivreurDetails(details) {
     const container = document.getElementById('livreur-details-container');
-    if (!container) return;
+    if (!container || !details?.length) return;
     
     container.innerHTML = '';
-    
-    if (details.length === 0) {
-      container.innerHTML = '<p>Aucune donnée disponible pour la période sélectionnée.</p>';
-      return;
-    }
     
     const table = document.createElement('table');
     table.className = 'data-table';
@@ -4349,7 +4316,6 @@ class AnalyticsManager {
           <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Revenus</th>
           <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Dépenses</th>
           <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net</th>
-          <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Bénéfice net (avec salaire)</th>
           <th style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">Kilomètres</th>
         </tr>
       </thead>
@@ -4361,7 +4327,6 @@ class AnalyticsManager {
             <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalrevenue)}</td>
             <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalExpenses)}</td>
             <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
-            <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${(livreur.netProfitWithSalary || 0) >= 0 ? 'green' : 'red'}; font-weight: bold;">${Utils.formatAmount(livreur.netProfitWithSalary || 0)}</td>
             <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalKm || 0} km</td>
           </tr>
         `).join('')}
@@ -4373,324 +4338,229 @@ class AnalyticsManager {
 
   static async compareDeliverers() {
     try {
+      const livreur1 = document.getElementById('compare-livreur1')?.value;
+      const livreur2 = document.getElementById('compare-livreur2')?.value;
+      
+      if (!livreur1 || !livreur2) {
+        ToastManager.warning('Veuillez sélectionner deux livreurs à comparer');
+        return;
+      }
+      
+      if (livreur1 === livreur2) {
+        ToastManager.warning('Veuillez sélectionner deux livreurs différents');
+        return;
+      }
+      
       const filters = this.getFilters();
-      const comparison = await ApiClient.getAnalyticsComparison(filters);
+      const comparison = await ApiClient.getAnalyticsComparison({
+        ...filters,
+        livreur1,
+        livreur2
+      });
+      
       this.displayComparison(comparison);
+      
     } catch (error) {
-      console.error('Erreur lors de la comparaison:', error);
-      ToastManager.error('Erreur lors de la comparaison des livreurs');
+      console.error('Erreur comparaison:', error);
+      ToastManager.error('Erreur lors de la comparaison');
     }
   }
 
   static displayComparison(comparison) {
-    const content = `
-      <div style="max-height: 70vh; overflow-y: auto;">
-        <table class="data-table" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="background: #f8f9fa;">
-              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Livreur</th>
-              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Score Global</th>
-              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Courses</th>
-              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Revenus</th>
-              <th style="padding: 0.75rem; border: 1px solid #dee2e6;">Bénéfice</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${comparison.map(livreur => `
-              <tr>
-                <td style="padding: 0.75rem; border: 1px solid #dee2e6; font-weight: bold;">${Utils.escapeHtml(livreur.username)}</td>
-                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: #2563eb;">${Math.round(livreur.globalScore || 0)}</td>
-                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${livreur.totalOrders || 0}</td>
-                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right;">${Utils.formatAmount(livreur.totalRevenue)}</td>
-                <td style="padding: 0.75rem; border: 1px solid #dee2e6; text-align: right; color: ${livreur.netProfit >= 0 ? 'green' : 'red'};">${Utils.formatAmount(livreur.netProfit)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+    const container = document.getElementById('comparison-results');
+    if (!container || !comparison) return;
+    
+    container.innerHTML = `
+      <div style="margin-top: 1rem;">
+        <h4 style="margin-bottom: 1rem;">Résultats de la comparaison</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          ${Object.entries(comparison).map(([metric, values]) => `
+            <div class="stat-card">
+              <div class="stat-content">
+                <h5>${metric}</h5>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                  <span>${values.livreur1}</span>
+                  <span>vs</span>
+                  <span>${values.livreur2}</span>
+                </div>
+                <div style="text-align: center; margin-top: 0.5rem; color: ${values.difference >= 0 ? 'green' : 'red'};">
+                  Différence: ${values.difference}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
-    
-    ModalManager.show('Comparaison des livreurs', content);
   }
 
-  static async addSalary() {
-    const livreurId = document.getElementById('salary-livreur')?.value;
-    const amount = document.getElementById('salary-amount')?.value;
-    const effectiveDate = document.getElementById('salary-date')?.value;
-    
-    if (!livreurId || !amount || !effectiveDate) {
-      ToastManager.warning('Veuillez remplir tous les champs obligatoires');
-      return;
+  static setupEventListeners() {
+    // Filtres
+    const applyFiltersBtn = document.getElementById('apply-analytics-filters');
+    if (applyFiltersBtn) {
+      applyFiltersBtn.addEventListener('click', () => this.loadAnalyticsData());
     }
     
-    const parsedAmount = parseFloat(amount);
-    
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      ToastManager.warning('Veuillez vérifier les valeurs saisies');
-      return;
+    // Comparaison
+    const compareBtn = document.getElementById('compare-livreurs-btn');
+    if (compareBtn) {
+      compareBtn.addEventListener('click', () => this.compareDeliverers());
     }
     
-    try {
-      const salaryData = {
-        user_id: livreurId,
-        amount: parsedAmount,
-        effective_date: effectiveDate
-      };
-      
-      await ApiClient.createSalary(salaryData);
-      
-      ToastManager.success('Salaire ajouté avec succès');
-      
-      // Recharger les salaires actuels
-      const currentSalaries = await ApiClient.getCurrentSalaries();
-      this.updateCurrentSalaries(currentSalaries);
-      
-      // Réinitialiser le formulaire
-      document.getElementById('salary-livreur').value = '';
-      document.getElementById('salary-amount').value = '';
-      document.getElementById('salary-date').value = new Date().toISOString().split('T')[0];
-      
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout du salaire:', error);
-      ToastManager.error('Erreur lors de l\'ajout du salaire');
-    }
-  }
-
-  static async deleteSalary(salaryId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce salaire ?')) {
-      return;
-    }
-    
-    try {
-      await ApiClient.deleteSalary(salaryId);
-      ToastManager.success('Salaire supprimé avec succès');
-      
-      // Recharger les salaires actuels
-      const currentSalaries = await ApiClient.getCurrentSalaries();
-      this.updateCurrentSalaries(currentSalaries);
-      
-    } catch (error) {
-      // Pour les autres types de commandes, utiliser la route normale
-      try {
-        await OrderManager.createOrder(orderData);
-      } catch (error) {
-        console.error('Erreur lors de la création de la commande:', error);
-        ToastManager.error('Erreur lors de la création de la commande');
-      }
-    });
-
-    // Filtre par date pour les commandes
-    document.getElementById('orders-date-filter').addEventListener('change', (e) => {
-      const date = e.target.value;
-      if (date) {
-        OrderManager.loadOrdersByDate(date);
-      } else {
-        OrderManager.loadOrders();
-      }
-    });
-
-    // Pagination des commandes
-    document.getElementById('prev-page').addEventListener('click', () => {
-      if (AppState.currentOrdersPage > 1) {
-        OrderManager.loadOrders(AppState.currentOrdersPage - 1);
-      }
-    });
-
-    document.getElementById('next-page').addEventListener('click', () => {
-      if (AppState.currentOrdersPage < AppState.totalOrdersPages) {
-        OrderManager.loadOrders(AppState.currentOrdersPage + 1);
-      }
-    });
-
     // Export Excel
-    document.getElementById('export-excel').addEventListener('click', () => {
-      const today = new Date().toISOString().split('T')[0];
-      const startDate = prompt('Date de début (YYYY-MM-DD):', today);
-      if (!startDate) return;
-      
-      const endDate = prompt('Date de fin (YYYY-MM-DD):', today);
-      if (!endDate) return;
-
-      try {
-        ApiClient.exportOrders(startDate, endDate);
-        ToastManager.success('Export en cours...');
-      } catch (error) {
-        ToastManager.error('Erreur lors de l\'export');
-      }
-    });
-
-    // Boutons utilisateurs
-    document.getElementById('add-user-btn').addEventListener('click', () => {
-      UserManager.createUser();
-    });
-
-    // Boutons livreurs
-    document.getElementById('add-livreur-btn').addEventListener('click', () => {
-      LivreurManager.createLivreur();
-    });
-
-    document.getElementById('show-all-livreurs').addEventListener('click', () => {
-      LivreurManager.loadLivreurs(false);
-    });
-
-    document.getElementById('show-active-livreurs').addEventListener('click', () => {
-      LivreurManager.loadLivreurs(true);
-    });
-
-    // Bouton changement de mot de passe
-    document.getElementById('change-password-btn').addEventListener('click', () => {
-      ProfileManager.showChangePasswordModal();
-    });
-
-    document.getElementById('change-password-link').addEventListener('click', () => {
-      ProfileManager.showChangePasswordModal();
-    });
-
-    // Actualiser le dashboard
-    document.getElementById('refresh-dashboard').addEventListener('click', () => {
-      DashboardManager.loadDashboard();
-    });
-
-    // Nouveau: Event listener pour le filtre de date du dashboard
-    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
-    if (dashboardDateFilter) {
-      dashboardDateFilter.addEventListener('change', () => {
-        DashboardManager.loadDashboard();
+    const exportBtn = document.getElementById('export-analytics-excel');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        try {
+          const filters = this.getFilters();
+          const response = await ApiClient.exportAnalytics(filters);
+          
+          // Télécharger le fichier
+          const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'analytics.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          ToastManager.success('Export Excel réussi');
+        } catch (error) {
+          console.error('Erreur export:', error);
+          ToastManager.error('Erreur lors de l\'export Excel');
+        }
       });
     }
+    
+    // Actualiser
+    const refreshBtn = document.getElementById('refresh-analytics');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.loadAnalyticsData());
+    }
+  }
 
-    // Event listeners pour le tableau de bord mensuel
-    MonthlyDashboardManager.setupEventListeners();
+  static getTypeIcon(type) {
+    switch (type) {
+      case 'MATA': return '🛒';
+      case 'MLC': return '🎫';
+      case 'MLC_SUBSCRIPTION': return '📅';
+      default: return '📦';
+    }
+  }
 
-    // Event listeners pour le tableau de bord MATA mensuel
-    MataMonthlyDashboardManager.setupEventListeners();
+  static getTypeName(type) {
+    switch (type) {
+      case 'MATA': return 'MATA';
+      case 'MLC': return 'MLC classique';
+      case 'MLC_SUBSCRIPTION': return 'MLC abonnement';
+      default: return 'Autre';
+    }
+  }
+}
 
-    // Fermeture des modales
-    document.getElementById('modal-close').addEventListener('click', () => {
-      ModalManager.hide();
+// ===== GESTIONNAIRE PRINCIPAL DE L'APPLICATION =====
+class App {
+  static async init() {
+    try {
+      console.log('🚀 Initialisation de l\'application...');
+      
+      // Configurer les event listeners de navigation
+      this.setupNavigationListeners();
+      
+      // Démarrer l'authentification
+      await AuthManager.init();
+      
+      console.log('✅ Application initialisée avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
+      ToastManager.error('Erreur lors du démarrage de l\'application');
+    }
+  }
+
+  static setupNavigationListeners() {
+    // Configurer les boutons de navigation
+    document.querySelectorAll('.nav-item').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pageId = button.dataset.page;
+        if (pageId) {
+          PageManager.showPage(pageId);
+        }
+      });
     });
 
-    document.getElementById('modal-overlay').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) {
+    // Configurer les autres event listeners globaux
+    this.setupGlobalListeners();
+  }
+
+  static setupGlobalListeners() {
+    // Bouton de déconnexion
+    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      AuthManager.logout();
+    });
+
+    // Fermeture de modal avec échap
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
         ModalManager.hide();
       }
     });
 
-    // Toggles de mot de passe
-    document.querySelectorAll('.password-toggle').forEach(toggle => {
-      toggle.addEventListener('click', (e) => {
-        const targetId = e.currentTarget.dataset.target;
-        const input = document.getElementById(targetId);
-        const icon = e.currentTarget.querySelector('.icon');
+    // Fermeture de modal avec overlay
+    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') {
+        ModalManager.hide();
+      }
+    });
+
+    // Bouton de fermeture de modal
+    document.getElementById('modal-close')?.addEventListener('click', () => {
+      ModalManager.hide();
+    });
+
+    // Gestion du formulaire de connexion
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username-input').value.trim();
+        const password = document.getElementById('password-input').value;
         
-        if (input.type === 'password') {
-          input.type = 'text';
-          icon.textContent = '🙈';
-        } else {
-          input.type = 'password';
-          icon.textContent = '👁️';
+        if (!username || !password) {
+          ToastManager.error('Veuillez remplir tous les champs');
+          return;
+        }
+
+        try {
+          document.getElementById('login-btn').disabled = true;
+          document.getElementById('login-btn').textContent = 'Connexion...';
+          
+          await AuthManager.login(username, password);
+        } catch (error) {
+          ToastManager.error(error.message || 'Erreur de connexion');
+        } finally {
+          document.getElementById('login-btn').disabled = false;
+          document.getElementById('login-btn').textContent = 'Se connecter';
         }
       });
-    });
-
-    // Initialiser la date d'aujourd'hui dans le filtre
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('orders-date-filter').value = today;
-
-    // Gestion des erreurs globales
-    window.addEventListener('unhandledrejection', (event) => {
-      console.error('Erreur non gérée:', event.reason);
-      ToastManager.error('Une erreur inattendue s\'est produite');
-    });
-
-    // Gestion de la perte de connexion
-    window.addEventListener('online', () => {
-      ToastManager.success('Connexion rétablie');
-    });
-
-    window.addEventListener('offline', () => {
-      ToastManager.warning('Connexion perdue');
-    });
-
-    // Affichage du champ livreur pour managers/admins
-    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-      const livreurGroup = document.getElementById('livreur-select-group');
-      livreurGroup.style.display = 'block';
-      // Charger la liste des livreurs
-      ApiClient.getLivreurs().then(response => {
-        const select = document.getElementById('livreur-select');
-        select.innerHTML = '<option value="">Sélectionner un livreur</option>';
-        (response.livreurs || []).forEach(livreur => {
-          select.innerHTML += `<option value="${livreur.id}">${Utils.escapeHtml(livreur.username)}</option>`;
-        });
-      });
-    } else {
-      document.getElementById('livreur-select-group').style.display = 'none';
     }
 
-    // --- Order form dynamic fields logic ---
-    const orderTypeSelect = document.getElementById('order-type');
-    const adresseSourceGroup = document.getElementById('adresse-source-group');
-    const adresseDestinationGroup = document.getElementById('adresse-destination-group');
-    const pointVenteGroup = document.getElementById('point-vente-group');
-    const addressGroup = document.getElementById('address-group');
-    const pointVenteSelect = document.getElementById('point-vente');
-
-    orderTypeSelect.addEventListener('change', function() {
-        const type = this.value;
-        const adresseSourceLabel = document.querySelector('label[for="adresse-source"]');
-        if (type === 'MLC' || type === 'AUTRE') {
-            adresseSourceGroup.style.display = '';
-            adresseDestinationGroup.style.display = '';
-            pointVenteGroup.style.display = 'none';
-            addressGroup.style.display = 'none';
-            document.getElementById('adresse-source').required = true;
-            document.getElementById('adresse-destination').required = true;
-            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source <span style="color:red">*</span>';
-            if (pointVenteSelect) pointVenteSelect.required = false;
-        } else if (type === 'MATA') {
-            adresseSourceGroup.style.display = '';
-            adresseDestinationGroup.style.display = '';
-            pointVenteGroup.style.display = '';
-            addressGroup.style.display = 'none';
-            document.getElementById('adresse-source').required = false;
-            document.getElementById('adresse-destination').required = true;
-            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
-            if (pointVenteSelect) pointVenteSelect.required = true;
-        } else {
-            // Default: show adresse source/destination, hide old Adresse
-            adresseSourceGroup.style.display = '';
-            adresseDestinationGroup.style.display = '';
-            pointVenteGroup.style.display = 'none';
-            addressGroup.style.display = 'none';
-            document.getElementById('adresse-source').required = false;
-            document.getElementById('adresse-destination').required = false;
-            if (adresseSourceLabel) adresseSourceLabel.innerHTML = 'Adresse source';
-            if (pointVenteSelect) pointVenteSelect.required = false;
-        }
-    });
-
-    // On page load, trigger change to set correct fields
-    if (orderTypeSelect) orderTypeSelect.dispatchEvent(new Event('change'));
-
-    // --- Form validation on submit ---
-    document.getElementById('new-order-form').addEventListener('submit', function(e) {
-        const type = orderTypeSelect.value;
-        if ((type === 'MLC' || type === 'AUTRE')) {
-            if (!document.getElementById('adresse-source').value.trim() || !document.getElementById('adresse-destination').value.trim()) {
+    // Gestion du formulaire de commande
+    const orderForm = document.getElementById('order-form');
+    if (orderForm) {
+      orderForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                ToastManager.error('Adresse source et destination sont obligatoires pour ce type de commande.');
-                return false;
-            }
+        const formData = new FormData(e.target);
+        try {
+          await OrderManager.createOrder(formData);
+        } catch (error) {
+          ToastManager.error(error.message || 'Erreur lors de la création de la commande');
         }
-        if (type === 'MATA') {
-            if (!pointVenteSelect.value) {
-                e.preventDefault();
-                ToastManager.error('Le point de vente est obligatoire pour MATA.');
-                return false;
-            }
-        }
-    });
+      });
+    }
   }
 }
 
@@ -4707,4 +4577,5 @@ window.ExpenseManager = ExpenseManager;
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
+window.AnalyticsManager = AnalyticsManager;
 window.ModalManager = ModalManager; 
