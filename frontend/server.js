@@ -24,8 +24,22 @@ app.use(helmet({
   },
 }));
 
-// Servir les fichiers statiques
-app.use(express.static(path.join(__dirname)));
+// Configuration des types MIME
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js')) {
+    res.type('application/javascript');
+  }
+  next();
+});
+
+// Servir les fichiers statiques avec configuration MIME
+app.use(express.static(path.join(__dirname), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+  }
+}));
 
 // Route pour servir l'application principale
 app.get('/', (req, res) => {

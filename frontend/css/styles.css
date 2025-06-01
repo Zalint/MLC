@@ -1945,7 +1945,7 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
+} 
 
 /* Radio Group Styles - Modern Design */
 .radio-group {
@@ -2120,24 +2120,11 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
     visibility: visible !important;
 }
 
-/* Bouton export au-dessus du tableau MATA */
+/* Cacher le bouton export au-dessus du tableau MATA */
 #export-mata-monthly-excel-table {
-    display: inline-flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    background-color: #009E60;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 5px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-#export-mata-monthly-excel-table:hover {
-    background-color: #008055;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 .section-header {
