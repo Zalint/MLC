@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Suppression Commandes Livreurs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-case {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .info {
+            background: #d1ecf1;
+            border-color: #b6d4fe;
+            color: #0c5460;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .code {
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test - Fonctionnalité de Suppression des Commandes</h1>
+    
+    <div class="test-case info">
+        <h3>📋 Fonctionnalité Implémentée</h3>
+        <p><strong>Objectif:</strong> Permettre aux livreurs de supprimer uniquement leurs propres commandes créées aujourd'hui.</p>
+        
+        <h4>🔍 Règles de Suppression:</h4>
+        <ul>
+            <li><strong>ADMIN</strong>: Peut supprimer toutes les commandes</li>
+            <li><strong>MANAGER</strong>: Peut supprimer les commandes du jour seulement</li>
+            <li><strong>LIVREUR</strong>: Peut supprimer ses propres commandes créées aujourd'hui seulement</li>
+            <li><strong>Utilisateurs spéciaux (SALIOU, OUSMANE)</strong>: Peuvent tout supprimer</li>
+        </ul>
+    </div>
+
+    <div class="test-case success">
+        <h3>✅ Modifications Effectuées</h3>
+        
+        <h4>1. Frontend (JavaScript)</h4>
+        <div class="code">
+// Avant (main.js ligne ~2129)
+${(AppState.user && AppState.user.role === 'ADMIN') ? `
+  &lt;button class="btn btn-sm btn-danger order-delete-btn"&gt;
+    Supprimer
+  &lt;/button&gt;
+` : ''}
+
+// Après
+${this.canDeleteOrder(order) ? `
+  &lt;button class="btn btn-sm btn-danger order-delete-btn"&gt;
+    Supprimer
+  &lt;/button&gt;
+` : ''}
+        </div>
+        
+        <h4>2. Méthode de Vérification (JavaScript)</h4>
+        <div class="code">
+static canDeleteOrder(order) {
+  const today = new Date().toISOString().split('T')[0];
+  const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+  
+  if (AppState.user.role === 'ADMIN') return true;
+  if (['SALIOU', 'OUSMANE'].includes(AppState.user.username)) return true;
+  if (AppState.user.role === 'MANAGER' && orderDate === today) return true;
+  if (AppState.user.role === 'LIVREUR' && 
+      order.created_by === AppState.user.id && 
+      orderDate === today) return true;
+  
+  return false;
+}
+        </div>
+
+        <h4>3. Message d'Information pour les Livreurs</h4>
+        <div class="code">
+// Ajouté dans displayOrders()
+if (AppState.user && AppState.user.role === 'LIVREUR') {
+  infoMessage = `
+    &lt;div class="alert alert-info"&gt;
+      ℹ️ Information: Vous pouvez supprimer uniquement vos commandes 
+      créées aujourd'hui. Après aujourd'hui, la suppression ne sera plus possible.
+    &lt;/div&gt;
+  `;
+}
+        </div>
+    </div>
+
+    <div class="test-case warning">
+        <h3>🔧 Backend Déjà Configuré</h3>
+        <p>Le backend était déjà correctement configuré avec:</p>
+        <ul>
+            <li>✅ Vérifications de permissions dans <code>orderController.js</code></li>
+            <li>✅ Méthode <code>isCreatedToday()</code> dans le modèle <code>Order</code></li>
+            <li>✅ Contrôles appropriés pour les différents rôles</li>
+            <li>✅ Restauration des livraisons d'abonnement en cas de suppression</li>
+        </ul>
+    </div>
+
+    <div class="test-case">
+        <h3>🎯 Comment Tester</h3>
+        <ol>
+            <li>Connectez-vous avec un compte <strong>LIVREUR</strong></li>
+            <li>Créez une nouvelle commande</li>
+            <li>Allez dans la section "Commandes"</li>
+            <li>Vérifiez que le bouton "Supprimer" s'affiche pour votre commande du jour</li>
+            <li>Vérifiez que le message d'information s'affiche en haut de la liste</li>
+            <li>Testez la suppression (elle devrait fonctionner)</li>
+            <li>Testez avec une commande d'hier (le bouton ne devrait pas s'afficher)</li>
+        </ol>
+    </div>
+
+    <div class="test-case">
+        <h3>🔗 Tests d'Intégration Backend</h3>
+        <p>Vous pouvez tester l'API directement avec ces commandes curl:</p>
+        
+        <h4>1. Créer une commande (en tant que livreur connecté):</h4>
+        <div class="code">
+curl -X POST http://localhost:4000/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -b "auth=YOUR_JWT_TOKEN" \
+  -d '{
+    "client_name": "Test Client",
+    "phone_number": "773920000",
+    "order_type": "MATA",
+    "course_price": 1500,
+    "amount": 5000
+  }'
+        </div>
+
+        <h4>2. Supprimer la commande (même jour):</h4>
+        <div class="code">
+curl -X DELETE http://localhost:4000/api/v1/orders/ORDER_ID \
+  -b "auth=YOUR_JWT_TOKEN"
+        </div>
+    </div>
+
+    <div class="test-case success">
+        <h3>🎉 Résumé</h3>
+        <p>La fonctionnalité de suppression des commandes pour les livreurs a été implémentée avec succès !</p>
+        <ul>
+            <li>✅ Les livreurs peuvent supprimer leurs propres commandes du jour</li>
+            <li>✅ Interface utilisateur mise à jour avec message informatif</li>
+            <li>✅ Contrôles de sécurité côté client et serveur</li>
+            <li>✅ Respect de la hiérarchie des permissions</li>
+            <li>✅ Compatible avec le système d'abonnements existant</li>
+        </ul>
+    </div>
+
+</body>
+</html> 

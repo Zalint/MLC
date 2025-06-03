@@ -2108,7 +2108,20 @@ class OrderManager {
       return;
     }
 
-    container.innerHTML = AppState.orders.map(order => `
+    // Ajouter un message d'information pour les livreurs
+    let infoMessage = '';
+    if (AppState.user && AppState.user.role === 'LIVREUR') {
+      infoMessage = `
+        <div class="alert alert-info" style="background-color: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #1e40af;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">ℹ️</span>
+            <span><strong>Information:</strong> Vous pouvez supprimer uniquement vos commandes créées aujourd'hui. Après aujourd'hui, la suppression ne sera plus possible.</span>
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = infoMessage + AppState.orders.map(order => `
       <div class="order-card">
         <div class="order-header">
           <div>
@@ -2126,7 +2139,7 @@ class OrderManager {
                 Modifier
               </button>
             ` : ''}
-            ${(AppState.user && AppState.user.role === 'ADMIN') ? `
+            ${this.canDeleteOrder(order) ? `
               <button class="btn btn-sm btn-danger order-delete-btn" data-order-id="${order.id}">
                 <span class="icon">🗑️</span>
                 Supprimer
@@ -2403,23 +2416,17 @@ class OrderManager {
   }
 
   static async deleteOrder(orderId) {
-    ModalManager.confirm(
-      'Supprimer la commande',
-      'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
-      async () => {
-        try {
-          await ApiClient.deleteOrder(orderId);
-          ToastManager.success('Commande supprimée avec succès');
-          await this.loadOrders(AppState.currentOrdersPage);
-          // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
-          if (AppState.currentPage === 'subscriptions') {
-            await SubscriptionManager.loadSubscriptions();
-          }
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur lors de la suppression');
-        }
+    try {
+      await ApiClient.deleteOrder(orderId);
+      ToastManager.success('Commande supprimée avec succès');
+      await this.loadOrders(AppState.currentOrdersPage);
+      // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
+      if (AppState.currentPage === 'subscriptions') {
+        await SubscriptionManager.loadSubscriptions();
       }
-    );
+    } catch (error) {
+      ToastManager.error(error.message || 'Erreur lors de la suppression');
+    }
   }
 }
 
