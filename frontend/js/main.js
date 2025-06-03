@@ -1737,6 +1737,7 @@ class MataMonthlyDashboardManager {
 
     // Debug: log des données reçues
     console.log('🔍 Debug orders data:', orders.slice(0, 2)); // Log des 2 premières commandes
+    console.log('🔍 Debug point_de_vente values:', orders.map(o => ({ client_name: o.client_name, point_de_vente: o.point_de_vente })).slice(0, 5));
     if (orders.length > 0) {
       console.log('🔍 Debug first order ratings:', {
         service_rating: orders[0].service_rating,
@@ -1761,6 +1762,7 @@ class MataMonthlyDashboardManager {
               <th>Nom</th>
               <th>Adresse source</th>
               <th>Adresse destination</th>
+              <th>Point de vente</th>
               <th>Montant commande (FCFA)</th>
               <th>Livreur</th>
               <th>Commentaire</th>
@@ -1801,6 +1803,7 @@ class MataMonthlyDashboardManager {
                 <td>${Utils.escapeHtml(order.client_name)}</td>
                 <td>${order.adresse_source ? Utils.escapeHtml(order.adresse_source) : '-'}</td>
                 <td>${order.adresse_destination ? Utils.escapeHtml(order.adresse_destination) : '-'}</td>
+                <td>${order.point_de_vente ? Utils.escapeHtml(order.point_de_vente) : '-'}</td>
                 <td>${Utils.formatAmount(order.montant_commande || 0)}</td>
                 <td>${Utils.escapeHtml(order.livreur)}</td>
                 <td>
@@ -2023,14 +2026,15 @@ class MataMonthlyDashboardManager {
         .mata-orders-table td:nth-child(3) { min-width: 150px; }
         .mata-orders-table td:nth-child(4) { min-width: 200px; }
         .mata-orders-table td:nth-child(5) { min-width: 200px; }
-        .mata-orders-table td:nth-child(6) { min-width: 120px; text-align: right; }
-        .mata-orders-table td:nth-child(7) { min-width: 100px; }
-        .mata-orders-table td:nth-child(8) { min-width: 200px; }
-        .mata-orders-table td:nth-child(9) { min-width: 100px; }
+        .mata-orders-table td:nth-child(6) { min-width: 120px; }
+        .mata-orders-table td:nth-child(7) { min-width: 120px; text-align: right; }
+        .mata-orders-table td:nth-child(8) { min-width: 100px; }
+        .mata-orders-table td:nth-child(9) { min-width: 200px; }
         .mata-orders-table td:nth-child(10) { min-width: 100px; }
         .mata-orders-table td:nth-child(11) { min-width: 100px; }
         .mata-orders-table td:nth-child(12) { min-width: 100px; }
-        .mata-orders-table td:nth-child(13) { min-width: 150px; }
+        .mata-orders-table td:nth-child(13) { min-width: 100px; }
+        .mata-orders-table td:nth-child(14) { min-width: 150px; }
       </style>
     `;
 

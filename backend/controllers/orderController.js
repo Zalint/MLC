@@ -782,7 +782,7 @@ class OrderController {
       const worksheet = workbook.addWorksheet(`Détails ${livreur.username}`);
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:H1');
+      worksheet.mergeCells('A1:M1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Détails des courses - ${livreur.username} - ${new Date(date).toLocaleDateString('fr-FR')}`;
       titleCell.font = { bold: true, size: 16 };
@@ -910,7 +910,7 @@ class OrderController {
       ];
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:' + String.fromCharCode(64 + columnHeaders.length) + '1');
+      worksheet.mergeCells('A1:M1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Récapitulatif Mensuel - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -932,6 +932,7 @@ class OrderController {
         'Nom',
         'Adresse source',
         'Adresse destination',
+        'Point de vente',
         'Montant commande (FCFA)',
         'Livreur',
         'Commentaire',
@@ -958,6 +959,7 @@ class OrderController {
         { width: 25 },  // Nom
         { width: 30 },  // Adresse source
         { width: 30 },  // Adresse destination
+        { width: 20 },  // Point de vente
         { width: 20 },  // Montant commande (FCFA)
         { width: 15 },  // Livreur
         { width: 50 },  // Commentaire
@@ -1111,6 +1113,7 @@ class OrderController {
           o.client_name,
           o.adresse_source,
           COALESCE(NULLIF(o.adresse_destination, ''), o.address) as adresse_destination,
+          o.point_de_vente,
           o.amount as montant_commande,
           o.commentaire,
           o.service_rating,
@@ -1140,6 +1143,10 @@ class OrderController {
       const db = require('../models/database');
       const result = await db.query(query, queryParams);
       const mataOrders = result.rows;
+
+      // Debug: Log what we're getting from the database
+      console.log('🔍 Debug - First MATA order from DB:', mataOrders[0]);
+      console.log('🔍 Debug - Point de vente values:', mataOrders.map(o => ({ id: o.id, client_name: o.client_name, point_de_vente: o.point_de_vente })).slice(0, 5));
 
       // Calculer les statistiques
       const totalCommandes = mataOrders.length;
@@ -1278,6 +1285,7 @@ class OrderController {
           o.client_name,
           o.adresse_source,
           COALESCE(NULLIF(o.adresse_destination, ''), o.address) as adresse_destination,
+          o.point_de_vente,
           o.amount as montant_commande,
           o.commentaire,
           o.service_rating,
@@ -1313,7 +1321,7 @@ class OrderController {
       const worksheet = workbook.addWorksheet('Commandes MATA Mensuel');
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:L1');
+      worksheet.mergeCells('A1:M1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -1335,6 +1343,7 @@ class OrderController {
         'Nom',
         'Adresse source',
         'Adresse destination',
+        'Point de vente',
         'Montant commande (FCFA)',
         'Livreur',
         'Commentaire',
@@ -1361,6 +1370,7 @@ class OrderController {
         { width: 25 },  // Nom
         { width: 30 },  // Adresse source
         { width: 30 },  // Adresse destination
+        { width: 20 },  // Point de vente
         { width: 20 },  // Montant commande (FCFA)
         { width: 15 },  // Livreur
         { width: 50 },  // Commentaire
@@ -1389,6 +1399,7 @@ class OrderController {
           order.client_name,
           order.adresse_source || '',
           order.adresse_destination || '',
+          order.point_de_vente || '',
           order.montant_commande || 0,
           order.livreur,
           order.commentaire || '',
@@ -1421,6 +1432,7 @@ class OrderController {
         '',                              // Nom
         'TOTAL',                         // Adresse source
         '',                              // Adresse destination
+        '',                              // Point de vente
         totalMontant,                    // Montant commande
         `${mataOrders.length} commandes`, // Livreur
         '',                              // Commentaire
