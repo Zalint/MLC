@@ -31,7 +31,7 @@ class Utils {
 
   // Formater un montant
   static formatAmount(amount) {
-    if (!amount) return '0 FCFA';
+    if (!amount || isNaN(amount)) return '0 FCFA';
     return new Intl.NumberFormat('fr-FR', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
@@ -62,6 +62,9 @@ class Utils {
 
   // Escape HTML
   static escapeHtml(text) {
+    if (text === null || text === undefined) {
+      return '';
+    }
     const map = {
       '&': '&amp;',
       '<': '&lt;',
@@ -69,7 +72,7 @@ class Utils {
       '"': '&quot;',
       "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return String(text).replace(/[&<>"']/g, m => map[m]);
   }
 
   static formatDisplayDate(dateString) { // YYYY-MM-DD to DD/MM/YYYY
@@ -2262,7 +2265,7 @@ class OrderManager {
             </div>
             
             <div style="margin-bottom: 12px;">
-              <strong>💰 Course :</strong> 
+              <strong>🏷️ Course :</strong> 
               <span style="color: #28a745; font-weight: bold; font-size: 16px;">
                 ${Utils.formatAmount(order.course_price)}
               </span>
