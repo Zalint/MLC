@@ -145,28 +145,25 @@
                             <p id="orders-today-label">Commandes aujourd'hui</p>
                         </div>
                     </div>
-                    
                     <div class="stat-card">
                         <div class="stat-icon">🏷️</div>
                         <div class="stat-content">
-                            <h3 id="total-amount-today">0 FCFA</h3>
+                            <h3 id="total-amount-today">0</h3>
                             <p>Courses</p>
                         </div>
                     </div>
-                    
-                    <div class="stat-card hidden" id="stat-depenses">
+                    <div class="stat-card" id="stat-depenses">
                         <div class="stat-icon">📉</div>
                         <div class="stat-content">
-                            <h3 id="total-expenses-today">0 FCFA</h3>
-                            <p>Dépenses totales</p>
+                            <h3 id="total-expenses-today">0</h3>
+                            <p>Dépenses</p>
                         </div>
                     </div>
-                    
-                    <div class="stat-card hidden" id="stat-livreurs">
-                        <div class="stat-icon">🚚</div>
+                    <div class="stat-card" id="stat-benefice">
+                        <div class="stat-icon">💰</div>
                         <div class="stat-content">
-                            <h3 id="active-livreurs">0</h3>
-                            <p>Livreurs actifs</p>
+                            <h3 id="total-benefice-today">0</h3>
+                            <p>Bénéfice</p>
                         </div>
                     </div>
                 </div>
@@ -175,6 +172,20 @@
                     <h3>Dernières commandes</h3>
                     <div id="recent-orders-list" class="orders-list">
                         <!-- Les commandes seront chargées ici -->
+                    </div>
+                </div>
+                
+                <div class="orders-by-type-section hidden" id="orders-by-type-section">
+                    <h3>Répartition par type de commande - Aujourd'hui</h3>
+                    <div id="orders-by-type-container" class="orders-by-type-grid">
+                        <!-- Les statistiques par type seront chargées ici -->
+                    </div>
+                </div>
+                
+                <div class="monthly-orders-by-type-section hidden" id="monthly-orders-by-type-section">
+                    <h3>Cumul mensuel par type de commande</h3>
+                    <div id="monthly-orders-by-type-container" class="orders-by-type-grid">
+                        <!-- Les statistiques mensuelles par type seront chargées ici -->
                     </div>
                 </div>
                 
@@ -234,13 +245,33 @@
                             <p>Dépenses totales</p>
                         </div>
                     </div>
-                    
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="monthly-total-benefice">0 FCFA</h3>
+                            <p>Bénéfice du mois</p>
+                        </div>
+                    </div>
                     <div class="stat-card">
                         <div class="stat-icon">🚚</div>
                         <div class="stat-content">
                             <h3 id="monthly-active-livreurs">0</h3>
                             <p>Livreurs actifs</p>
                         </div>
+                    </div>
+                </div>
+                
+                <div class="monthly-orders-by-type-section hidden" id="monthly-orders-by-type-section">
+                    <h3>Cumul mensuel par type de commande</h3>
+                    <div id="monthly-orders-by-type-container" class="orders-by-type-grid">
+                        <!-- Les statistiques mensuelles par type seront chargées ici -->
+                    </div>
+                </div>
+                
+                <div class="monthly-summary-by-type-section">
+                    <h3>Répartition par type par livreur</h3>
+                    <div id="monthly-summary-by-type-container">
+                        <!-- Le tableau de répartition par type par livreur sera chargé ici -->
                     </div>
                 </div>
                 
@@ -378,8 +409,8 @@
                               placeholder="Description détaillée de la commande"></textarea>
                 </div>
                 <div class="form-group" id="livreur-select-group" style="display: none;">
-                    <label for="livreur-select">Livreur (assigner à)</label>
-                    <select id="livreur-select" name="created_by">
+                    <label for="livreur-select">Livreur (assigner à) *</label>
+                    <select id="livreur-select" name="created_by" required>
                         <option value="">Sélectionner un livreur</option>
                         <!-- Options dynamiques JS -->
                     </select>
