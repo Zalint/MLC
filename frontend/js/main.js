@@ -2108,7 +2108,20 @@ class OrderManager {
       return;
     }
 
-    container.innerHTML = AppState.orders.map(order => `
+    // Ajouter un message d'information pour les livreurs
+    let infoMessage = '';
+    if (AppState.user && AppState.user.role === 'LIVREUR') {
+      infoMessage = `
+        <div class="alert alert-info" style="background-color: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #1e40af;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">ℹ️</span>
+            <span><strong>Information:</strong> Vous pouvez supprimer uniquement vos commandes créées aujourd'hui. Après aujourd'hui, la suppression ne sera plus possible.</span>
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = infoMessage + AppState.orders.map(order => `
       <div class="order-card">
         <div class="order-header">
           <div>
@@ -2126,7 +2139,7 @@ class OrderManager {
                 Modifier
               </button>
             ` : ''}
-            ${(AppState.user && AppState.user.role === 'ADMIN') ? `
+            ${this.canDeleteOrder(order) ? `
               <button class="btn btn-sm btn-danger order-delete-btn" data-order-id="${order.id}">
                 <span class="icon">🗑️</span>
                 Supprimer
@@ -2207,13 +2220,86 @@ class OrderManager {
     document.querySelectorAll('.order-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.dataset.orderId;
-        ModalManager.confirm(
-          'Supprimer la commande',
-          'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
-          () => {
-            this.deleteOrder(orderId);
-          }
-        );
+        
+        // Récupérer les informations de la commande
+        const order = AppState.orders.find(o => o.id === orderId);
+        if (!order) {
+          ToastManager.error('Commande non trouvée');
+          return;
+        }
+        
+        // Créer le contenu de la modale avec les détails de la commande
+        const modalContent = `
+          <p style="margin-bottom: 20px; color: #374151;">Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.</p>
+          
+          <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+            <h4 style="margin: 0 0 16px 0; color: #495057; font-size: 16px;">📋 Détails de la commande</h4>
+            
+            <div style="margin-bottom: 12px;">
+              <strong>👤 Client :</strong> ${Utils.escapeHtml(order.client_name)}
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+              <strong>📞 Téléphone :</strong> ${Utils.escapeHtml(order.phone_number)}
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+              <strong>📦 Type :</strong> 
+              <span style="background-color: ${order.order_type === 'MATA' ? '#d4edda' : order.order_type === 'MLC' ? '#cce5ff' : '#fff3cd'}; 
+                           color: ${order.order_type === 'MATA' ? '#155724' : order.order_type === 'MLC' ? '#004085' : '#856404'}; 
+                           padding: 4px 8px; border-radius: 4px; font-weight: bold;">
+                ${order.order_type}
+              </span>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+              <strong>💰 Course :</strong> 
+              <span style="color: #28a745; font-weight: bold; font-size: 16px;">
+                ${Utils.formatAmount(order.course_price)}
+              </span>
+            </div>
+            
+            ${order.order_type === 'MATA' && order.amount ? `
+              <div style="margin-bottom: 12px;">
+                <strong>🛒 Montant panier :</strong> 
+                <span style="color: #28a745; font-weight: bold;">
+                  ${Utils.formatAmount(order.amount)}
+                </span>
+              </div>
+            ` : ''}
+            
+            ${(order.order_type === 'MLC' && order.is_subscription) ? `
+              <div style="margin-bottom: 12px;">
+                <strong>🎫 Mode :</strong> 
+                <span style="background-color: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">
+                  Abonnement
+                </span>
+              </div>
+            ` : ''}
+            
+            <div style="border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 12px;">
+              <strong>📅 Créée le :</strong> ${Utils.formatDate(order.created_at)}
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-danger" id="confirm-delete-order">Confirmer</button>
+            <button type="button" class="btn btn-secondary" id="cancel-delete-order">Annuler</button>
+          </div>
+        `;
+        
+        // Afficher la modale
+        ModalManager.show('Supprimer la commande', modalContent);
+        
+        // Ajouter les event listeners pour les boutons
+        document.getElementById('confirm-delete-order').addEventListener('click', () => {
+          ModalManager.hide();
+          this.deleteOrder(orderId);
+        });
+        
+        document.getElementById('cancel-delete-order').addEventListener('click', () => {
+          ModalManager.hide();
+        });
       });
     });
   }
@@ -2403,23 +2489,17 @@ class OrderManager {
   }
 
   static async deleteOrder(orderId) {
-    ModalManager.confirm(
-      'Supprimer la commande',
-      'Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.',
-      async () => {
-        try {
-          await ApiClient.deleteOrder(orderId);
-          ToastManager.success('Commande supprimée avec succès');
-          await this.loadOrders(AppState.currentOrdersPage);
-          // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
-          if (AppState.currentPage === 'subscriptions') {
-            await SubscriptionManager.loadSubscriptions();
-          }
-        } catch (error) {
-          ToastManager.error(error.message || 'Erreur lors de la suppression');
-        }
+    try {
+      await ApiClient.deleteOrder(orderId);
+      ToastManager.success('Commande supprimée avec succès');
+      await this.loadOrders(AppState.currentOrdersPage);
+      // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
+      if (AppState.currentPage === 'subscriptions') {
+        await SubscriptionManager.loadSubscriptions();
       }
-    );
+    } catch (error) {
+      ToastManager.error(error.message || 'Erreur lors de la suppression');
+    }
   }
 }
 
