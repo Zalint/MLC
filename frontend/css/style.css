@@ -1,0 +1,89 @@
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profit-positive .stat-value {
+  color: #059669;
+}
+
+.profit-negative .stat-value {
+  color: #dc2626;
+}
+
+.order-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.order-type-card {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.order-type-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.order-type-name {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.order-type-count {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.order-type-amount {
+  font-size: 1rem;
+  color: #4b5563;
+}
+
+/* Styles pour les types de commandes */
+.order-type-card.mata {
+  border-left: 4px solid #3b82f6;
+}
+
+.order-type-card.mlc-avec-abonnement {
+  border-left: 4px solid #10b981;
+}
+
+.order-type-card.mlc-simple {
+  border-left: 4px solid #f59e0b;
+}
+
+.order-type-card.autre {
+  border-left: 4px solid #6b7280;
+} 

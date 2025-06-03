@@ -31,11 +31,8 @@ class Utils {
 
   // Formater un montant
   static formatAmount(amount) {
-    if (!amount || isNaN(amount)) return '0 FCFA';
-    return new Intl.NumberFormat('fr-FR', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount) + ' FCFA';
+    if (amount === null || amount === undefined) return '0';
+    return parseFloat(amount).toFixed(2);
   }
 
   // Valider un numéro de téléphone français
@@ -289,8 +286,13 @@ class ApiClient {
   }
 
   static async getTodayOrdersSummary(date) {
-    const dateParam = date ? `?date=${date}` : '';
-    return this.request(`/orders/summary${dateParam}`);
+    const endpoint = date ? `/orders/summary?date=${date}` : '/orders/summary';
+    return await this.request(endpoint);
+  }
+
+  static async getDashboardData(date) {
+    const endpoint = date ? `/orders/dashboard-data?date=${date}` : '/orders/dashboard-data';
+    return await this.request(endpoint);
   }
 
   static async getMonthlyOrdersSummary(month) {
@@ -844,61 +846,96 @@ class DashboardManager {
         }
       }
 
-      // Charger les commandes pour la date sélectionnée (pour les cartes du haut)
-      const ordersResponse = await ApiClient.getOrdersByDate(selectedDate);
-      const orders = ordersResponse.orders || [];
-
-      // Calculer les statistiques
-      const totalOrders = orders.length;
-      const totalAmount = orders.reduce((sum, order) => sum + (parseFloat(order.course_price) || 0), 0);
-
-      // Mettre à jour les statistiques
+      // 🚀 NOUVELLE API OPTIMISÉE : Une seule requête pour toutes les données !
+      const dashboardData = await ApiClient.getDashboardData(selectedDate);
+      
+      console.log('🔍 Dashboard data received:', dashboardData);
+      
+      // Mettre à jour les statistiques de base
       const totalOrdersElement = document.getElementById('total-orders-today');
       const totalAmountElement = document.getElementById('total-amount-today');
-      const ordersTodayLabelElement = document.getElementById('orders-today-label'); // Assuming an ID for the label "Commandes aujourd'hui"
+      const ordersTodayLabelElement = document.getElementById('orders-today-label');
       
-      if (totalOrdersElement) totalOrdersElement.textContent = totalOrders;
-      if (totalAmountElement) totalAmountElement.textContent = Utils.formatAmount(totalAmount);
+      if (totalOrdersElement) totalOrdersElement.textContent = dashboardData.basicStats.totalOrders;
+      if (totalAmountElement) totalAmountElement.textContent = Utils.formatAmount(dashboardData.basicStats.totalAmount);
       if (ordersTodayLabelElement) {
         ordersTodayLabelElement.textContent = selectedDate === today ? "Commandes aujourd'hui" : `Commandes (${Utils.formatDisplayDate(selectedDate)})`;
       }
 
+      // Mettre à jour Dépenses et Bénéfice
+      const totalExpensesElement = document.getElementById('total-expenses-today');
+      const totalBeneficeElement = document.getElementById('total-benefice-today');
+      let depenses = 0;
+      let benefice = 0;
+      if (dashboardData.user.isManagerOrAdmin && dashboardData.managerData) {
+        depenses = dashboardData.managerData.totalDepenses || 0;
+        benefice = (dashboardData.basicStats.totalAmount || 0) - depenses;
+      } else {
+        depenses = dashboardData.basicStats.totalExpenses || 0;
+        benefice = (dashboardData.basicStats.totalAmount || 0) - depenses;
+      }
+      if (totalExpensesElement) totalExpensesElement.textContent = Utils.formatAmount(depenses);
+      if (totalBeneficeElement) {
+        totalBeneficeElement.textContent = Utils.formatAmount(benefice);
+        totalBeneficeElement.style.color = benefice >= 0 ? '#059669' : '#dc2626';
+      }
 
-      // Remove the subtitle display - cleaner interface
+      // Afficher les dernières commandes
+      this.displayRecentOrders(dashboardData.recentOrders || []);
 
-
-      // Charger les dernières commandes (ceci reste indépendant de la date sélectionnée pour le moment)
-      // Si vous souhaitez que "Dernières commandes" dépende aussi de la date, il faudrait une nouvelle API ou modifier l'existante
-      const recentOrdersResponse = await ApiClient.getLastUserOrders(5); // This usually means latest overall, not for a specific day
-      this.displayRecentOrders(recentOrdersResponse.orders || []);
-
-      // Pour les managers/admins, charger le récapitulatif pour la date sélectionnée
+      // Gérer l'affichage des sections selon le rôle
       const managerSummarySection = document.getElementById('manager-summary-section');
+      const ordersByTypeSection = document.getElementById('orders-by-type-section');
+      const monthlyOrdersByTypeSection = document.getElementById('monthly-orders-by-type-section');
       const statDepensesCard = document.getElementById('stat-depenses');
       const statLivreursCard = document.getElementById('stat-livreurs');
       
-      if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      // 🎯 Afficher les statistiques par type pour TOUS les utilisateurs
+      this.displayOrdersByType(dashboardData.statsByType || []);
+      
+      // 🎯 Afficher le cumul mensuel SEULEMENT pour les livreurs (pas pour managers/admins)
+      if (!dashboardData.user.isManagerOrAdmin) {
+        this.displayMonthlyOrdersByType(dashboardData.monthlyStatsByType || []);
+      } else {
+        // Cacher la section pour les managers/admins
+        const monthlySection = document.getElementById('monthly-orders-by-type-section');
+        if (monthlySection) {
+          monthlySection.classList.add('hidden');
+        }
+      }
+      
+      console.log('🔍 StatsByType (jour):', dashboardData.statsByType);
+      console.log('🔍 MonthlyStatsByType (cumul mensuel):', dashboardData.monthlyStatsByType);
+      
+      if (dashboardData.user.isManagerOrAdmin && dashboardData.managerData) {
+        // Afficher les sections managers seulement
         if (managerSummarySection) managerSummarySection.classList.remove('hidden');
         if (statDepensesCard) statDepensesCard.classList.remove('hidden');
         if (statLivreursCard) statLivreursCard.classList.remove('hidden');
         
-        const summaryResponse = await ApiClient.getTodayOrdersSummary(selectedDate); // Pass selectedDate
-        this.displayManagerSummary(summaryResponse.summary || []);
+        // Afficher le récapitulatif par livreur
+        this.displayManagerSummary(dashboardData.managerData.summary || []);
         
-        const activeLivreurs = summaryResponse.summary?.filter(item => item.nombre_commandes > 0).length || 0;
+        console.log('🔍 StatsByType data (manager):', dashboardData.statsByType);
+        
+        // Mettre à jour les stats managers
         const activeLivreursElement = document.getElementById('active-livreurs');
-        if (activeLivreursElement) activeLivreursElement.textContent = activeLivreurs;
+        if (activeLivreursElement) {
+          activeLivreursElement.textContent = dashboardData.managerData.activeLivreurs;
+        }
 
-        // Afficher les dépenses totales
         const totalExpensesElement = document.getElementById('total-expenses-today');
         if (totalExpensesElement) {
-          totalExpensesElement.textContent = Utils.formatAmount(summaryResponse.total_depenses || 0);
+          totalExpensesElement.textContent = Utils.formatAmount(dashboardData.managerData.totalDepenses || 0);
         }
 
       } else {
+        // Cacher seulement les sections spécifiques aux managers
         if (managerSummarySection) managerSummarySection.classList.add('hidden');
-        if (statDepensesCard) statDepensesCard.classList.add('hidden');
+        // if (statDepensesCard) statDepensesCard.classList.add('hidden'); // NE PLUS CACHER pour livreur
         if (statLivreursCard) statLivreursCard.classList.add('hidden');
+        
+        console.log('🔍 StatsByType data (livreur):', dashboardData.statsByType);
       }
 
     } catch (error) {
@@ -951,31 +988,37 @@ class DashboardManager {
               <th>Commandes</th>
               <th>Courses</th>
               <th>Dépenses</th>
+              <th>Bénéfice</th>
               <th>Km parcourus</th>
               <th>Détails</th>
             </tr>
           </thead>
           <tbody>
-            ${summary.map(item => `
-              <tr>
-                <td>${Utils.escapeHtml(item.livreur)}</td>
-                <td>${item.nombre_commandes}</td>
-                <td>${Utils.formatAmount(item.total_montant)}</td>
-                <td>${Utils.formatAmount(item.total_depenses)}</td>
-                <td><strong>${item.km_parcourus || 0} km</strong></td>
-                <td>
-                  ${parseInt(item.nombre_commandes) > 0 ? `
-                    <button class="btn btn-sm btn-primary livreur-details-btn" 
-                            data-livreur-id="${item.livreur_id}" 
-                            data-livreur-name="${Utils.escapeHtml(item.livreur)}"
-                            title="Voir les détails des courses">
-                      <span class="icon">📋</span>
-                      Détails
-                    </button>
-                  ` : 'Aucune commande'}
-                </td>
-              </tr>
-            `).join('')}
+            ${summary.map(item => {
+              const profit = parseFloat(item.total_montant) - parseFloat(item.total_depenses);
+              const profitClass = profit >= 0 ? 'text-green-600' : 'text-red-600';
+              return `
+                <tr>
+                  <td>${Utils.escapeHtml(item.livreur)}</td>
+                  <td>${item.nombre_commandes}</td>
+                  <td>${Utils.formatAmount(item.total_montant)}</td>
+                  <td>${Utils.formatAmount(item.total_depenses)}</td>
+                  <td class="${profitClass}">${Utils.formatAmount(profit)}</td>
+                  <td><strong>${item.km_parcourus || 0} km</strong></td>
+                  <td>
+                    ${parseInt(item.nombre_commandes) > 0 ? `
+                      <button class="btn btn-sm btn-primary livreur-details-btn" 
+                              data-livreur-id="${item.livreur_id}" 
+                              data-livreur-name="${Utils.escapeHtml(item.livreur)}"
+                              title="Voir les détails des courses">
+                        <span class="icon">📋</span>
+                        Détails
+                      </button>
+                    ` : 'Aucune commande'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -983,6 +1026,57 @@ class DashboardManager {
 
     // Ajouter les event listeners pour les boutons de détails
     this.setupDetailsEventListeners();
+  }
+
+  static displayOrdersByType(statsByType) {
+    console.log('🎯 displayOrdersByType called with:', statsByType);
+    
+    const container = document.getElementById('orders-by-type-container');
+    const section = document.getElementById('orders-by-type-section');
+    
+    console.log('🎯 Container found:', !!container);
+    console.log('🎯 Section found:', !!section);
+    
+    if (!container) {
+      console.error('❌ orders-by-type-container not found!');
+      return;
+    }
+    
+    // S'assurer que la section est visible
+    if (section) {
+      section.classList.remove('hidden');
+      console.log('🎯 Section made visible');
+    }
+    
+    if (!statsByType || statsByType.length === 0) {
+      console.log('🎯 No stats data, showing empty message');
+      container.innerHTML = '<p class="text-center">Aucune commande pour cette période</p>';
+      return;
+    }
+
+    console.log('🎯 Rendering stats:', statsByType.length, 'items');
+
+    // Mapping des types avec leurs icônes et classes CSS
+    const typeMapping = {
+      'MATA': { icon: '🛒', class: 'mata' },
+      'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
+      'MLC simple': { icon: '📦', class: 'mlc-simple' },
+      'AUTRE': { icon: '📋', class: 'autre' }
+    };
+
+    // Afficher uniquement les cartes par type (plus de résumé à gauche)
+    container.innerHTML = statsByType.map(stat => {
+      const type = stat.order_type;
+      const mapping = typeMapping[type] || { icon: '📦', class: '' };
+      return `
+        <div class="order-type-card ${mapping.class}">
+          <div class="order-type-icon">${mapping.icon}</div>
+          <div class="order-type-label">${type}</div>
+          <div class="order-type-count">${stat.count}</div>
+          <div class="order-type-amount">${Utils.formatAmount(stat.total_amount).replace(' FCFA', '')}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   static setupDetailsEventListeners() {
@@ -1085,6 +1179,51 @@ class DashboardManager {
       ToastManager.error('Erreur lors du chargement des détails du livreur');
     }
   }
+
+  static displayMonthlyOrdersByType(monthlyStatsByType) {
+    const container = document.getElementById('monthly-orders-by-type-container');
+    const section = document.getElementById('monthly-orders-by-type-section');
+    
+    if (!container) {
+      console.error('❌ monthly-orders-by-type-container not found!');
+      return;
+    }
+    
+    // S'assurer que la section est visible
+    if (section) {
+      section.classList.remove('hidden');
+      console.log('🎯 Monthly section made visible');
+    }
+    
+    if (!monthlyStatsByType || monthlyStatsByType.length === 0) {
+      container.innerHTML = '<p class="text-center">Aucune commande ce mois-ci</p>';
+      return;
+    }
+
+    // Mapping des types avec leurs icônes et classes CSS
+    const typeMapping = {
+      'MATA': { icon: '🛒', class: 'mata' },
+      'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
+      'MLC simple': { icon: '📦', class: 'mlc-simple' },
+      'AUTRE': { icon: '📋', class: 'autre' }
+    };
+
+    container.innerHTML = monthlyStatsByType.map(stat => {
+      const mapping = typeMapping[stat.order_type] || { icon: '❓', class: 'autre' };
+      return `
+        <div class="order-type-card ${mapping.class}">
+          <div class="order-type-icon">${mapping.icon}</div>
+          <div class="order-type-content">
+            <h4>${stat.order_type}</h4>
+            <div class="order-type-stats">
+              <span class="order-count">${stat.count} commande${stat.count > 1 ? 's' : ''}</span>
+              <span class="order-amount">${Utils.formatAmount(stat.total_amount)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 // ===== GESTIONNAIRE DE TABLEAU DE BORD MENSUEL =====
@@ -1108,6 +1247,12 @@ class MonthlyDashboardManager {
       // Mettre à jour les statistiques
       this.updateMonthlyStats(response);
       
+      // Afficher la répartition par type de commande pour le mois
+      this.displayMonthlyOrdersByType(response.monthlyStatsByType || []);
+      
+      // Afficher la répartition par type par livreur
+      this.displayMonthlySummaryByType(response.summary || []);
+      
       // Afficher le tableau détaillé par jour
       this.displayMonthlyDetailedTable(response.dailyData, response.dailyExpenses, selectedMonth);
       
@@ -1124,6 +1269,15 @@ class MonthlyDashboardManager {
     document.getElementById('monthly-total-orders').textContent = data.total_commandes || 0;
     document.getElementById('monthly-total-amount').textContent = Utils.formatAmount(data.total_montant || 0);
     document.getElementById('monthly-total-expenses').textContent = Utils.formatAmount(data.total_depenses || 0);
+    
+    // Carte Bénéfice du mois
+    const benefice = (data.total_montant || 0) - (data.total_depenses || 0);
+    const beneficeElem = document.getElementById('monthly-total-benefice');
+    if (beneficeElem) {
+      beneficeElem.textContent = Utils.formatAmount(benefice);
+      beneficeElem.style.color = benefice >= 0 ? '#059669' : '#dc2626';
+    }
+    
     document.getElementById('monthly-active-livreurs').textContent = data.total_livreurs || 0;
 
     // Mettre à jour le label avec le mois
@@ -1374,7 +1528,124 @@ class MonthlyDashboardManager {
     container.innerHTML = table;
   }
 
+  static displayMonthlyOrdersByType(monthlyStatsByType) {
+    const container = document.getElementById('monthly-orders-by-type-container');
+    
+    if (!monthlyStatsByType || monthlyStatsByType.length === 0) {
+      container.innerHTML = '<p class="text-center">Aucune commande pour ce mois</p>';
+      return;
+    }
 
+    // Mapping des types avec leurs icônes et classes CSS
+    const typeMapping = {
+      'MATA': { icon: '🛒', class: 'mata' },
+      'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
+      'MLC simple': { icon: '📦', class: 'mlc-simple' },
+      'AUTRE': { icon: '📋', class: 'autre' }
+    };
+
+    container.innerHTML = monthlyStatsByType.map(stat => {
+      const mapping = typeMapping[stat.order_type] || { icon: '❓', class: 'autre' };
+      return `
+        <div class="order-type-card ${mapping.class}">
+          <div class="order-type-icon">${mapping.icon}</div>
+          <div class="order-type-name">${stat.order_type}</div>
+          <div class="order-type-count">${stat.count}</div>
+          <div class="order-type-amount">${Utils.formatAmount(stat.total_amount)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  static displayMonthlySummaryByType(summary) {
+    const container = document.getElementById('monthly-summary-by-type-container');
+    
+    if (summary.length === 0) {
+      container.innerHTML = '<p class="text-center">Aucune donnée disponible</p>';
+      return;
+    }
+
+    // Calculer le bénéfice pour chaque livreur
+    const enrichedSummary = summary.map(item => ({
+      ...item,
+      benefice: (parseFloat(item.total_montant) || 0) - (parseFloat(item.total_depenses) || 0)
+    }));
+
+    container.innerHTML = `
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Livreur</th>
+              <th>Total Cmd</th>
+              <th>Total Courses</th>
+              <th>🛒 MATA</th>
+              <th>📦 MLC simple</th>
+              <th>🎫 MLC abonnement</th>
+              <th>📋 AUTRE</th>
+              <th>Dépenses</th>
+              <th>Bénéfice</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${enrichedSummary.map(item => {
+              const statsByType = item.statsByType || {};
+              return `
+                <tr>
+                  <td><strong>${Utils.escapeHtml(item.livreur)}</strong></td>
+                  <td>${item.nombre_commandes}</td>
+                  <td>${Utils.formatAmount(item.total_montant)}</td>
+                  <td class="stats-cell">
+                    ${statsByType.MATA ? `<span class="count">${statsByType.MATA.count}</span><br><span class="amount">${Utils.formatAmount(statsByType.MATA.total_amount)}</span>` : '<span class="no-data">-</span>'}
+                  </td>
+                  <td class="stats-cell">
+                    ${statsByType['MLC simple'] ? `<span class="count">${statsByType['MLC simple'].count}</span><br><span class="amount">${Utils.formatAmount(statsByType['MLC simple'].total_amount)}</span>` : '<span class="no-data">-</span>'}
+                  </td>
+                  <td class="stats-cell">
+                    ${statsByType['MLC avec abonnement'] ? `<span class="count">${statsByType['MLC avec abonnement'].count}</span><br><span class="amount">${Utils.formatAmount(statsByType['MLC avec abonnement'].total_amount)}</span>` : '<span class="no-data">-</span>'}
+                  </td>
+                  <td class="stats-cell">
+                    ${statsByType.AUTRE ? `<span class="count">${statsByType.AUTRE.count}</span><br><span class="amount">${Utils.formatAmount(statsByType.AUTRE.total_amount)}</span>` : '<span class="no-data">-</span>'}
+                  </td>
+                  <td>${Utils.formatAmount(item.total_depenses)}</td>
+                  <td class="benefice ${item.benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(item.benefice)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <style>
+        .stats-cell {
+          text-align: center;
+          vertical-align: middle;
+        }
+        .stats-cell .count {
+          font-weight: bold;
+          color: #333;
+          font-size: 1.1em;
+        }
+        .stats-cell .amount {
+          font-size: 0.85em;
+          color: #666;
+        }
+        .stats-cell .no-data {
+          color: #999;
+          font-style: italic;
+        }
+        .benefice-positif {
+          background-color: #d4edda !important;
+          color: #155724;
+          font-weight: bold;
+        }
+        .benefice-negatif {
+          background-color: #f8d7da !important;
+          color: #721c24;
+          font-weight: bold;
+        }
+      </style>
+    `;
+  }
 
   static setupEventListeners() {
     // Gestionnaire pour le changement de mois
@@ -4285,6 +4556,14 @@ class App {
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
       
+      // Validation côté client : managers/admins doivent sélectionner un livreur
+      if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+        if (!orderData.created_by) {
+          ToastManager.error('Vous devez sélectionner un livreur pour cette commande');
+          return;
+        }
+      }
+      
       // Convertir les montants en nombres
       if (orderData.course_price) {
         orderData.course_price = parseFloat(orderData.course_price);
@@ -4490,7 +4769,17 @@ class App {
         });
       });
     } else {
-      document.getElementById('livreur-select-group').style.display = 'none';
+      // Pour les livreurs : cacher le champ et supprimer l'attribut required
+      const livreurGroup = document.getElementById('livreur-select-group');
+      const livreurSelect = document.getElementById('livreur-select');
+      
+      livreurGroup.style.display = 'none';
+      livreurSelect.removeAttribute('required');
+      
+      // Automatiquement assigner la commande au livreur connecté
+      if (AppState.user && AppState.user.id) {
+        livreurSelect.value = AppState.user.id;
+      }
     }
 
     // --- Order form dynamic fields logic ---

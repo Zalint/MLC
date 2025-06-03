@@ -31,6 +31,9 @@ router.get('/last', OrderController.getLastUserOrders);
 router.get('/by-date', validateDate, OrderController.getOrdersByDate);
 router.get('/stats', validateDateRange, OrderController.getOrderStats);
 
+// Route optimisée pour toutes les données du tableau de bord (1 seule requête)
+router.get('/dashboard-data', validateDate, OrderController.getDashboardData);
+
 // Route pour le récapitulatif (managers et admins seulement)
 router.get('/summary', requireManagerOrAdmin, validateDate, OrderController.getTodayOrdersSummary);
 

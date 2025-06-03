@@ -2141,3 +2141,172 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
     font-size: 18px;
     font-weight: 600;
 } 
+
+/* ===== STYLES POUR LA RÉPARTITION PAR TYPE DE COMMANDE ===== */
+.orders-by-type-section,
+.monthly-orders-by-type-section {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-lg);
+  background-color: var(--white);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.orders-by-type-section h3,
+.monthly-orders-by-type-section h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--gray-900);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.orders-by-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.order-type-card {
+  background-color: var(--white);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  text-align: center;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.order-type-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.order-type-card.mata {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-color: #10b981;
+}
+
+.order-type-card.mlc-avec-abonnement {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-color: #3b82f6;
+}
+
+.order-type-card.mlc-simple {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border-color: #8b5cf6;
+}
+
+.order-type-card.autre {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-color: #f59e0b;
+}
+
+.order-type-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+  display: block;
+}
+
+.order-type-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.order-type-count {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+}
+
+.order-type-amount {
+  font-size: 1.1rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.order-type-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive pour la répartition par type */
+@media (max-width: 768px) {
+  .orders-by-type-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-sm);
+  }
+  
+  .order-type-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .order-type-icon {
+    font-size: 2rem;
+  }
+  
+  .order-type-count {
+    font-size: 1.5rem;
+  }
+  
+  .order-type-amount {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .orders-by-type-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-xs);
+  }
+  
+  .order-type-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .order-type-icon {
+    font-size: 1.8rem;
+  }
+  
+  .order-type-name {
+    font-size: 0.8rem;
+  }
+  
+  .order-type-count {
+    font-size: 1.3rem;
+  }
+  
+  .order-type-amount {
+    font-size: 0.9rem;
+  }
+}
+
+.monthly-summary-by-type-section {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-lg);
+  background-color: var(--white);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.monthly-summary-by-type-section h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--gray-900);
+  font-size: 1.2rem;
+  font-weight: 600;
+} 

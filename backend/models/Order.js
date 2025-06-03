@@ -266,16 +266,107 @@ class Order {
   static async getStatsByType(startDate, endDate) {
     const query = `
       SELECT 
-        order_type,
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END as order_type,
         COUNT(*) as count,
         COALESCE(SUM(course_price), 0) as total_amount
       FROM orders
       WHERE DATE(created_at) BETWEEN $1 AND $2
-      GROUP BY order_type
+      GROUP BY 
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END
       ORDER BY count DESC
     `;
     
     const result = await db.query(query, [startDate, endDate]);
+    return result.rows;
+  }
+
+  // Obtenir les statistiques par type de commande par livreur pour un mois donné
+  static async getStatsByTypeByUser(month) {
+    const query = `
+      SELECT 
+        u.username as livreur,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          ELSE o.order_type
+        END as order_type,
+        COUNT(*) as count,
+        COALESCE(SUM(o.course_price), 0) as total_amount
+      FROM orders o
+      JOIN users u ON o.created_by = u.id
+      WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
+        AND u.role = 'LIVREUR' AND u.is_active = true
+      GROUP BY 
+        u.username,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          ELSE o.order_type
+        END
+      ORDER BY u.username, count DESC
+    `;
+    
+    const result = await db.query(query, [month]);
+    return result.rows;
+  }
+
+  // Obtenir les statistiques par type de commande pour un livreur spécifique pour une date donnée
+  static async getStatsByTypeByUserAndDate(userId, date) {
+    const query = `
+      SELECT 
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END as order_type,
+        COUNT(*) as count,
+        COALESCE(SUM(course_price), 0) as total_amount
+      FROM orders
+      WHERE created_by = $1 AND DATE(created_at) = $2
+      GROUP BY 
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END
+      ORDER BY count DESC
+    `;
+    
+    const result = await db.query(query, [userId, date]);
+    return result.rows;
+  }
+
+  // Obtenir les statistiques par type de commande pour un livreur spécifique pour un mois donné
+  static async getStatsByTypeByUserAndMonth(userId, month) {
+    const query = `
+      SELECT 
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END as order_type,
+        COUNT(*) as count,
+        COALESCE(SUM(course_price), 0) as total_amount
+      FROM orders
+      WHERE created_by = $1 AND TO_CHAR(created_at, 'YYYY-MM') = $2
+      GROUP BY 
+        CASE 
+          WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          ELSE order_type
+        END
+      ORDER BY count DESC
+    `;
+    
+    const result = await db.query(query, [userId, month]);
     return result.rows;
   }
 

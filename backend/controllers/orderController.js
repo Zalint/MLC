@@ -6,8 +6,47 @@ class OrderController {
   // Créer une nouvelle commande
   static async createOrder(req, res) {
     try {
-      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type } = req.body;
-      const created_by = req.user.id;
+      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by } = req.body;
+      
+      // Déterminer qui est le créateur de la commande
+      let actualCreatedBy = req.user.id; // Par défaut, l'utilisateur connecté
+      
+      // Si l'utilisateur est manager/admin, il DOIT spécifier un livreur
+      if (req.user.role === 'MANAGER' || req.user.role === 'ADMIN') {
+        if (!created_by) {
+          return res.status(400).json({
+            error: 'Vous devez sélectionner un livreur pour cette commande'
+          });
+        }
+        
+        // Vérifier que le livreur spécifié existe et est bien un livreur actif
+        const User = require('../models/User');
+        const targetUser = await User.findById(created_by);
+        
+        if (!targetUser) {
+          return res.status(400).json({
+            error: 'Le livreur sélectionné n\'existe pas'
+          });
+        }
+        
+        if (targetUser.role !== 'LIVREUR') {
+          return res.status(400).json({
+            error: 'L\'utilisateur sélectionné n\'est pas un livreur'
+          });
+        }
+        
+        if (!targetUser.is_active) {
+          return res.status(400).json({
+            error: 'Le livreur sélectionné n\'est pas actif'
+          });
+        }
+        
+        actualCreatedBy = created_by; // Assigner la commande au livreur sélectionné
+      }
+      // Pour les livreurs, ils créent leurs propres commandes
+      else if (req.user.role === 'LIVREUR') {
+        actualCreatedBy = req.user.id;
+      }
 
       const newOrder = await Order.create({
         client_name,
@@ -20,7 +59,7 @@ class OrderController {
         amount,
         course_price,
         order_type,
-        created_by
+        created_by: actualCreatedBy
       });
 
       res.status(201).json({
@@ -207,6 +246,9 @@ class OrderController {
       
       const summary = await Order.getTodayOrdersByUser(date);
       const expensesSummary = await Expense.getSummaryByDate(date);
+      
+      // Ajouter les statistiques par type de commande
+      const statsByType = await Order.getStatsByType(date, date);
 
       // Créer un map des dépenses et kilomètres par livreur pour faciliter la jointure
       const expensesMap = {};
@@ -225,6 +267,7 @@ class OrderController {
 
       res.json({
         summary: enrichedSummary,
+        statsByType,
         date,
         total_livreurs: summary.length,
         total_commandes: summary.reduce((sum, item) => sum + parseInt(item.nombre_commandes), 0),
@@ -255,6 +298,21 @@ class OrderController {
       const summary = await Order.getMonthlyOrdersByUser(month);
       const expensesSummary = await Expense.getMonthlySummaryByDate(month);
 
+      // Calculer les dates de début et fin du mois
+      const startDate = `${month}-01`;
+      const year = parseInt(month.split('-')[0]);
+      const monthNum = parseInt(month.split('-')[1]);
+      const lastDay = new Date(year, monthNum, 0).getDate();
+      const endDate = `${month}-${lastDay.toString().padStart(2, '0')}`;
+
+      // Récupérer les statistiques par type pour le mois entier
+      const monthlyStatsByType = await Order.getStatsByType(startDate, endDate);
+
+      // Récupérer les statistiques par type pour chaque livreur
+      const statsByTypeByUser = await Order.getStatsByTypeByUser(month);
+
+      console.log('🔍 statsByTypeByUser data:', statsByTypeByUser.slice(0, 5)); // Log des 5 premiers résultats
+
       // Créer un map des dépenses et kilomètres par livreur pour faciliter la jointure
       const expensesMap = {};
       const kmMap = {};
@@ -263,17 +321,33 @@ class OrderController {
         kmMap[expense.livreur] = expense.km_parcourus || 0;
       });
 
+      // Créer un map des stats par type par livreur
+      const statsByTypeMap = {};
+      statsByTypeByUser.forEach(stat => {
+        if (!statsByTypeMap[stat.livreur]) {
+          statsByTypeMap[stat.livreur] = {};
+        }
+        statsByTypeMap[stat.livreur][stat.order_type] = {
+          count: stat.count,
+          total_amount: stat.total_amount
+        };
+      });
+
+      console.log('🔍 statsByTypeMap constructed:', statsByTypeMap);
+
       // Ajouter les dépenses totales et kilomètres à chaque livreur dans le récapitulatif
       const enrichedSummary = summary.map(item => ({
         ...item,
         total_depenses: expensesMap[item.livreur] || 0,
-        km_parcourus: kmMap[item.livreur] || 0
+        km_parcourus: kmMap[item.livreur] || 0,
+        statsByType: statsByTypeMap[item.livreur] || {}
       }));
 
       res.json({
         summary: enrichedSummary,
         dailyData,
         dailyExpenses,
+        monthlyStatsByType,
         month,
         total_livreurs: summary.length,
         total_commandes: summary.reduce((sum, item) => sum + parseInt(item.nombre_commandes), 0),
@@ -1376,6 +1450,132 @@ class OrderController {
       console.error('Erreur lors de l\'export Excel MATA mensuel:', error);
       res.status(500).json({
         error: 'Erreur lors de l\'export Excel MATA mensuel'
+      });
+    }
+  }
+
+  // Obtenir toutes les données du tableau de bord en une seule requête optimisée
+  static async getDashboardData(req, res) {
+    try {
+      const date = req.query.date || new Date().toISOString().split('T')[0];
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      const isManagerOrAdmin = userRole === 'MANAGER' || userRole === 'ADMIN';
+      
+      // Données de base filtrées selon le rôle
+      let orders;
+      if (isManagerOrAdmin) {
+        // Managers/Admins voient toutes les commandes de la date
+        orders = await Order.findByDate(date) || [];
+      } else {
+        // Livreurs ne voient que leurs propres commandes
+        orders = await Order.findByUserAndDate(userId, date) || [];
+      }
+      
+      // Calculer les statistiques de base (maintenant filtrées selon le rôle)
+      const totalOrders = orders.length;
+      const totalAmount = orders.reduce((sum, order) => sum + (parseFloat(order.course_price) || 0), 0);
+      
+      // Dernières commandes utilisateur (toujours filtrées par utilisateur)
+      const recentOrders = await Order.findLastByUser(userId, 5);
+      
+      // Statistiques par type pour tous les utilisateurs
+      let statsByType = [];
+      let monthlyStatsByType = [];
+      
+      if (isManagerOrAdmin) {
+        // Pour managers/admins : toutes les commandes
+        statsByType = await Order.getStatsByType(date, date);
+        
+        // Cumul mensuel pour managers
+        const currentMonth = date.slice(0, 7); // YYYY-MM
+        const year = parseInt(currentMonth.split('-')[0]);
+        const monthNum = parseInt(currentMonth.split('-')[1]);
+        const lastDay = new Date(year, monthNum, 0).getDate();
+        const monthStartDate = `${currentMonth}-01`;
+        const monthEndDate = `${currentMonth}-${lastDay.toString().padStart(2, '0')}`;
+        monthlyStatsByType = await Order.getStatsByType(monthStartDate, monthEndDate);
+      } else {
+        // Pour livreurs : seulement leurs commandes
+        statsByType = await Order.getStatsByTypeByUserAndDate(userId, date);
+        
+        // Cumul mensuel pour le livreur
+        const currentMonth = date.slice(0, 7); // YYYY-MM
+        monthlyStatsByType = await Order.getStatsByTypeByUserAndMonth(userId, currentMonth);
+      }
+      
+      // Données avancées pour managers/admins seulement
+      let managerData = null;
+      if (isManagerOrAdmin) {
+        const Expense = require('../models/Expense');
+        
+        // Récupérer toutes les données managers en parallèle
+        const [summary, expensesSummary] = await Promise.all([
+          Order.getTodayOrdersByUser(date),
+          Expense.getSummaryByDate(date)
+        ]);
+        
+        // Créer un map des dépenses et kilomètres par livreur
+        const expensesMap = {};
+        const kmMap = {};
+        expensesSummary.forEach(expense => {
+          expensesMap[expense.livreur] = expense.total || 0;
+          kmMap[expense.livreur] = expense.km_parcourus || 0;
+        });
+        
+        // Enrichir le récapitulatif avec les dépenses
+        const enrichedSummary = summary.map(item => ({
+          ...item,
+          total_depenses: expensesMap[item.livreur] || 0,
+          km_parcourus: kmMap[item.livreur] || 0
+        }));
+        
+        managerData = {
+          summary: enrichedSummary,
+          statsByType,
+          totalLivreurs: summary.length,
+          totalCommandes: summary.reduce((sum, item) => sum + parseInt(item.nombre_commandes), 0),
+          totalMontant: summary.reduce((sum, item) => sum + parseFloat(item.total_montant || 0), 0),
+          totalDepenses: expensesSummary.reduce((sum, item) => sum + parseFloat(item.total || 0), 0),
+          activeLivreurs: summary.filter(item => item.nombre_commandes > 0).length
+        };
+      }
+      
+      // Réponse consolidée
+      let totalExpenses = 0;
+      if (isManagerOrAdmin) {
+        totalExpenses = managerData ? managerData.totalDepenses : 0;
+      } else {
+        // Pour livreur : récupérer la dépense du jour
+        try {
+          const expense = await Expense.findByLivreurAndDate(userId, date);
+          totalExpenses = expense ? expense.getTotal() : 0;
+        } catch (error) {
+          console.error('Error fetching expenses for delivery user:', error);
+          totalExpenses = 0;
+        }
+      }
+      res.json({
+        date,
+        user: {
+          role: userRole,
+          isManagerOrAdmin
+        },
+        basicStats: {
+          totalOrders,
+          totalAmount,
+          totalExpenses
+        },
+        recentOrders,
+        statsByType, // Statistiques du jour (pour tous les utilisateurs)
+        monthlyStatsByType, // Cumul mensuel (pour tous les utilisateurs)
+        managerData
+      });
+      
+    } catch (error) {
+      console.error('Erreur lors de la récupération des données du tableau de bord:', error);
+      res.status(500).json({
+        error: 'Erreur interne du serveur'
       });
     }
   }

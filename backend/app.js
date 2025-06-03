@@ -66,15 +66,20 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Rate limiting
+// Rate limiting - Configuration plus permissive pour l'usage normal
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, 
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, 
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Augmenté à 1000 requêtes par 15 min
   message: {
     error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Exclure certaines routes du rate limiting pour l'usage interne
+  skip: (req) => {
+    // Ne pas limiter les requêtes de santé et d'authentification
+    return req.path.includes('/health') || req.path.includes('/auth/check');
+  }
 });
 
 app.use(limiter);
