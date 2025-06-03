@@ -1547,8 +1547,13 @@ class OrderController {
         totalExpenses = managerData ? managerData.totalDepenses : 0;
       } else {
         // Pour livreur : récupérer la dépense du jour
-        const expense = await Expense.findByLivreurAndDate(userId, date);
-        totalExpenses = expense ? expense.getTotal() : 0;
+        try {
+          const expense = await Expense.findByLivreurAndDate(userId, date);
+          totalExpenses = expense ? expense.getTotal() : 0;
+        } catch (error) {
+          console.error('Error fetching expenses for delivery user:', error);
+          totalExpenses = 0;
+        }
       }
       res.json({
         date,
