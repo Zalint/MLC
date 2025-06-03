@@ -2243,6 +2243,15 @@ class OrderManager {
               <strong>📞 Téléphone :</strong> ${Utils.escapeHtml(order.phone_number)}
             </div>
             
+            ${order.creator_username ? `
+              <div style="margin-bottom: 12px;">
+                <strong>👨‍💼 Livreur :</strong> 
+                <span style="background-color: #e3f2fd; color: #1565c0; padding: 4px 8px; border-radius: 4px; font-weight: bold;">
+                  ${Utils.escapeHtml(order.creator_username)}
+                </span>
+              </div>
+            ` : ''}
+            
             <div style="margin-bottom: 12px;">
               <strong>📦 Type :</strong> 
               <span style="background-color: ${order.order_type === 'MATA' ? '#d4edda' : order.order_type === 'MLC' ? '#cce5ff' : '#fff3cd'}; 
