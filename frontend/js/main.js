@@ -913,7 +913,6 @@ class DashboardManager {
 
       // Afficher les dernières commandes
       this.displayRecentOrders(dashboardData.recentOrders || []);
-
       // Gérer l'affichage des sections selon le rôle
       const managerSummarySection = document.getElementById('manager-summary-section');
       const ordersByTypeSection = document.getElementById('orders-by-type-section');
