@@ -2618,6 +2618,17 @@ class OrderManager {
       // Réinitialiser le formulaire
       document.getElementById('new-order-form').reset();
       
+      // Réinitialiser les groupes de supplément et hors zone MATA  
+      const supplementToggleGroup = document.getElementById('supplement-toggle-group');
+      const supplementOptionsGroup = document.getElementById('supplement-options-group');
+      const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      const mataHorsZoneGroup = document.getElementById('mata-hors-zone-group');
+      
+      if (supplementToggleGroup) supplementToggleGroup.style.display = 'none';
+      if (supplementOptionsGroup) supplementOptionsGroup.style.display = 'none';
+      if (supplementCustomGroup) supplementCustomGroup.style.display = 'none';
+      if (mataHorsZoneGroup) mataHorsZoneGroup.style.display = 'none';
+      
       // Recharger les dernières commandes
       await this.loadLastUserOrders();
       
@@ -4422,19 +4433,23 @@ class App {
       const supplementToggleGroup = document.getElementById('supplement-toggle-group');
       const supplementOptionsGroup = document.getElementById('supplement-options-group');
       const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      const mataHorsZoneGroup = document.getElementById('mata-hors-zone-group');
       const coursePriceInput = document.getElementById('course-price');
       
       // Réinitialiser les suppléments
       document.getElementById('add-supplement').checked = false;
+      document.getElementById('mata-hors-zone').checked = false;
       supplementToggleGroup.style.display = 'none';
       supplementOptionsGroup.style.display = 'none';
       supplementCustomGroup.style.display = 'none';
+      mataHorsZoneGroup.style.display = 'none';
       
       if (orderType === 'MATA') {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'block';
         subscriptionToggleGroup.style.display = 'none';
         subscriptionSelectGroup.style.display = 'none';
+        mataHorsZoneGroup.style.display = 'block';
         coursePriceInput.value = '1500';
         coursePriceInput.readOnly = true;
       } else if (orderType === 'MLC') {
@@ -4519,6 +4534,20 @@ class App {
       }
     });
     
+    // Gestion du toggle "hors zone" pour MATA
+    document.getElementById('mata-hors-zone').addEventListener('change', (e) => {
+      const isHorsZone = e.target.checked;
+      const coursePriceInput = document.getElementById('course-price');
+      
+      if (isHorsZone) {
+        // Ajouter 1000 FCFA au prix par défaut de 1500
+        coursePriceInput.value = '2500';
+      } else {
+        // Remettre le prix par défaut de MATA
+        coursePriceInput.value = '1500';
+      }
+    });
+    
     // Gestion des boutons radio de supplément
     document.querySelectorAll('input[name="supplement_amount"]').forEach(radio => {
       radio.addEventListener('change', (e) => {
@@ -4596,6 +4625,13 @@ class App {
         delete orderData.supplement_custom_amount;
       }
       
+      // Traitement du supplément "hors zone" pour MATA
+      if (orderData.order_type === 'MATA' && orderData.mata_hors_zone === 'on') {
+        // Le prix est déjà ajusté dans l'interface (1500 + 1000 = 2500)
+        // Pas besoin de traitement supplémentaire côté client
+        orderData.hors_zone = true;
+      }
+      
       // Pour MLC avec abonnement, utiliser la route spéciale
       if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
         try {
@@ -4607,6 +4643,7 @@ class App {
             document.getElementById('supplement-toggle-group').style.display = 'none';
             document.getElementById('supplement-options-group').style.display = 'none';
             document.getElementById('supplement-custom-group').style.display = 'none';
+            document.getElementById('mata-hors-zone-group').style.display = 'none';
             await OrderManager.loadLastUserOrders();
           } else {
             ToastManager.error(response.message || 'Erreur lors de la création de la commande');
