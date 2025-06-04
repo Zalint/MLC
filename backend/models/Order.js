@@ -303,9 +303,7 @@ class Order {
       FROM orders o
       JOIN users u ON o.created_by = u.id
       WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
-        AND u.role = 'LIVREUR' AND u.is_active = true
-      GROUP BY 
-        u.username,
+      GROUP BY u.username, 
         CASE 
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
@@ -367,6 +365,45 @@ class Order {
     `;
     
     const result = await db.query(query, [userId, month]);
+    return result.rows;
+  }
+
+  // Obtenir les détails par point de vente pour les commandes MATA d'une date donnée
+  static async getMataStatsByPointDeVente(date) {
+    const query = `
+      SELECT 
+        point_de_vente,
+        COUNT(*) as count
+      FROM orders
+      WHERE order_type = 'MATA' 
+        AND DATE(created_at) = $1
+        AND point_de_vente IS NOT NULL 
+        AND point_de_vente != ''
+      GROUP BY point_de_vente
+      ORDER BY count DESC
+    `;
+    
+    const result = await db.query(query, [date]);
+    return result.rows;
+  }
+
+  // Obtenir les détails par point de vente pour les commandes MATA d'un utilisateur spécifique pour une date donnée
+  static async getMataStatsByPointDeVenteByUser(userId, date) {
+    const query = `
+      SELECT 
+        point_de_vente,
+        COUNT(*) as count
+      FROM orders
+      WHERE order_type = 'MATA' 
+        AND created_by = $1 
+        AND DATE(created_at) = $2
+        AND point_de_vente IS NOT NULL 
+        AND point_de_vente != ''
+      GROUP BY point_de_vente
+      ORDER BY count DESC
+    `;
+    
+    const result = await db.query(query, [userId, date]);
     return result.rows;
   }
 
@@ -485,6 +522,35 @@ class Order {
       hour: '2-digit',
       minute: '2-digit'
     }).format(new Date(this.created_at));
+  }
+
+  // Obtenir les statistiques par type de commande pour tous les livreurs pour une date donnée
+  static async getStatsByTypeByUserAndDateAll(date) {
+    const query = `
+      SELECT 
+        u.username as livreur,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          ELSE o.order_type
+        END as order_type,
+        COUNT(*) as count,
+        COALESCE(SUM(o.course_price), 0) as total_amount
+      FROM orders o
+      JOIN users u ON o.created_by = u.id
+      WHERE DATE(o.created_at) = $1
+        AND u.role = 'LIVREUR' AND u.is_active = true
+      GROUP BY u.username, 
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          ELSE o.order_type
+        END
+      ORDER BY u.username, count DESC
+    `;
+    
+    const result = await db.query(query, [date]);
+    return result.rows;
   }
 }
 

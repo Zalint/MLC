@@ -846,10 +846,8 @@ class DashboardManager {
         }
       }
 
-      // 🚀 NOUVELLE API OPTIMISÉE : Une seule requête pour toutes les données !
+      // Charger les données du tableau de bord
       const dashboardData = await ApiClient.getDashboardData(selectedDate);
-      
-      console.log('🔍 Dashboard data received:', dashboardData);
       
       // Mettre à jour les statistiques de base
       const totalOrdersElement = document.getElementById('total-orders-today');
@@ -891,7 +889,7 @@ class DashboardManager {
       const statLivreursCard = document.getElementById('stat-livreurs');
       
       // 🎯 Afficher les statistiques par type pour TOUS les utilisateurs
-      this.displayOrdersByType(dashboardData.statsByType || []);
+      this.displayOrdersByType(dashboardData.statsByType || [], dashboardData.mataPointsDeVente || []);
       
       // 🎯 Afficher le cumul mensuel SEULEMENT pour les livreurs (pas pour managers/admins)
       if (!dashboardData.user.isManagerOrAdmin) {
@@ -986,6 +984,8 @@ class DashboardManager {
             <tr>
               <th>Livreur</th>
               <th>Commandes</th>
+              <th>🛒 MATA</th>
+              <th>📦 MLC</th>
               <th>Courses</th>
               <th>Dépenses</th>
               <th>Bénéfice</th>
@@ -997,10 +997,20 @@ class DashboardManager {
             ${summary.map(item => {
               const profit = parseFloat(item.total_montant) - parseFloat(item.total_depenses);
               const profitClass = profit >= 0 ? 'text-green-600' : 'text-red-600';
+              
+              // Calcul des commandes MATA et MLC
+              const statsByType = item.statsByType || {};
+              const mataCount = statsByType.MATA ? parseInt(statsByType.MATA.count) : 0;
+              const mlcSimpleCount = statsByType['MLC simple'] ? parseInt(statsByType['MLC simple'].count) : 0;
+              const mlcAbonnementCount = statsByType['MLC avec abonnement'] ? parseInt(statsByType['MLC avec abonnement'].count) : 0;
+              const mlcTotalCount = mlcSimpleCount + mlcAbonnementCount;
+              
               return `
                 <tr>
                   <td>${Utils.escapeHtml(item.livreur)}</td>
                   <td>${item.nombre_commandes}</td>
+                  <td class="text-center"><span class="badge badge-mata">${mataCount}</span></td>
+                  <td class="text-center"><span class="badge badge-mlc">${mlcTotalCount}</span></td>
                   <td>${Utils.formatAmount(item.total_montant)}</td>
                   <td>${Utils.formatAmount(item.total_depenses)}</td>
                   <td class="${profitClass}">${Utils.formatAmount(profit)}</td>
@@ -1022,20 +1032,33 @@ class DashboardManager {
           </tbody>
         </table>
       </div>
+      <style>
+        .badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.8em;
+          font-weight: bold;
+          color: white;
+          min-width: 20px;
+          text-align: center;
+        }
+        .badge-mata {
+          background-color: #28a745;
+        }
+        .badge-mlc {
+          background-color: #007bff;
+        }
+      </style>
     `;
 
     // Ajouter les event listeners pour les boutons de détails
     this.setupDetailsEventListeners();
   }
 
-  static displayOrdersByType(statsByType) {
-    console.log('🎯 displayOrdersByType called with:', statsByType);
-    
+  static displayOrdersByType(statsByType, mataPointsDeVente = []) {
     const container = document.getElementById('orders-by-type-container');
     const section = document.getElementById('orders-by-type-section');
-    
-    console.log('🎯 Container found:', !!container);
-    console.log('🎯 Section found:', !!section);
     
     if (!container) {
       console.error('❌ orders-by-type-container not found!');
@@ -1045,11 +1068,9 @@ class DashboardManager {
     // S'assurer que la section est visible
     if (section) {
       section.classList.remove('hidden');
-      console.log('🎯 Section made visible');
     }
     
     if (!statsByType || statsByType.length === 0) {
-      console.log('🎯 No stats data, showing empty message');
       container.innerHTML = '<p class="text-center">Aucune commande pour cette période</p>';
       return;
     }
@@ -1068,12 +1089,27 @@ class DashboardManager {
     container.innerHTML = statsByType.map(stat => {
       const type = stat.order_type;
       const mapping = typeMapping[type] || { icon: '📦', class: '' };
+      
+      // Ajouter les détails par point de vente pour MATA
+      let pointsDeVenteDetails = '';
+      if (type === 'MATA' && mataPointsDeVente && mataPointsDeVente.length > 0) {
+        const pointsDeVenteText = mataPointsDeVente
+          .map(point => `${point.point_de_vente}: ${point.count}`)
+          .join(', ');
+        pointsDeVenteDetails = `
+          <div class="mata-points-vente" style="margin-top: 8px; font-size: 0.85em; color: rgba(255,255,255,0.9); line-height: 1.2;">
+            ${pointsDeVenteText}
+          </div>
+        `;
+      }
+      
       return `
         <div class="order-type-card ${mapping.class}">
           <div class="order-type-icon">${mapping.icon}</div>
           <div class="order-type-label">${type}</div>
           <div class="order-type-count">${stat.count}</div>
           <div class="order-type-amount">${Utils.formatAmount(stat.total_amount).replace(' FCFA', '')}</div>
+          ${pointsDeVenteDetails}
         </div>
       `;
     }).join('');
@@ -1225,7 +1261,6 @@ class DashboardManager {
     }).join('');
   }
 }
-
 // ===== GESTIONNAIRE DE TABLEAU DE BORD MENSUEL =====
 class MonthlyDashboardManager {
   static async loadMonthlyDashboard() {
@@ -1294,7 +1329,7 @@ class MonthlyDashboardManager {
     }
   }
 
-    static displayMonthlyDetailedTable(dailyData, dailyExpenses, month) {
+  static displayMonthlyDetailedTable(dailyData, dailyExpenses, month) {
     const container = document.getElementById('monthly-summary-table-container');
     
     if (!dailyData || dailyData.length === 0) {
@@ -1676,9 +1711,10 @@ class MonthlyDashboardManager {
     }
   }
 }
-
 // ===== GESTIONNAIRE DE TABLEAU DE BORD MATA MENSUEL =====
 class MataMonthlyDashboardManager {
+  static allOrders = [];
+
   static async loadMataMonthlyDashboard() {
     try {
       AppState.isLoading = true;
@@ -1695,18 +1731,127 @@ class MataMonthlyDashboardManager {
       // Charger les données MATA mensuelles
       const response = await ApiClient.getMataMonthlyDashboard(selectedMonth);
       
-      // Mettre à jour les statistiques
-      this.updateMataStats(response.statistics, selectedMonth);
+      // Stocker toutes les commandes pour le filtrage
+      this.allOrders = response.orders || [];
       
-      // Afficher le tableau des commandes MATA
-      this.displayMataOrdersTable(response.orders, selectedMonth);
+      // Peupler le filtre des points de vente
+      this.populatePointVenteFilter();
+      
+      // Appliquer le filtrage et afficher les données
+      this.applyFilters();
       
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord MATA mensuel:', error);
-      ToastManager.error('Erreur lors du chargement des données MATA mensuelles');
+      ToastManager.error('Erreur lors du chargement des données MATA');
     } finally {
       AppState.isLoading = false;
     }
+  }
+
+  static populatePointVenteFilter() {
+    const pointVenteFilter = document.getElementById('mata-point-vente-filter');
+    const livreurFilter = document.getElementById('mata-livreur-filter');
+    
+    // Extraire tous les points de vente uniques
+    const pointsDeVente = [...new Set(this.allOrders
+      .map(order => order.point_de_vente)
+      .filter(pointVente => pointVente && pointVente.trim() !== '')
+    )].sort();
+    
+    // Extraire tous les livreurs uniques
+    const livreurs = [...new Set(this.allOrders
+      .map(order => order.livreur)
+      .filter(livreur => livreur && livreur.trim() !== '')
+    )].sort();
+    
+    // Réinitialiser le filtre point de vente
+    pointVenteFilter.innerHTML = '<option value="">Tous les points de vente</option>';
+    
+    // Ajouter les options point de vente
+    pointsDeVente.forEach(pointVente => {
+      const option = document.createElement('option');
+      option.value = pointVente;
+      option.textContent = pointVente;
+      pointVenteFilter.appendChild(option);
+    });
+    
+    // Réinitialiser le filtre livreur
+    livreurFilter.innerHTML = '<option value="">Tous les livreurs</option>';
+    
+    // Ajouter les options livreur
+    livreurs.forEach(livreur => {
+      const option = document.createElement('option');
+      option.value = livreur;
+      option.textContent = livreur;
+      livreurFilter.appendChild(option);
+    });
+  }
+
+  static applyFilters() {
+    const pointVenteFilter = document.getElementById('mata-point-vente-filter');
+    const selectedPointVente = pointVenteFilter.value;
+    const livreurFilter = document.getElementById('mata-livreur-filter');
+    const selectedLivreur = livreurFilter.value;
+    const dateFilter = document.getElementById('mata-date-range-filter');
+    const selectedDate = dateFilter.value;
+    const phoneFilter = document.getElementById('mata-phone-filter');
+    const phoneSearch = phoneFilter.value.trim();
+    
+    // Filtrer les commandes
+    let filteredOrders = this.allOrders;
+    
+    // Filtrer par point de vente
+    if (selectedPointVente) {
+      filteredOrders = filteredOrders.filter(order => 
+        order.point_de_vente === selectedPointVente
+      );
+    }
+    
+    // Filtrer par livreur
+    if (selectedLivreur) {
+      filteredOrders = filteredOrders.filter(order => 
+        order.livreur === selectedLivreur
+      );
+    }
+    
+    // Filtrer par date
+    if (selectedDate) {
+      filteredOrders = filteredOrders.filter(order => {
+        // Comparer directement les chaînes de dates pour éviter les problèmes de fuseau horaire
+        let orderDate = order.date;
+        
+        // Si order.date est un objet Date, le convertir en format YYYY-MM-DD
+        if (orderDate instanceof Date) {
+          const year = orderDate.getFullYear();
+          const month = String(orderDate.getMonth() + 1).padStart(2, '0');
+          const day = String(orderDate.getDate()).padStart(2, '0');
+          orderDate = `${year}-${month}-${day}`;
+        } else if (typeof orderDate === 'string') {
+          // Si c'est déjà une chaîne, extraire juste la partie date (YYYY-MM-DD)
+          orderDate = orderDate.split('T')[0]; // Enlever l'heure si présente
+        }
+        
+        return orderDate === selectedDate;
+      });
+    }
+    
+    // Filtrer par numéro de téléphone
+    if (phoneSearch) {
+      filteredOrders = filteredOrders.filter(order => 
+        order.phone_number && order.phone_number.toLowerCase().includes(phoneSearch.toLowerCase())
+      );
+    }
+    
+    // Calculer les statistiques filtrées
+    const filteredStats = {
+      total_commandes: filteredOrders.length,
+      total_montant: filteredOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0),
+      livreurs_actifs: [...new Set(filteredOrders.map(order => order.livreur))].length
+    };
+    
+    // Mettre à jour l'affichage
+    this.updateMataStats(filteredStats, new Date().toISOString().slice(0, 7));
+    this.displayMataOrdersTable(filteredOrders, new Date().toISOString().slice(0, 7));
   }
 
   static updateMataStats(statistics, month) {
@@ -2304,6 +2449,22 @@ class MataMonthlyDashboardManager {
       });
     }
 
+    // Gestionnaire pour le filtre par point de vente
+    const pointVenteFilter = document.getElementById('mata-point-vente-filter');
+    if (pointVenteFilter) {
+      pointVenteFilter.addEventListener('change', () => {
+        this.applyFilters();
+      });
+    }
+
+    // Gestionnaire pour le filtre par livreur
+    const livreurFilter = document.getElementById('mata-livreur-filter');
+    if (livreurFilter) {
+      livreurFilter.addEventListener('change', () => {
+        this.applyFilters();
+      });
+    }
+
     // Gestionnaire pour le bouton d'actualisation
     const refreshBtn = document.getElementById('refresh-mata-monthly-dashboard');
     if (refreshBtn) {
@@ -2331,6 +2492,50 @@ class MataMonthlyDashboardManager {
         const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
         ApiClient.exportMataMonthlyToExcel(selectedMonth);
         ToastManager.success('Export Excel MATA en cours...');
+      });
+    }
+
+    // Gestionnaire pour le filtre par livreur
+    const livreurFilterEl = document.getElementById('mata-livreur-filter');
+    if (livreurFilterEl) {
+      livreurFilterEl.addEventListener('change', () => {
+        this.applyFilters();
+      });
+    }
+
+    // Gestionnaire pour le filtre par date
+    const dateFilterEl = document.getElementById('mata-date-range-filter');
+    if (dateFilterEl) {
+      dateFilterEl.addEventListener('change', () => {
+        this.applyFilters();
+      });
+    }
+
+    // Gestionnaire pour le filtre par téléphone (avec debounce pour éviter trop de requêtes)
+    const phoneFilterEl = document.getElementById('mata-phone-filter');
+    if (phoneFilterEl) {
+      phoneFilterEl.addEventListener('input', Utils.debounce(() => {
+        this.applyFilters();
+      }, 300));
+    }
+
+    // Gestionnaire pour le bouton "Effacer filtres"
+    const clearFiltersBtn = document.getElementById('mata-clear-filters');
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', () => {
+        // Réinitialiser tous les filtres
+        const pointVenteFilter = document.getElementById('mata-point-vente-filter');
+        const livreurFilter = document.getElementById('mata-livreur-filter');
+        const dateFilter = document.getElementById('mata-date-range-filter');
+        const phoneFilter = document.getElementById('mata-phone-filter');
+        
+        if (pointVenteFilter) pointVenteFilter.value = '';
+        if (livreurFilter) livreurFilter.value = '';
+        if (dateFilter) dateFilter.value = '';
+        if (phoneFilter) phoneFilter.value = '';
+        
+        // Réappliquer les filtres (qui seront vides maintenant)
+        this.applyFilters();
       });
     }
   }
