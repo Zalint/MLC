@@ -868,15 +868,14 @@ class DashboardManager {
       // Injecter les styles des badges une seule fois
       this.injectBadgeStylesOnce();
       
-      const selectedDate = document.getElementById('dashboard-date-filter')?.value || new Date().toISOString().split('T')[0];
+      // Initialize today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      const selectedDate = document.getElementById('dashboard-date-filter')?.value || today;
 
-      if (!selectedDate) {
-        selectedDate = today;
-        // Optionally set the date input to this default
-        const dateFilterInput = document.getElementById('dashboard-date-filter');
-        if (dateFilterInput) {
-          dateFilterInput.value = selectedDate;
-        }
+      // Optionally set the date input to this default
+      const dateFilterInput = document.getElementById('dashboard-date-filter');
+      if (dateFilterInput && !dateFilterInput.value) {
+        dateFilterInput.value = selectedDate;
       }
 
       // Charger les données du tableau de bord
