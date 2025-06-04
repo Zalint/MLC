@@ -1534,15 +1534,10 @@ class OrderController {
       
       // Récupérer les détails par point de vente pour les commandes MATA
       let mataPointsDeVente = [];
-      try {
-        if (isManagerOrAdmin) {
-          mataPointsDeVente = await Order.getMataStatsByPointDeVente(date);
-        } else {
-          mataPointsDeVente = await Order.getMataStatsByPointDeVenteByUser(userId, date);
-        }
-      } catch (error) {
-        console.error('Error retrieving MATA points de vente:', error);
-        mataPointsDeVente = []; // Fallback to empty array
+      if (isManagerOrAdmin) {
+        mataPointsDeVente = await Order.getMataStatsByPointDeVente(date);
+      } else {
+        mataPointsDeVente = await Order.getMataStatsByPointDeVenteByUser(userId, date);
       }
       
       // Données avancées pour managers/admins seulement

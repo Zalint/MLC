@@ -831,11 +831,44 @@ class AuthManager {
 
 // ===== GESTIONNAIRE DU TABLEAU DE BORD =====
 class DashboardManager {
+  static isLoaded = false;
+  static badgeStylesInjected = false;
+
+  static injectBadgeStylesOnce() {
+    if (!this.badgeStylesInjected) {
+      const styleElement = document.createElement('style');
+      styleElement.id = 'badge-styles';
+      styleElement.textContent = `
+        .badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.8em;
+          font-weight: bold;
+          color: white;
+          min-width: 20px;
+          text-align: center;
+        }
+        .badge-mata {
+          background-color: #28a745;
+        }
+        .badge-mlc {
+          background-color: #007bff;
+        }
+      `;
+      document.head.appendChild(styleElement);
+      this.badgeStylesInjected = true;
+    }
+  }
+
   static async loadDashboard() {
     try {
-      // Get date from the new date filter, default to today (client-side)
-      let selectedDate = document.getElementById('dashboard-date-filter')?.value;
-      const today = new Date().toISOString().split('T')[0];
+      AppState.isLoading = true;
+      
+      // Injecter les styles des badges une seule fois
+      this.injectBadgeStylesOnce();
+      
+      const selectedDate = document.getElementById('dashboard-date-filter')?.value || new Date().toISOString().split('T')[0];
 
       if (!selectedDate) {
         selectedDate = today;
@@ -1032,24 +1065,6 @@ class DashboardManager {
           </tbody>
         </table>
       </div>
-      <style>
-        .badge {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 12px;
-          font-size: 0.8em;
-          font-weight: bold;
-          color: white;
-          min-width: 20px;
-          text-align: center;
-        }
-        .badge-mata {
-          background-color: #28a745;
-        }
-        .badge-mlc {
-          background-color: #007bff;
-        }
-      </style>
     `;
 
     // Ajouter les event listeners pour les boutons de détails
@@ -2492,14 +2507,6 @@ class MataMonthlyDashboardManager {
         const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
         ApiClient.exportMataMonthlyToExcel(selectedMonth);
         ToastManager.success('Export Excel MATA en cours...');
-      });
-    }
-
-    // Gestionnaire pour le filtre par livreur
-    const livreurFilterEl = document.getElementById('mata-livreur-filter');
-    if (livreurFilterEl) {
-      livreurFilterEl.addEventListener('change', () => {
-        this.applyFilters();
       });
     }
 

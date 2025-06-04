@@ -378,7 +378,7 @@ class Order {
       WHERE order_type = 'MATA' 
         AND DATE(created_at) = $1
         AND point_de_vente IS NOT NULL 
-        AND point_de_vente != ''
+        AND TRIM(point_de_vente) <> ''
       GROUP BY point_de_vente
       ORDER BY count DESC
     `;
@@ -398,7 +398,7 @@ class Order {
         AND created_by = $1 
         AND DATE(created_at) = $2
         AND point_de_vente IS NOT NULL 
-        AND point_de_vente != ''
+        AND TRIM(point_de_vente) <> ''
       GROUP BY point_de_vente
       ORDER BY count DESC
     `;
