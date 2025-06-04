@@ -2623,11 +2623,17 @@ class OrderManager {
       const supplementOptionsGroup = document.getElementById('supplement-options-group');
       const supplementCustomGroup = document.getElementById('supplement-custom-group');
       const mataHorsZoneGroup = document.getElementById('mata-hors-zone-group');
+      const mlcZoneGroup = document.getElementById('mlc-zone-group');
+      const mlcCustomPriceGroup = document.getElementById('mlc-custom-price-group');
+      const zoneInfo = document.getElementById('zone-info');
       
       if (supplementToggleGroup) supplementToggleGroup.style.display = 'none';
       if (supplementOptionsGroup) supplementOptionsGroup.style.display = 'none';
       if (supplementCustomGroup) supplementCustomGroup.style.display = 'none';
       if (mataHorsZoneGroup) mataHorsZoneGroup.style.display = 'none';
+      if (mlcZoneGroup) mlcZoneGroup.style.display = 'none';
+      if (mlcCustomPriceGroup) mlcCustomPriceGroup.style.display = 'none';
+      if (zoneInfo) zoneInfo.style.display = 'none';
       
       // Recharger les dernières commandes
       await this.loadLastUserOrders();
@@ -4434,15 +4440,20 @@ class App {
       const supplementOptionsGroup = document.getElementById('supplement-options-group');
       const supplementCustomGroup = document.getElementById('supplement-custom-group');
       const mataHorsZoneGroup = document.getElementById('mata-hors-zone-group');
+      const mlcZoneGroup = document.getElementById('mlc-zone-group');
+      const mlcCustomPriceGroup = document.getElementById('mlc-custom-price-group');
       const coursePriceInput = document.getElementById('course-price');
       
-      // Réinitialiser les suppléments
+      // Réinitialiser les suppléments et zones
       document.getElementById('add-supplement').checked = false;
       document.getElementById('mata-hors-zone').checked = false;
+      document.getElementById('mlc-zone').value = '';
       supplementToggleGroup.style.display = 'none';
       supplementOptionsGroup.style.display = 'none';
       supplementCustomGroup.style.display = 'none';
       mataHorsZoneGroup.style.display = 'none';
+      mlcZoneGroup.style.display = 'none';
+      document.getElementById('zone-info').style.display = 'none';
       
       if (orderType === 'MATA') {
         coursePriceGroup.style.display = 'block';
@@ -4458,6 +4469,13 @@ class App {
         subscriptionToggleGroup.style.display = 'block';
         coursePriceInput.value = '';
         coursePriceInput.readOnly = false;
+        
+        // Vérifier l'état du toggle d'abonnement pour afficher les zones si nécessaire
+        const useSubscription = document.getElementById('use-subscription').checked;
+        if (!useSubscription) {
+          mlcZoneGroup.style.display = 'block';
+          coursePriceInput.readOnly = true; // Lecture seule car géré par les zones
+        }
       } else {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'none';
@@ -4475,11 +4493,15 @@ class App {
       const supplementToggleGroup = document.getElementById('supplement-toggle-group');
       const supplementOptionsGroup = document.getElementById('supplement-options-group');
       const supplementCustomGroup = document.getElementById('supplement-custom-group');
+      const mlcZoneGroup = document.getElementById('mlc-zone-group');
+      const mlcCustomPriceGroup = document.getElementById('mlc-custom-price-group');
       const coursePriceInput = document.getElementById('course-price');
       
       if (useSubscription) {
         subscriptionSelectGroup.style.display = 'block';
         supplementToggleGroup.style.display = 'block';
+        mlcZoneGroup.style.display = 'none';
+        document.getElementById('zone-info').style.display = 'none';
         coursePriceInput.value = '1500';
         coursePriceInput.readOnly = true;
         
@@ -4509,9 +4531,10 @@ class App {
         supplementToggleGroup.style.display = 'none';
         supplementOptionsGroup.style.display = 'none';
         supplementCustomGroup.style.display = 'none';
+        mlcZoneGroup.style.display = 'block';
         document.getElementById('add-supplement').checked = false;
         coursePriceInput.value = '';
-        coursePriceInput.readOnly = false;
+        coursePriceInput.readOnly = true; // Lecture seule car géré par les zones
       }
     });
     
@@ -4545,6 +4568,50 @@ class App {
       } else {
         // Remettre le prix par défaut de MATA
         coursePriceInput.value = '1500';
+      }
+    });
+
+    // Gestion de la sélection des zones MLC
+    document.getElementById('mlc-zone').addEventListener('change', (e) => {
+      const selectedZone = e.target.value;
+      const selectedOption = e.target.selectedOptions[0];
+      const coursePriceInput = document.getElementById('course-price');
+      const zoneInfo = document.getElementById('zone-info');
+      
+      // Masquer toutes les infos de zones
+      document.querySelectorAll('.zone-detail').forEach(detail => {
+        detail.style.display = 'none';
+      });
+      
+      if (selectedZone) {
+        // Afficher l'info de la zone sélectionnée
+        const zoneInfoElement = document.getElementById(`${selectedZone}-info`);
+        if (zoneInfoElement) {
+          zoneInfoElement.style.display = 'block';
+          zoneInfo.style.display = 'block';
+        }
+        
+        if (selectedZone === 'zone4') {
+          // Zone 4 : prix libre - rendre le champ éditable
+          coursePriceInput.value = '';
+          coursePriceInput.readOnly = false;
+          coursePriceInput.placeholder = 'Entrer le prix de la course';
+          coursePriceInput.required = true;
+        } else {
+          // Zones 1, 2, 3 : prix prédéfini
+          const price = selectedOption.dataset.price;
+          coursePriceInput.value = price;
+          coursePriceInput.readOnly = true;
+          coursePriceInput.placeholder = '';
+          coursePriceInput.required = false;
+        }
+      } else {
+        // Aucune zone sélectionnée
+        zoneInfo.style.display = 'none';
+        coursePriceInput.value = '';
+        coursePriceInput.readOnly = true;
+        coursePriceInput.placeholder = '';
+        coursePriceInput.required = false;
       }
     });
     
@@ -4632,6 +4699,15 @@ class App {
         orderData.hors_zone = true;
       }
       
+      // Traitement des zones MLC sans abonnement
+      if (orderData.order_type === 'MLC' && !orderData.use_subscription && orderData.mlc_zone) {
+        // Pour toutes les zones (y compris Zone 4), le prix est dans course_price
+        // Enregistrer l'information de la zone
+        orderData.delivery_zone = orderData.mlc_zone;
+        // Nettoyer le champ de zone du formulaire
+        delete orderData.mlc_zone;
+      }
+      
       // Pour MLC avec abonnement, utiliser la route spéciale
       if (orderData.order_type === 'MLC' && orderData.use_subscription === 'on' && orderData.subscription_id) {
         try {
@@ -4640,10 +4716,34 @@ class App {
             ToastManager.success('Commande créée avec succès');
             document.getElementById('new-order-form').reset();
             // Réinitialiser les groupes de supplément
-            document.getElementById('supplement-toggle-group').style.display = 'none';
-            document.getElementById('supplement-options-group').style.display = 'none';
-            document.getElementById('supplement-custom-group').style.display = 'none';
-            document.getElementById('mata-hors-zone-group').style.display = 'none';
+            if (document.getElementById('supplement-toggle-group')) {
+              document.getElementById('supplement-toggle-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('supplement-options-group')) {
+              document.getElementById('supplement-options-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('supplement-custom-group')) {
+              document.getElementById('supplement-custom-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('mata-hors-zone-group')) {
+              document.getElementById('mata-hors-zone-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('mlc-zone-group')) {
+              document.getElementById('mlc-zone-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('mlc-custom-price-group')) {
+              document.getElementById('mlc-custom-price-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('zone-info')) {
+              document.getElementById('zone-info').style.display = 'none';
+          }
+          
             await OrderManager.loadLastUserOrders();
           } else {
             ToastManager.error(response.message || 'Erreur lors de la création de la commande');
@@ -4883,6 +4983,24 @@ class App {
                 e.preventDefault();
                 ToastManager.error('Le point de vente est obligatoire pour MATA.');
                 return false;
+            }
+        }
+        // Validation pour MLC sans abonnement (zones)
+        if (type === 'MLC' && !document.getElementById('use-subscription').checked) {
+            const mlcZone = document.getElementById('mlc-zone').value;
+            if (!mlcZone) {
+                e.preventDefault();
+                ToastManager.error('Vous devez sélectionner une zone de livraison pour MLC.');
+                return false;
+            }
+            // Validation pour Zone 4 (prix libre)
+            if (mlcZone === 'zone4') {
+                const coursePrice = document.getElementById('course-price').value;
+                if (!coursePrice || parseFloat(coursePrice) <= 0) {
+                    e.preventDefault();
+                    ToastManager.error('Vous devez saisir un prix valide pour la Zone 4.');
+                    return false;
+                }
             }
         }
     });
