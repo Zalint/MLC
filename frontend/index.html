@@ -297,9 +297,17 @@
             </div>
             
             <!-- MATA Monthly Dashboard Date Filter -->
-            <div class="mata-monthly-dashboard-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; padding: 0 1rem;">
-                <label for="mata-monthly-date-filter" style="font-weight: bold;">Afficher pour le:</label>
-                <input type="month" id="mata-monthly-date-filter" name="mata-monthly-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            <div class="mata-monthly-dashboard-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; padding: 0 1rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-monthly-date-filter" style="font-weight: bold;">Afficher pour le:</label>
+                    <input type="month" id="mata-monthly-date-filter" name="mata-monthly-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-point-vente-filter" style="font-weight: bold;">Point de vente:</label>
+                    <select id="mata-point-vente-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Tous les points de vente</option>
+                    </select>
+                </div>
             </div>
             
             <div class="mata-monthly-dashboard-content">
@@ -415,6 +423,39 @@
                         <!-- Options dynamiques JS -->
                     </select>
                 </div>
+
+                <!-- Nouveau groupe pour les zones MLC sans abonnement -->
+                <div class="form-group" id="mlc-zone-group" style="display: none;">
+                    <label for="mlc-zone">Sélectionner la zone de livraison *</label>
+                    <select id="mlc-zone" name="mlc_zone">
+                        <option value="">Sélectionner une zone</option>
+                        <option value="zone1" data-price="1750">Zone 1 - Dakar (1750 FCFA)</option>
+                        <option value="zone2" data-price="2000">Zone 2 - Proche (2000 FCFA)</option>
+                        <option value="zone3" data-price="3000">Zone 3 - Banlieue (3000 FCFA)</option>
+                        <option value="zone4" data-price="custom">Zone 4 - Autre (prix libre)</option>
+                    </select>
+                    
+                    <!-- Informations des zones -->
+                    <div class="zone-info" id="zone-info" style="display: none; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; font-size: 14px;">
+                        <div id="zone1-info" class="zone-detail" style="display: none;">
+                            <strong>Zone 1 - Dakar (1750 FCFA):</strong><br>
+                            Sacré-Cœur, Sicap, Almadies, Yoff, Point E, Fann, Mermoz, etc.
+                        </div>
+                        <div id="zone2-info" class="zone-detail" style="display: none;">
+                            <strong>Zone 2 - Proche (2000 FCFA):</strong><br>
+                            Parcelles, Guédiawaye, Pikine, Grand Yoff, HLM, etc.
+                        </div>
+                        <div id="zone3-info" class="zone-detail" style="display: none;">
+                            <strong>Zone 3 - Banlieue (3000 FCFA):</strong><br>
+                            Keur Massar, Rufisque, Mbao, Sangalkam, Bargny, etc.
+                        </div>
+                        <div id="zone4-info" class="zone-detail" style="display: none;">
+                            <strong>Zone 4 - Autre (prix libre):</strong><br>
+                            Pour les destinations non couvertes par les zones 1, 2 et 3. Veuillez saisir le prix manuellement.
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group" id="course-price-group" style="display: none;">
                     <label for="course-price">Prix de la course (FCFA)</label>
                     <input type="number" id="course-price" name="course_price" step="0.01" min="0" 
