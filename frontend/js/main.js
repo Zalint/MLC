@@ -1109,7 +1109,7 @@ class DashboardManager {
       let pointsDeVenteDetails = '';
       if (type === 'MATA' && mataPointsDeVente && mataPointsDeVente.length > 0) {
         const pointsDeVenteText = mataPointsDeVente
-          .map(point => `${point.point_de_vente}: ${point.count}`)
+          .map(point => `${Utils.escapeHtml(point.point_de_vente)}: ${point.count}`)
           .join(', ');
         pointsDeVenteDetails = `
           <div class="mata-points-vente" style="margin-top: 8px; font-size: 0.85em; color: rgba(255,255,255,0.9); line-height: 1.2;">
