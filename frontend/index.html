@@ -302,11 +302,36 @@
                     <label for="mata-monthly-date-filter" style="font-weight: bold;">Afficher pour le:</label>
                     <input type="month" id="mata-monthly-date-filter" name="mata-monthly-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-date-range-filter" style="font-weight: bold;">Date:</label>
+                    <input type="date" id="mata-date-range-filter" class="form-control" placeholder="Filtrer par date" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-phone-filter" style="font-weight: bold;">Téléphone:</label>
+                    <input type="text" id="mata-phone-filter" class="form-control" placeholder="Rechercher par téléphone" style="width: 200px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <label for="mata-point-vente-filter" style="font-weight: bold;">Point de vente:</label>
                     <select id="mata-point-vente-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
                         <option value="">Tous les points de vente</option>
                     </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-livreur-filter" style="font-weight: bold;">Livreur:</label>
+                    <select id="mata-livreur-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Tous les livreurs</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="mata-clear-filters" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem;">
+                        <span class="icon">🔄</span>
+                        Effacer filtres
+                    </button>
                 </div>
             </div>
             

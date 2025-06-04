@@ -250,6 +250,9 @@ class OrderController {
       // Ajouter les statistiques par type de commande
       const statsByType = await Order.getStatsByType(date, date);
 
+      // Récupérer les statistiques par type pour chaque livreur
+      const statsByTypeByUser = await Order.getStatsByTypeByUserAndDateAll(date);
+
       // Créer un map des dépenses et kilomètres par livreur pour faciliter la jointure
       const expensesMap = {};
       const kmMap = {};
@@ -258,11 +261,24 @@ class OrderController {
         kmMap[expense.livreur] = expense.km_parcourus || 0;
       });
 
+      // Créer un map des stats par type par livreur
+      const statsByTypeMap = {};
+      statsByTypeByUser.forEach(stat => {
+        if (!statsByTypeMap[stat.livreur]) {
+          statsByTypeMap[stat.livreur] = {};
+        }
+        statsByTypeMap[stat.livreur][stat.order_type] = {
+          count: stat.count,
+          total_amount: stat.total_amount
+        };
+      });
+
       // Ajouter les dépenses totales et kilomètres à chaque livreur dans le récapitulatif
       const enrichedSummary = summary.map(item => ({
         ...item,
         total_depenses: expensesMap[item.livreur] || 0,
-        km_parcourus: kmMap[item.livreur] || 0
+        km_parcourus: kmMap[item.livreur] || 0,
+        statsByType: statsByTypeMap[item.livreur] || {}
       }));
 
       res.json({
@@ -1108,7 +1124,7 @@ class OrderController {
       const baseQuery = `
         SELECT 
           o.id,
-          DATE(o.created_at) as date,
+          TO_CHAR(DATE(o.created_at), 'YYYY-MM-DD') as date,
           o.phone_number,
           o.client_name,
           o.adresse_source,
@@ -1280,7 +1296,7 @@ class OrderController {
       const baseQuery = `
         SELECT 
           o.id,
-          DATE(o.created_at) as date,
+          TO_CHAR(DATE(o.created_at), 'YYYY-MM-DD') as date,
           o.phone_number,
           o.client_name,
           o.adresse_source,
@@ -1516,6 +1532,14 @@ class OrderController {
         monthlyStatsByType = await Order.getStatsByTypeByUserAndMonth(userId, currentMonth);
       }
       
+      // Récupérer les détails par point de vente pour les commandes MATA
+      let mataPointsDeVente = [];
+      if (isManagerOrAdmin) {
+        mataPointsDeVente = await Order.getMataStatsByPointDeVente(date);
+      } else {
+        mataPointsDeVente = await Order.getMataStatsByPointDeVenteByUser(userId, date);
+      }
+      
       // Données avancées pour managers/admins seulement
       let managerData = null;
       if (isManagerOrAdmin) {
@@ -1527,6 +1551,9 @@ class OrderController {
           Expense.getSummaryByDate(date)
         ]);
         
+        // Récupérer les statistiques par type pour chaque livreur
+        const statsByTypeByUser = await Order.getStatsByTypeByUserAndDateAll(date);
+        
         // Créer un map des dépenses et kilomètres par livreur
         const expensesMap = {};
         const kmMap = {};
@@ -1535,11 +1562,24 @@ class OrderController {
           kmMap[expense.livreur] = expense.km_parcourus || 0;
         });
         
+        // Créer un map des stats par type par livreur
+        const statsByTypeMap = {};
+        statsByTypeByUser.forEach(stat => {
+          if (!statsByTypeMap[stat.livreur]) {
+            statsByTypeMap[stat.livreur] = {};
+          }
+          statsByTypeMap[stat.livreur][stat.order_type] = {
+            count: stat.count,
+            total_amount: stat.total_amount
+          };
+        });
+        
         // Enrichir le récapitulatif avec les dépenses
         const enrichedSummary = summary.map(item => ({
           ...item,
           total_depenses: expensesMap[item.livreur] || 0,
-          km_parcourus: kmMap[item.livreur] || 0
+          km_parcourus: kmMap[item.livreur] || 0,
+          statsByType: statsByTypeMap[item.livreur] || {}
         }));
         
         managerData = {
@@ -1567,7 +1607,7 @@ class OrderController {
           totalExpenses = 0;
         }
       }
-      res.json({
+      const responseData = {
         date,
         user: {
           role: userRole,
@@ -1581,8 +1621,11 @@ class OrderController {
         recentOrders,
         statsByType, // Statistiques du jour (pour tous les utilisateurs)
         monthlyStatsByType, // Cumul mensuel (pour tous les utilisateurs)
-        managerData
-      });
+        managerData,
+        mataPointsDeVente
+      };
+      
+      res.json(responseData);
       
     } catch (error) {
       console.error('Erreur lors de la récupération des données du tableau de bord:', error);
