@@ -19,6 +19,7 @@ const expenseRoutes = require('./routes/expenses');
 const subscriptionRoutes = require('./routes/subscriptions');
 const analyticsRoutes = require('./routes/analytics');
 const salariesRoutes = require('./routes/salaries');
+const externalRoutes = require('./routes/external');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -99,6 +100,7 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/salaries', salariesRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/external', externalRoutes);
 
 // Route de santé
 app.get('/api/health', (req, res) => {
