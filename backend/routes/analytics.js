@@ -4,6 +4,7 @@ const db = require('../models/database');
 const { authenticateToken, requireManagerOrAdmin } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
+const GpsAnalyticsController = require('../controllers/gpsAnalyticsController');
 
 // 🎯 Fichier de configuration des pondérations
 const SCORE_WEIGHTS_FILE = path.join(__dirname, '../config/score-weights.json');
@@ -53,6 +54,31 @@ loadScoreWeights();
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
+
+// === ROUTES GPS ANALYTICS ===
+// POST /api/analytics/gps/calculate-metrics - Calculer les métriques quotidiennes
+router.post('/gps/calculate-metrics', requireManagerOrAdmin, GpsAnalyticsController.calculateDailyMetrics);
+
+// GET /api/analytics/gps/daily-performance - Performances quotidiennes
+router.get('/gps/daily-performance', GpsAnalyticsController.getDailyPerformance);
+
+// GET /api/analytics/gps/monthly-summary - Résumé GPS mensuel par livreur
+router.get('/gps/monthly-summary', GpsAnalyticsController.getMonthlyGpsSummary);
+
+// GET /api/analytics/gps/daily-summary - Données GPS quotidiennes par livreur
+router.get('/gps/daily-summary', GpsAnalyticsController.getDailyGpsSummary);
+
+// GET /api/analytics/gps/weekly-trends - Tendances hebdomadaires
+router.get('/gps/weekly-trends', GpsAnalyticsController.getWeeklyTrends);
+
+// GET /api/analytics/gps/rankings - Classements des livreurs
+router.get('/gps/rankings', requireManagerOrAdmin, GpsAnalyticsController.getLivreurRankings);
+
+// GET /api/analytics/gps/overview - Vue d'ensemble analytics
+router.get('/gps/overview', requireManagerOrAdmin, GpsAnalyticsController.getAnalyticsOverview);
+
+// GET /api/analytics/gps/export - Export CSV
+router.get('/gps/export', GpsAnalyticsController.exportAnalytics);
 
 // GET /api/analytics/summary - Statistiques globales (alias pour /global)
 router.get('/summary', requireManagerOrAdmin, async (req, res) => {
@@ -857,5 +883,13 @@ router.put('/score-weights', requireManagerOrAdmin, async (req, res) => {
         res.status(500).json({ error: 'Erreur interne du serveur' });
     }
 });
+
+// Routes pour GPS Analytics
+router.post('/gps/calculate-metrics', GpsAnalyticsController.calculateDailyMetrics);
+router.get('/gps/daily-performance', GpsAnalyticsController.getDailyPerformance);
+router.get('/gps/weekly-trends', GpsAnalyticsController.getWeeklyTrends);
+router.get('/gps/rankings', GpsAnalyticsController.getLivreurRankings);
+router.get('/gps/overview', GpsAnalyticsController.getAnalyticsOverview);
+router.get('/gps/export', GpsAnalyticsController.exportAnalytics);
 
 module.exports = router; 

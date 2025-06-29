@@ -1,0 +1,68 @@
+{
+  "tracking": {
+    "defaultInterval": 30000,
+    "minInterval": 10000,
+    "maxInterval": 300000,
+    "highAccuracyEnabled": true,
+    "maxAge": 60000
+  },
+  "recording": {
+    "maxAccuracy": 200000,
+    "maxAccuracyWorstCase": 500,
+    "recordAllPositions": true,
+    "comment": "We record all GPS positions but filter during calculations"
+  },
+  "analytics": {
+    "maxAccuracyForCalculations": 100,
+    "maxAccuracyWorstCase": 500,
+    "maxRealisticJumpKm": 2,
+    "minMeaningfulDistanceKm": 0.05,
+    "comment": "100m accuracy filter applied globally for all GPS analytics calculations"
+  },
+  "performance": {
+    "cleanupOlderThanDays": 90,
+    "batchCalculationSize": 100,
+    "autoCalculateMetrics": true
+  },
+  "globalAccuracyPolicy": {
+    "enabled": true,
+    "primaryFilter": "100m accuracy for all analytics calculations",
+    "fallbackFilter": "500m worst-case scenarios only",
+    "appliedTo": [
+      "Distance calculations",
+      "Performance metrics", 
+      "Daily analytics",
+      "Weekly trends",
+      "Driver rankings",
+      "Route efficiency",
+      "Fuel efficiency"
+    ],
+    "benefits": [
+      "Eliminates GPS drift errors",
+      "More accurate distance tracking",
+      "Better performance scoring",
+      "Consistent platform-wide standards"
+    ]
+  },
+  "data": {
+    "retentionDays": 30,
+    "cleanupInterval": 86400000,
+    "maxPositionsPerDay": 2880
+  },
+  "map": {
+    "defaultZoom": 13,
+    "centerLat": 14.7167,
+    "centerLng": -17.4677,
+    "refreshInterval": 10000
+  },
+  "permissions": {
+    "requestTimeout": 10000,
+    "retryAttempts": 3,
+    "requiredAccuracy": 50
+  },
+  "alerts": {
+    "offlineAfter": 180000,
+    "lowBatteryThreshold": 20,
+    "speedThreshold": 80
+  }
+} 
