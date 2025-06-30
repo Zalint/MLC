@@ -71,6 +71,19 @@
                 <span class="icon">🚚</span>
                 <span class="text">Gestion livreurs</span>
             </button>
+                    <button class="nav-item hidden" id="nav-gps-tracking" data-page="gps-tracking">
+            <span class="icon">🗺️</span>
+            <span class="text">Suivi GPS</span>
+        </button>
+        
+        <button class="nav-item hidden" id="nav-gps-analytics" data-page="gps-analytics">
+            <span class="icon">📊</span>
+            <span class="text">Analytics GPS</span>
+        </button>
+            <button class="nav-item hidden" id="nav-my-performance" data-page="my-performance">
+                <span class="icon">📈</span>
+                <span class="text">Mes Performances</span>
+            </button>
             <button class="nav-item" data-page="profile">
                 <span class="icon">👤</span>
                 <span class="text">Profil</span>
@@ -767,32 +780,424 @@
             </div>
         </div>
 
-        <!-- Page profil -->
-        <div id="profile-page" class="page">
+        <!-- Page Suivi GPS (managers/admins) -->
+        <div id="gps-tracking-page" class="page">
             <div class="page-header">
-                <h2>Mon profil</h2>
+                <h2>📍 Suivi GPS des livreurs</h2>
+                <div class="page-actions">
+                    <button id="gps-refresh-btn" class="btn btn-secondary btn-sm gps-refresh-btn">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
             </div>
             
-            <div class="profile-content">
-                <div class="profile-info">
-                    <div class="info-group">
-                        <label>Nom d'utilisateur</label>
-                        <span id="profile-username"></span>
+            <div class="gps-tracking-content">
+                <div class="gps-controls-panel">
+                    <div class="gps-stats-card">
+                        <h3>📊 Statistiques GPS</h3>
+                        <div class="gps-stat-item">
+                            <span class="gps-stat-label">Livreurs connectés:</span>
+                            <span class="gps-stat-value" id="gps-online-count">-</span>
+                        </div>
+                        <div class="gps-stat-item">
+                            <span class="gps-stat-label">Livreurs hors ligne:</span>
+                            <span class="gps-stat-value" id="gps-offline-count">-</span>
+                        </div>
+                        <div class="gps-stat-item">
+                            <span class="gps-stat-label">Total avec GPS activé:</span>
+                            <span class="gps-stat-value" id="gps-enabled-count">-</span>
+                        </div>
                     </div>
-                    <div class="info-group">
-                        <label>Rôle</label>
-                        <span id="profile-role" class="role-badge"></span>
-                    </div>
-                    <div class="info-group">
-                        <label>Membre depuis</label>
-                        <span id="profile-created"></span>
+                    
+                    <div class="gps-livreurs-card">
+                        <h3>🚚 Livreurs en ligne</h3>
+                        <div id="gps-livreurs-list">
+                            <!-- Liste des livreurs sera chargée ici -->
+                        </div>
                     </div>
                 </div>
                 
-                <button id="change-password-btn" class="btn btn-primary">
-                    <span class="icon">🔐</span>
-                    Changer le mot de passe
+                <div class="gps-map-container" id="gps-map">
+                    🗺️ Carte GPS - OpenStreetMap sera intégrée ici prochainement
+                </div>
+            </div>
+        </div>
+
+        <!-- Page profil -->
+        <div id="profile-page" class="page">
+            <div class="page-header">
+                <h2>👤 Mon Profil</h2>
+            </div>
+            
+            <!-- Onglets de navigation -->
+            <div class="profile-tabs">
+                <button class="profile-tab active" data-tab="info">
+                    <span class="tab-icon">ℹ️</span>
+                    <span class="tab-text">Mes Informations</span>
                 </button>
+                <button class="profile-tab security-tab" data-tab="security">
+                    <span class="tab-icon">🔐</span>
+                    <span class="tab-text">Sécurité & Mot de passe</span>
+                    <span class="tab-indicator">→</span>
+                </button>
+            </div>
+            
+            <div class="profile-content">
+                <!-- Onglet Informations personnelles -->
+                <div id="profile-tab-info" class="profile-tab-content active">
+                    <div class="profile-cards-grid">
+                        <!-- Card informations personnelles -->
+                        <div class="profile-card">
+                            <div class="profile-card-header">
+                                <h3>👤 Informations personnelles</h3>
+                                <span class="profile-card-subtitle">Vos données de compte</span>
+                            </div>
+                            <div class="profile-card-body">
+                                <div class="profile-info-grid">
+                                    <div class="info-item">
+                                        <div class="info-icon">👤</div>
+                                        <div class="info-content">
+                        <label>Nom d'utilisateur</label>
+                                            <span id="profile-username" class="info-value"></span>
+                    </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">🎭</div>
+                                        <div class="info-content">
+                        <label>Rôle</label>
+                        <span id="profile-role" class="role-badge"></span>
+                    </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">📅</div>
+                                        <div class="info-content">
+                        <label>Membre depuis</label>
+                                            <span id="profile-created" class="info-value"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+                
+                        <!-- Interface GPS pour les livreurs -->
+                        <div id="gps-livreur-section" class="gps-livreur-section" style="display: none;">
+                            <div class="profile-card">
+                                <div class="profile-card-header">
+                                    <h3>📍 Mon GPS & Géolocalisation</h3>
+                                    <span class="profile-card-subtitle">Gérez votre partage de position en temps réel</span>
+                                </div>
+                                <div class="profile-card-body">
+                                    <div id="gps-livreur-interface">
+                                        <!-- L'interface GPS sera générée par JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onglet Sécurité -->
+                <div id="profile-tab-security" class="profile-tab-content">
+                    <div class="profile-cards-grid">
+                        <div class="profile-card security-card">
+                            <div class="profile-card-header">
+                                <h3>🔒 Sécurité du compte</h3>
+                                <span class="profile-card-subtitle">Protégez votre compte avec un mot de passe sécurisé</span>
+                            </div>
+                            <div class="profile-card-body">
+                                <div class="security-warning">
+                                    <div class="warning-icon">⚠️</div>
+                                    <div class="warning-content">
+                                        <h4>Attention</h4>
+                                        <p>La modification du mot de passe déconnectera votre compte sur tous les appareils.</p>
+                                        <p><strong>Assurez-vous de bien mémoriser votre nouveau mot de passe.</strong></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="security-info">
+                                    <div class="security-item">
+                                        <div class="security-icon">🛡️</div>
+                                        <div class="security-content">
+                                            <h4>Mot de passe actuel</h4>
+                                            <p>Dernière modification : <span class="text-muted">Information non disponible</span></p>
+                                            <small class="security-tip">💡 Conseil : Changez votre mot de passe tous les 3 mois</small>
+                                        </div>
+                                        <div class="security-action">
+                                            <button id="change-password-btn-main" class="btn btn-danger btn-sm">
+                    <span class="icon">🔐</span>
+                                                Modifier mon mot de passe
+                </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Mes Performances (pour livreurs) -->
+        <div id="my-performance-page" class="page" style="display: none;">
+            <div class="page-header">
+                <h2>📈 Mes Performances GPS</h2>
+                <div class="page-actions">
+                    <button id="refresh-my-performance" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span> Actualiser
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistiques personnelles -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📏</div>
+                    <div class="stat-content">
+                        <h3 id="my-distance-today">0 km</h3>
+                        <p>Distance aujourd'hui</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <h3 id="my-time-today">0h</h3>
+                        <p>Temps actif</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🚀</div>
+                    <div class="stat-content">
+                        <h3 id="my-speed-avg">0 km/h</h3>
+                        <p>Vitesse moyenne</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-content">
+                        <h3 id="my-efficiency-score">0%</h3>
+                        <p>Score d'efficacité</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtres de période -->
+            <div class="analytics-filters">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label for="my-period-select">Période :</label>
+                        <select id="my-period-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="today">Aujourd'hui</option>
+                            <option value="7" selected>7 derniers jours</option>
+                            <option value="30">30 derniers jours</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button id="export-my-performance" class="btn btn-secondary btn-sm">
+                            <span class="icon">📊</span> Exporter mes données
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mon historique -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>📅 Mon Historique</h4>
+                </div>
+                <div class="analytics-content">
+                    <div id="my-history-content">
+                        <div class="analytics-loading">
+                            <p>📊 Chargement de votre historique...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ma progression -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>📈 Ma Progression</h4>
+                </div>
+                <div class="analytics-content">
+                    <div id="my-progress-chart" style="height: 300px;">
+                        <canvas id="my-performance-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conseils personnalisés -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>💡 Conseils pour moi</h4>
+                </div>
+                <div class="analytics-content">
+                    <div id="my-tips-content">
+                        <div class="alert alert-info">
+                            <strong>🎯 Objectifs :</strong><br>
+                            <ul>
+                                <li>📏 Maintenir une distance quotidienne de 15-25 km</li>
+                                <li>🚀 Vitesse optimale : 20-30 km/h en ville</li>
+                                <li>⭐ Score d'efficacité cible : >70%</li>
+                                <li>⏱️ Optimiser les temps de pause</li>
+                            </ul>
+                        </div>
+                        <div id="personal-recommendations">
+                            <!-- Recommandations personnalisées générées dynamiquement -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Analytics GPS -->
+        <div id="gps-analytics-page" class="page" style="display: none;">
+            <div class="page-header">
+                <h2>📊 Analytics GPS Avancés</h2>
+                <div class="page-actions">
+                    <button id="calculate-metrics" class="btn btn-primary btn-sm">
+                        <span class="icon">🔢</span> Calculer métriques
+                    </button>
+                    <button id="refresh-all" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span> Actualiser tout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtres et contrôles -->
+            <div class="analytics-filters">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label for="period-select">Période d'analyse:</label>
+                        <select id="period-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="7">7 derniers jours</option>
+                            <option value="15">15 derniers jours</option>
+                            <option value="30" selected>30 derniers jours</option>
+                            <option value="60">60 derniers jours</option>
+                            <option value="90">90 derniers jours</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="livreur-filter">Filtrer par livreur:</label>
+                        <select id="livreur-filter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Tous les livreurs</option>
+                            <!-- Options générées dynamiquement -->
+                        </select>
+                    </div>
+                    <div>
+                        <button id="export-performance" class="btn btn-secondary btn-sm">
+                            <span class="icon">📊</span> Export Performances
+                        </button>
+                    </div>
+                    <div>
+                        <button id="export-trends" class="btn btn-secondary btn-sm">
+                            <span class="icon">📈</span> Export Tendances
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Aperçu Global -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>🎯 Aperçu Global</h4>
+                    <button id="refresh-overview" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                    </button>
+                </div>
+                <div class="analytics-content">
+                    <div id="overview-content">
+                        <div class="analytics-loading">
+                            <p>📊 Chargement des données analytics...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Performances Quotidiennes -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>📈 Performances Quotidiennes</h4>
+                    <button id="refresh-performance" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                    </button>
+                </div>
+                <div class="analytics-content">
+                    <div id="performance-content">
+                        <div class="analytics-loading">
+                            <p>📊 Chargement des performances...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Tendances Hebdomadaires -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>📊 Tendances Hebdomadaires</h4>
+                    <button id="refresh-trends" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                    </button>
+                </div>
+                <div class="analytics-content">
+                    <div id="trends-content">
+                        <div class="analytics-loading">
+                            <p>📊 Chargement des tendances...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Classement des Livreurs -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>🏆 Classement des Livreurs</h4>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="month-selector" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Mois actuel</option>
+                            <!-- Options générées dynamiquement -->
+                        </select>
+                        <button id="refresh-rankings" class="btn btn-secondary btn-sm">
+                            <span class="icon">🔄</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="analytics-content">
+                    <div id="rankings-content">
+                        <div class="analytics-loading">
+                            <p>🏆 Chargement du classement...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Status -->
+            <div class="analytics-section">
+                <div class="analytics-header">
+                    <h4>ℹ️ Informations Système</h4>
+                </div>
+                <div class="analytics-content">
+                    <div class="alert alert-info">
+                        <strong>📈 Système Analytics GPS</strong><br>
+                        Les analytics GPS permettent de suivre les performances des livreurs en temps réel.
+                        <br><br>
+                        <strong>🚀 Fonctionnalités disponibles :</strong>
+                        <ul>
+                            <li>📊 Aperçu global des performances</li>
+                            <li>📈 Suivi des performances quotidiennes</li>
+                            <li>📊 Analyse des tendances hebdomadaires</li>
+                            <li>🏆 Classement des livreurs</li>
+                            <li>📋 Export des données en CSV</li>
+                        </ul>
+                        <br>
+                        <strong>⚠️ Note :</strong> Pour utiliser pleinement les analytics, assurez-vous d'avoir :
+                        <ul>
+                            <li>✅ Activé le système GPS</li>
+                            <li>✅ Exécuté le script SQL d'analytics (add_gps_analytics.sql)</li>
+                            <li>✅ Configuré les métriques quotidiennes</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -814,6 +1219,18 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Scripts -->
+    <!-- Chart.js for analytics (local) -->
+    <script src="assets/js/chart.min.js"></script>
+    
+    <!-- Leaflet for interactive maps (local) -->
+    <link rel="stylesheet" href="assets/leaflet/leaflet.css" />
+    <script src="assets/leaflet/leaflet.js"></script>
+    
     <script src="js/main.js"></script>
+    <script src="js/my-performance.js"></script>
+    <script src="js/gps-livreur.js"></script>
+    <script src="js/gps-manager.js"></script>
+    <script src="js/gps-tracking-manager.js"></script>
+    <script src="js/gps-analytics.js"></script>
 </body>
 </html> 

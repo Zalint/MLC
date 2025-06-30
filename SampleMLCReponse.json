@@ -1,0 +1,411 @@
+{
+  "date": "2025-06-04",
+  "seuil_mata": 1500,
+  "seuil_mlc": 1750,
+  "seuil_mata_panier": 10000,
+  "summary": {
+    "total_courses": 40,
+    "total_commandes": 40,
+    "courses_mata": {
+      "total": 17,
+      "par_point_vente": [
+        {
+          "point_de_vente": "Keur Massar",
+          "nombre_courses": 3
+        },
+        {
+          "point_de_vente": "Mbao",
+          "nombre_courses": 7
+        },
+        {
+          "point_de_vente": "O.Foire",
+          "nombre_courses": 7
+        }
+      ],
+      "courses_sup": 5,
+      "panier_inf_seuil": 8
+    },
+    "courses_mlc": {
+      "total": 22,
+      "avec_abonnement": {
+        "total": 8,
+        "nombre_extras": 2
+      },
+      "sans_abonnement": {
+        "total": 14,
+        "par_zone": {
+          "zone1_1750": 6,
+          "zone2_2000": 3,
+          "zone3_3000": 2,
+          "autre": 3
+        }
+      },
+      "courses_sup": 10
+    },
+    "depenses": {
+      "total": 5500,
+      "carburant": 3000,
+      "reparations": 2500,
+      "police": 0,
+      "autres": 0
+    },
+    "km_parcourus": 0
+  },
+  "classement": [
+    {
+      "rang": 1,
+      "livreur_id": "72245ed1-3a85-49b7-8023-018a1aeae950",
+      "livreur_nom": "Aliou",
+      "total_courses": 22,
+      "revenus": 48000,
+      "depenses_totales": 5500,
+      "benefice": 42500
+    },
+    {
+      "rang": 2,
+      "livreur_id": "bad9467f-9dba-4b0f-909c-a65b589fc9b9",
+      "livreur_nom": "Mane",
+      "total_courses": 11,
+      "revenus": 19143,
+      "depenses_totales": 0,
+      "benefice": 19143
+    },
+    {
+      "rang": 3,
+      "livreur_id": "8317e9e3-53cb-415a-a479-ced738112f88",
+      "livreur_nom": "Diallo",
+      "total_courses": 5,
+      "revenus": 9500,
+      "depenses_totales": 0,
+      "benefice": 9500
+    },
+    {
+      "rang": 4,
+      "livreur_id": "f115e333-5064-46de-b4df-d308d8931d01",
+      "livreur_nom": "Diaby",
+      "total_courses": 2,
+      "revenus": 4500,
+      "depenses_totales": 0,
+      "benefice": 4500
+    }
+  ],
+  "details": [
+    {
+      "livreur_id": "72245ed1-3a85-49b7-8023-018a1aeae950",
+      "livreur_nom": "Aliou",
+      "total_courses": 22,
+      "total_commandes": 22,
+      "courses_mata": {
+        "total": 7,
+        "par_point_vente": [
+          {
+            "point_de_vente": "Mbao",
+            "nombre_courses": 3
+          },
+          {
+            "point_de_vente": "Keur Massar",
+            "nombre_courses": 1
+          },
+          {
+            "point_de_vente": "O.Foire",
+            "nombre_courses": 3
+          }
+        ],
+        "courses_sup": 2,
+        "panier_inf_seuil": 3
+      },
+      "courses_mlc": {
+        "total": 14,
+        "avec_abonnement": {
+          "total": 5,
+          "nombre_extras": 1
+        },
+        "sans_abonnement": {
+          "total": 9,
+          "par_zone": {
+            "zone1_1750": 4,
+            "zone2_2000": 1,
+            "zone3_3000": 1,
+            "autre": 3
+          }
+        },
+        "courses_sup": 6
+      },
+      "depenses": {
+        "total": 5500,
+        "carburant": 3000,
+        "reparations": 2500,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 48000,
+      "benefice": 42500
+    },
+    {
+      "livreur_id": "f115e333-5064-46de-b4df-d308d8931d01",
+      "livreur_nom": "Diaby",
+      "total_courses": 2,
+      "total_commandes": 2,
+      "courses_mata": {
+        "total": 1,
+        "par_point_vente": [
+          {
+            "point_de_vente": "Mbao",
+            "nombre_courses": 1
+          }
+        ],
+        "courses_sup": 1,
+        "panier_inf_seuil": 0
+      },
+      "courses_mlc": {
+        "total": 1,
+        "avec_abonnement": {
+          "total": 0,
+          "nombre_extras": 0
+        },
+        "sans_abonnement": {
+          "total": 1,
+          "par_zone": {
+            "zone1_1750": 0,
+            "zone2_2000": 1,
+            "zone3_3000": 0,
+            "autre": 0
+          }
+        },
+        "courses_sup": 1
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 4500,
+      "benefice": 4500
+    },
+    {
+      "livreur_id": "8317e9e3-53cb-415a-a479-ced738112f88",
+      "livreur_nom": "Diallo",
+      "total_courses": 5,
+      "total_commandes": 5,
+      "courses_mata": {
+        "total": 3,
+        "par_point_vente": [
+          {
+            "point_de_vente": "Mbao",
+            "nombre_courses": 1
+          },
+          {
+            "point_de_vente": "O.Foire",
+            "nombre_courses": 1
+          },
+          {
+            "point_de_vente": "Keur Massar",
+            "nombre_courses": 1
+          }
+        ],
+        "courses_sup": 1,
+        "panier_inf_seuil": 1
+      },
+      "courses_mlc": {
+        "total": 2,
+        "avec_abonnement": {
+          "total": 1,
+          "nombre_extras": 0
+        },
+        "sans_abonnement": {
+          "total": 1,
+          "par_zone": {
+            "zone1_1750": 0,
+            "zone2_2000": 0,
+            "zone3_3000": 1,
+            "autre": 0
+          }
+        },
+        "courses_sup": 1
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 9500,
+      "benefice": 9500
+    },
+    {
+      "livreur_id": "ba06da71-0676-43cb-83ba-948930e3ad0a",
+      "livreur_nom": "livreur",
+      "total_courses": 0,
+      "total_commandes": 0,
+      "courses_mata": {
+        "total": 0,
+        "par_point_vente": [],
+        "courses_sup": 0,
+        "panier_inf_seuil": 0
+      },
+      "courses_mlc": {
+        "total": 0,
+        "avec_abonnement": {
+          "total": 0,
+          "nombre_extras": 0
+        },
+        "sans_abonnement": {
+          "total": 0,
+          "par_zone": {
+            "zone1_1750": 0,
+            "zone2_2000": 0,
+            "zone3_3000": 0,
+            "autre": 0
+          }
+        },
+        "courses_sup": 0
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 0,
+      "benefice": 0
+    },
+    {
+      "livreur_id": "c26c82aa-1e69-408e-80a5-b83350d151d3",
+      "livreur_nom": "Livreur 1",
+      "total_courses": 0,
+      "total_commandes": 0,
+      "courses_mata": {
+        "total": 0,
+        "par_point_vente": [],
+        "courses_sup": 0,
+        "panier_inf_seuil": 0
+      },
+      "courses_mlc": {
+        "total": 0,
+        "avec_abonnement": {
+          "total": 0,
+          "nombre_extras": 0
+        },
+        "sans_abonnement": {
+          "total": 0,
+          "par_zone": {
+            "zone1_1750": 0,
+            "zone2_2000": 0,
+            "zone3_3000": 0,
+            "autre": 0
+          }
+        },
+        "courses_sup": 0
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 0,
+      "benefice": 0
+    },
+    {
+      "livreur_id": "bad9467f-9dba-4b0f-909c-a65b589fc9b9",
+      "livreur_nom": "Mane",
+      "total_courses": 11,
+      "total_commandes": 11,
+      "courses_mata": {
+        "total": 6,
+        "par_point_vente": [
+          {
+            "point_de_vente": "O.Foire",
+            "nombre_courses": 3
+          },
+          {
+            "point_de_vente": "Mbao",
+            "nombre_courses": 2
+          },
+          {
+            "point_de_vente": "Keur Massar",
+            "nombre_courses": 1
+          }
+        ],
+        "courses_sup": 1,
+        "panier_inf_seuil": 4
+      },
+      "courses_mlc": {
+        "total": 5,
+        "avec_abonnement": {
+          "total": 2,
+          "nombre_extras": 1
+        },
+        "sans_abonnement": {
+          "total": 3,
+          "par_zone": {
+            "zone1_1750": 2,
+            "zone2_2000": 1,
+            "zone3_3000": 0,
+            "autre": 0
+          }
+        },
+        "courses_sup": 2
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 19143,
+      "benefice": 19143
+    },
+    {
+      "livreur_id": "9a38fb07-4d95-4482-b5f6-4517e1ab33b1",
+      "livreur_nom": "Moussa",
+      "total_courses": 0,
+      "total_commandes": 0,
+      "courses_mata": {
+        "total": 0,
+        "par_point_vente": [],
+        "courses_sup": 0,
+        "panier_inf_seuil": 0
+      },
+      "courses_mlc": {
+        "total": 0,
+        "avec_abonnement": {
+          "total": 0,
+          "nombre_extras": 0
+        },
+        "sans_abonnement": {
+          "total": 0,
+          "par_zone": {
+            "zone1_1750": 0,
+            "zone2_2000": 0,
+            "zone3_3000": 0,
+            "autre": 0
+          }
+        },
+        "courses_sup": 0
+      },
+      "depenses": {
+        "total": 0,
+        "carburant": 0,
+        "reparations": 0,
+        "police": 0,
+        "autres": 0
+      },
+      "km_parcourus": 0,
+      "revenus": 0,
+      "benefice": 0
+    }
+  ]
+}

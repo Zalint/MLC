@@ -294,6 +294,17 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         benefice: livreur.benefice
       }));
 
+    // Correction des totaux du summary basés sur les détails individuels pour assurer la cohérence
+    const correctedSummaryDepenses = {
+      total: processedDetails.reduce((sum, d) => sum + d.depenses.total, 0),
+      carburant: processedDetails.reduce((sum, d) => sum + d.depenses.carburant, 0),
+      reparations: processedDetails.reduce((sum, d) => sum + d.depenses.reparations, 0),
+      police: processedDetails.reduce((sum, d) => sum + d.depenses.police, 0),
+      autres: processedDetails.reduce((sum, d) => sum + d.depenses.autres, 0)
+    };
+
+    const correctedSummaryKm = processedDetails.reduce((sum, d) => sum + d.km_parcourus, 0);
+
     // Construction de la réponse finale
     const response = {
       date: date,
@@ -330,17 +341,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           nombre: parseInt(summary.courses_autre_nombre) || 0,
           prix_total: parseFloat(summary.courses_autre_prix) || 0
         },
-        depenses: {
-          total: (parseFloat(summary.total_carburant) || 0) + 
-                 (parseFloat(summary.total_reparations) || 0) + 
-                 (parseFloat(summary.total_police) || 0) + 
-                 (parseFloat(summary.total_autres) || 0),
-          carburant: parseFloat(summary.total_carburant) || 0,
-          reparations: parseFloat(summary.total_reparations) || 0,
-          police: parseFloat(summary.total_police) || 0,
-          autres: parseFloat(summary.total_autres) || 0
-        },
-        km_parcourus: parseFloat(summary.total_km) || 0
+        depenses: correctedSummaryDepenses,
+        km_parcourus: correctedSummaryKm
       },
       classement: classement,
       details: processedDetails
@@ -675,6 +677,17 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         benefice: livreur.benefice
       }));
 
+    // Correction des totaux du summary basés sur les détails individuels pour assurer la cohérence
+    const correctedSummaryDepenses = {
+      total: processedDetails.reduce((sum, d) => sum + d.depenses.total, 0),
+      carburant: processedDetails.reduce((sum, d) => sum + d.depenses.carburant, 0),
+      reparations: processedDetails.reduce((sum, d) => sum + d.depenses.reparations, 0),
+      police: processedDetails.reduce((sum, d) => sum + d.depenses.police, 0),
+      autres: processedDetails.reduce((sum, d) => sum + d.depenses.autres, 0)
+    };
+
+    const correctedSummaryKm = processedDetails.reduce((sum, d) => sum + d.km_parcourus, 0);
+
     // Construction de la réponse finale
     const response = {
       month: month,
@@ -715,17 +728,8 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
           nombre: parseInt(summary.courses_autre_nombre) || 0,
           prix_total: parseFloat(summary.courses_autre_prix) || 0
         },
-        depenses: {
-          total: (parseFloat(summary.total_carburant) || 0) + 
-                 (parseFloat(summary.total_reparations) || 0) + 
-                 (parseFloat(summary.total_police) || 0) + 
-                 (parseFloat(summary.total_autres) || 0),
-          carburant: parseFloat(summary.total_carburant) || 0,
-          reparations: parseFloat(summary.total_reparations) || 0,
-          police: parseFloat(summary.total_police) || 0,
-          autres: parseFloat(summary.total_autres) || 0
-        },
-        km_parcourus: parseFloat(summary.total_km) || 0
+        depenses: correctedSummaryDepenses,
+        km_parcourus: correctedSummaryKm
       },
       classement: classement,
       details: processedDetails

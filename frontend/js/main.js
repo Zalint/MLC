@@ -3,6 +3,9 @@ const API_BASE_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:4000/api/v1'
   : 'https://matix-livreur-backend.onrender.com/api/v1';
 
+// Make API_BASE_URL available globally
+window.API_BASE_URL = API_BASE_URL;
+
 // État global de l'application
 const AppState = {
   user: null,
@@ -177,12 +180,20 @@ class ModalManager {
   }
 }
 
-// ===== API CLIENT =====
+// ===== API CLIENT WITH RATE LIMITING =====
 class ApiClient {
+  static requestQueue = [];
+  static isProcessingQueue = false;
+  static lastRequestTime = 0;
+  static minRequestInterval = 100; // Minimum 100ms between requests
+  static requestCache = new Map(); // Cache for duplicate requests
+  static cacheTimeout = 5000; // Cache for 5 seconds
+
   static getStoredToken() {
     try {
-      return localStorage.getItem('auth_token');
-    } catch (e) {
+      return localStorage.getItem('token');
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération du token:', error);
       return null;
     }
   }
@@ -190,47 +201,142 @@ class ApiClient {
   static setStoredToken(token) {
     try {
       if (token) {
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem('token', token);
+        console.log('✅ Token stocké avec succès');
       } else {
-        localStorage.removeItem('auth_token');
+        localStorage.removeItem('token');
+        console.log('✅ Token supprimé');
       }
-    } catch (e) {
-      console.warn('Could not store token in localStorage:', e);
+    } catch (error) {
+      console.error('❌ Erreur lors du stockage du token:', error);
     }
   }
 
-  static async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
+  // Queue requests to prevent rate limiting
+  static async queueRequest(requestFn) {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push({ requestFn, resolve, reject });
+      this.processQueue();
+    });
+  }
 
-    // Add Authorization header if we have a stored token (for mobile fallback)
-    const storedToken = this.getStoredToken();
-    if (storedToken) {
-      headers['Authorization'] = `Bearer ${storedToken}`;
+  static async processQueue() {
+    if (this.isProcessingQueue || this.requestQueue.length === 0) {
+      return;
     }
 
-    const config = {
-      credentials: 'include',
-      headers,
-      ...options
-    };
+    this.isProcessingQueue = true;
 
-    try {
-      const response = await fetch(url, config);
+    while (this.requestQueue.length > 0) {
+      const { requestFn, resolve, reject } = this.requestQueue.shift();
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
+      // Ensure minimum interval between requests
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        await new Promise(r => setTimeout(r, this.minRequestInterval - timeSinceLastRequest));
       }
 
-      return await response.json();
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
+      try {
+        const result = await requestFn();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+
+      this.lastRequestTime = Date.now();
     }
+
+    this.isProcessingQueue = false;
+  }
+
+  static async request(endpoint, options = {}) {
+    // Create cache key for GET requests
+    const method = options.method || 'GET';
+    const cacheKey = method === 'GET' ? `${method}:${endpoint}` : null;
+    
+    // Check cache for GET requests
+    if (cacheKey && this.requestCache.has(cacheKey)) {
+      const cached = this.requestCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < this.cacheTimeout) {
+        console.log(`📦 Using cached response for ${endpoint}`);
+        return Promise.resolve(cached.data);
+      } else {
+        this.requestCache.delete(cacheKey);
+      }
+    }
+
+    const requestFn = async () => {
+      const url = `${window.API_BASE_URL}${endpoint}`;
+      const token = this.getStoredToken();
+
+      const config = {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...options.headers
+        },
+        ...options
+      };
+
+      if (config.method !== 'GET' && options.body) {
+        config.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+      }
+
+      console.log(`🌐 API Request: ${config.method} ${url}`);
+      
+      const response = await fetch(url, config);
+      
+      // Handle 429 specifically
+      if (response.status === 429) {
+        console.warn('⚠️ Rate limit hit, waiting before retry...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        
+        // Retry once
+        console.log(`🔄 Retrying: ${config.method} ${url}`);
+        const retryResponse = await fetch(url, config);
+        
+        if (!retryResponse.ok) {
+          const errorText = await retryResponse.text();
+          throw new Error(errorText || `HTTP ${retryResponse.status}`);
+        }
+        
+        const retryData = await retryResponse.json();
+        
+        // Cache successful GET responses
+        if (cacheKey && retryResponse.ok) {
+          this.requestCache.set(cacheKey, {
+            data: retryData,
+            timestamp: Date.now()
+          });
+        }
+        
+        return retryData;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ API Error ${response.status}:`, errorText);
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      
+      // Cache successful GET responses
+      if (cacheKey && response.ok) {
+        this.requestCache.set(cacheKey, {
+          data: responseData,
+          timestamp: Date.now()
+        });
+      }
+
+      return responseData;
+    };
+
+    // Queue the request to prevent rate limiting
+    return this.queueRequest(requestFn);
   }
 
   // Auth endpoints
@@ -502,21 +608,39 @@ class ApiClient {
   static async getActiveSubscriptions() {
     return this.request('/subscriptions/active');
   }
+
+  // GPS Analytics
+  static async getMonthlyGpsSummary(month) {
+    return this.request(`/analytics/gps/monthly-summary?month=${month}`);
+  }
+
+  static async getDailyGpsSummary(month) {
+    return this.request(`/analytics/gps/daily-summary?month=${month}`);
+  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
 class PageManager {
   static showPage(pageId) {
+    console.log('🔄 Changement de page vers:', pageId);
+    
     // Cacher toutes les pages
     document.querySelectorAll('.page').forEach(page => {
       page.classList.remove('active');
+      page.style.display = 'none';
     });
 
     // Afficher la page demandée
     const targetPage = document.getElementById(`${pageId}-page`);
+    console.log('🔄 Page cible trouvée:', !!targetPage, targetPage);
     if (targetPage) {
       targetPage.classList.add('active');
+      // Forcer l'affichage en supprimant le style inline display: none
+      targetPage.style.display = 'block';
       AppState.currentPage = pageId;
+      console.log('🔄 Page activée:', pageId);
+    } else {
+      console.error('❌ Page non trouvée:', `${pageId}-page`);
     }
 
     // Mettre à jour la navigation
@@ -585,6 +709,120 @@ class PageManager {
         case 'livreurs':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await LivreurManager.loadLivreurs();
+          }
+          break;
+        case 'gps-tracking':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            console.log('🗺️ === INITIALISATION PAGE GPS TRACKING ===');
+            console.log('🗺️ Utilisateur:', AppState.user);
+            console.log('🗺️ Rôle:', AppState.user.role);
+            
+            // Vérifier l'état de l'environnement
+            console.log('🌍 État de l\'environnement:', {
+              GpsTrackingManager: typeof window.GpsTrackingManager,
+              Leaflet: typeof L,
+              ApiClient: typeof window.ApiClient,
+              API_BASE_URL: window.API_BASE_URL
+            });
+            
+            // Vérifier les éléments DOM critiques AVANT l'initialisation
+            const gpsMap = document.getElementById('gps-map');
+            const gpsRefreshBtn = document.getElementById('gps-refresh-btn');
+            const gpsContainer = document.querySelector('.gps-container');
+            
+            console.log('🗺️ Éléments DOM GPS avant init:', {
+              'gps-map': {
+                exists: !!gpsMap,
+                dimensions: gpsMap ? {
+                  width: gpsMap.offsetWidth,
+                  height: gpsMap.offsetHeight,
+                  clientWidth: gpsMap.clientWidth,
+                  clientHeight: gpsMap.clientHeight,
+                  scrollWidth: gpsMap.scrollWidth,
+                  scrollHeight: gpsMap.scrollHeight
+                } : null,
+                computedStyle: gpsMap ? {
+                  display: window.getComputedStyle(gpsMap).display,
+                  width: window.getComputedStyle(gpsMap).width,
+                  height: window.getComputedStyle(gpsMap).height,
+                  position: window.getComputedStyle(gpsMap).position
+                } : null
+              },
+              'gps-refresh-btn': !!gpsRefreshBtn,
+              'gps-container': !!gpsContainer
+            });
+            
+            if (window.GpsTrackingManager) {
+              console.log('🗺️ Classe GpsTrackingManager trouvée, début initialisation...');
+              try {
+                await window.GpsTrackingManager.init();
+                console.log('🗺️ === GPS TRACKING INITIALISÉ AVEC SUCCÈS ===');
+                
+                // Vérifier l'état APRÈS l'initialisation
+                setTimeout(() => {
+                  console.log('🗺️ Vérification post-initialisation:', {
+                    mapInitialized: !!window.GpsTrackingManager.map,
+                    mapContainer: gpsMap ? {
+                      finalWidth: gpsMap.offsetWidth,
+                      finalHeight: gpsMap.offsetHeight,
+                      finalDisplay: window.getComputedStyle(gpsMap).display
+                    } : null,
+                    markersCount: Object.keys(window.GpsTrackingManager.markers || {}).length
+                  });
+                }, 1000);
+                
+              } catch (error) {
+                console.error('❌ === ERREUR INITIALISATION GPS TRACKING ===');
+                console.error('❌ Type d\'erreur:', typeof error, error.constructor.name);
+                console.error('❌ Message:', error.message);
+                console.error('❌ Stack trace:', error.stack);
+                console.error('❌ Error object:', error);
+              }
+            } else {
+              console.error('❌ Classe GpsTrackingManager non trouvée!');
+              console.error('❌ Scripts disponibles dans window:', Object.keys(window).filter(key => key.toLowerCase().includes('gps')));
+            }
+          } else {
+            console.log('🗺️ Accès GPS tracking refusé - utilisateur non autorisé');
+            console.log('🗺️ Utilisateur actuel:', AppState.user);
+          }
+          break;
+        case 'gps-analytics':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            console.log('📊 Initialisation GPS Analytics...');
+            console.log('📊 Vérification des dépendances:', {
+              GpsAnalyticsManager: !!window.GpsAnalyticsManager,
+              ApiClient: !!window.ApiClient,
+              ToastManager: !!window.ToastManager
+            });
+            
+            if (window.GpsAnalyticsManager) {
+              console.log('📊 Classe GpsAnalyticsManager trouvée, création d\'une nouvelle instance...');
+              try {
+                window.gpsAnalyticsManager = new window.GpsAnalyticsManager();
+                console.log('📊 Instance créée avec succès:', window.gpsAnalyticsManager);
+              } catch (error) {
+                console.error('❌ Erreur lors de la création de l\'instance GPS Analytics:', error);
+                ToastManager.error('Erreur lors de l\'initialisation des analytics GPS');
+              }
+            } else {
+              console.error('❌ Classe GpsAnalyticsManager non trouvée!');
+              // Essayer de charger après un délai
+              setTimeout(() => {
+                if (window.GpsAnalyticsManager) {
+                  console.log('📊 Classe trouvée après délai, création de l\'instance...');
+                  try {
+                    window.gpsAnalyticsManager = new window.GpsAnalyticsManager();
+                    console.log('📊 Instance créée après délai:', window.gpsAnalyticsManager);
+                  } catch (error) {
+                    console.error('❌ Erreur lors de la création différée:', error);
+                  }
+                } else {
+                  console.error('❌ Classe toujours non trouvée après délai');
+                  ToastManager.error('Erreur: Script GPS Analytics non chargé');
+                }
+              }, 500);
+            }
           }
           break;
         case 'profile':
@@ -727,6 +965,19 @@ class AuthManager {
         navMataMonthlyDashboard.classList.remove('hidden');
         navMataMonthlyDashboard.style.display = 'flex';
       }
+      
+      // Affichage des menus GPS pour managers/admins
+      const navGpsTracking = document.getElementById('nav-gps-tracking');
+      const navGpsAnalytics = document.getElementById('nav-gps-analytics');
+      if (navGpsTracking) {
+        navGpsTracking.classList.remove('hidden');
+        navGpsTracking.style.display = 'flex';
+      }
+      if (navGpsAnalytics) {
+        navGpsAnalytics.classList.remove('hidden');
+        navGpsAnalytics.style.display = 'flex';
+      }
+      
       if (exportExcel) exportExcel.classList.remove('hidden');
       if (statLivreurs) statLivreurs.classList.remove('hidden');
       if (managerSummary) managerSummary.classList.remove('hidden');
@@ -760,6 +1011,45 @@ class AuthManager {
         navMataMonthlyDashboard.classList.add('hidden');
         navMataMonthlyDashboard.style.display = 'none';
       }
+      
+      // Cacher aussi les menus GPS pour non-managers
+      const navGpsTracking = document.getElementById('nav-gps-tracking');
+      const navGpsAnalytics = document.getElementById('nav-gps-analytics');
+      if (navGpsTracking) {
+        navGpsTracking.classList.add('hidden');
+        navGpsTracking.style.display = 'none';
+      }
+      if (navGpsAnalytics) {
+        navGpsAnalytics.classList.add('hidden');
+        navGpsAnalytics.style.display = 'none';
+      }
+      
+      // Afficher "Mes Performances" pour les livreurs
+      const navMyPerformance = document.getElementById('nav-my-performance');
+      if (navMyPerformance && AppState.user.role === 'LIVREUR') {
+        navMyPerformance.classList.remove('hidden');
+        navMyPerformance.style.display = 'flex';
+      } else if (navMyPerformance) {
+        navMyPerformance.classList.add('hidden');
+        navMyPerformance.style.display = 'none';
+      }
+
+      // Afficher l'interface GPS pour les livreurs dans le profil
+      const gpsLivreurSection = document.getElementById('gps-livreur-section');
+      if (gpsLivreurSection && AppState.user.role === 'LIVREUR') {
+        gpsLivreurSection.style.display = 'block';
+        
+        // Initialiser l'interface GPS livreur si ce n'est pas déjà fait
+        setTimeout(() => {
+          if (window.GpsLivreurManager && !window.gpsLivreurManager) {
+            window.gpsLivreurManager = new window.GpsLivreurManager();
+            console.log('📍 Interface GPS livreur initialisée pour', AppState.user.username);
+          }
+        }, 500);
+      } else if (gpsLivreurSection) {
+        gpsLivreurSection.style.display = 'none';
+      }
+      
       if (exportExcel) exportExcel.classList.add('hidden');
       if (statLivreurs) statLivreurs.classList.add('hidden');
       if (managerSummary) managerSummary.classList.add('hidden');
@@ -793,7 +1083,9 @@ class AuthManager {
         'nav-subscriptions',
         'nav-expenses', 
         'nav-monthly-dashboard',
-        'nav-mata-monthly-dashboard'
+        'nav-mata-monthly-dashboard',
+        'nav-gps-tracking',
+        'nav-gps-analytics'
       ];
       
       elementsToCheck.forEach(id => {
@@ -1292,17 +1584,28 @@ class MonthlyDashboardManager {
       // Charger les données mensuelles
       const response = await ApiClient.getMonthlyOrdersSummary(selectedMonth);
       
+      // Charger les données GPS mensuelles (avec gestion d'erreur)
+      let gpsResponse = { data: [] };
+      let dailyGpsResponse = { data: [] };
+      try {
+        gpsResponse = await ApiClient.getMonthlyGpsSummary(selectedMonth);
+        dailyGpsResponse = await ApiClient.getDailyGpsSummary(selectedMonth);
+      } catch (error) {
+        console.warn('Données GPS non disponibles:', error);
+        ToastManager.warning('Les données GPS ne sont pas disponibles pour ce mois');
+      }
+      
       // Mettre à jour les statistiques
       this.updateMonthlyStats(response);
       
       // Afficher la répartition par type de commande pour le mois
       this.displayMonthlyOrdersByType(response.monthlyStatsByType || []);
       
-      // Afficher la répartition par type par livreur
-      this.displayMonthlySummaryByType(response.summary || []);
+      // Afficher la répartition par type par livreur avec données GPS
+      this.displayMonthlySummaryByType(response.summary || [], gpsResponse.data || []);
       
-      // Afficher le tableau détaillé par jour
-      this.displayMonthlyDetailedTable(response.dailyData, response.dailyExpenses, selectedMonth);
+      // Afficher le tableau détaillé par jour avec données GPS
+      this.displayMonthlyDetailedTable(response.dailyData, response.dailyExpenses, selectedMonth, dailyGpsResponse.data || []);
       
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord mensuel:', error);
@@ -1342,7 +1645,7 @@ class MonthlyDashboardManager {
     }
   }
 
-  static displayMonthlyDetailedTable(dailyData, dailyExpenses, month) {
+  static displayMonthlyDetailedTable(dailyData, dailyExpenses, month, dailyGpsData = []) {
     const container = document.getElementById('monthly-summary-table-container');
     
     if (!dailyData || dailyData.length === 0) {
@@ -1357,6 +1660,7 @@ class MonthlyDashboardManager {
     // Créer des maps pour un accès rapide aux données
     const ordersMap = {};
     const expensesMap = {};
+    const gpsMap = {};
 
     dailyData.forEach(item => {
       const key = `${item.date}_${item.livreur}`;
@@ -1366,6 +1670,18 @@ class MonthlyDashboardManager {
     dailyExpenses.forEach(item => {
       const key = `${item.date}_${item.livreur}`;
       expensesMap[key] = item;
+    });
+
+    dailyGpsData.forEach(item => {
+      // Convertir la date au format YYYY-MM-DD pour correspondre au format des autres données
+      const gpsDate = new Date(item.tracking_date);
+      // Utiliser la date locale pour éviter les problèmes de timezone
+      const year = gpsDate.getFullYear();
+      const month = String(gpsDate.getMonth() + 1).padStart(2, '0');
+      const day = String(gpsDate.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      const key = `${formattedDate}_${item.livreur_username}`;
+      gpsMap[key] = item;
     });
 
     // Créer les en-têtes du tableau (structure verticale)
@@ -1380,6 +1696,7 @@ class MonthlyDashboardManager {
       <th class="sub-header">Autres</th>
       <th class="sub-header">Total Dép.</th>
       <th class="sub-header">Km</th>
+      <th class="sub-header">GPS Km</th>
       <th class="sub-header">Bénéfice</th>
     `;
 
@@ -1394,9 +1711,11 @@ class MonthlyDashboardManager {
       livreurs.forEach(livreur => {
         const orderKey = `${date}_${livreur}`;
         const expenseKey = `${date}_${livreur}`;
+        const gpsKey = `${date}_${livreur}`;
         
         const orderData = ordersMap[orderKey] || { nombre_commandes: 0, total_montant: 0 };
         const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
+        const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
         
         const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
         const benefice = (orderData.total_montant || 0) - totalDepenses;
@@ -1413,6 +1732,7 @@ class MonthlyDashboardManager {
             <td class="data-cell">${expenseData.autres ? Utils.formatAmount(expenseData.autres).replace(' FCFA', '') : '0'}</td>
             <td class="data-cell total-depenses">${totalDepenses ? Utils.formatAmount(totalDepenses).replace(' FCFA', '') : '0'}</td>
             <td class="data-cell">${expenseData.km_parcourus || 0}</td>
+            <td class="data-cell gps-km-cell">${gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : '0'}</td>
             <td class="data-cell benefice ${benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(benefice).replace(' FCFA', '')}</td>
           </tr>
         `;
@@ -1433,6 +1753,9 @@ class MonthlyDashboardManager {
       const totalAutres = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.autres || 0), 0);
       const totalDepensesLivreur = totalCarburant + totalReparations + totalPolice + totalAutres;
       const totalKm = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.km_parcourus || 0), 0);
+      const totalGpsKm = dailyGpsData
+        .filter(item => item.livreur_username === livreur)
+        .reduce((sum, item) => sum + parseFloat(item.total_distance_km || 0), 0);
       const totalBenefice = totalMontant - totalDepensesLivreur;
       
       totalRows += `
@@ -1447,6 +1770,7 @@ class MonthlyDashboardManager {
           <td class="total-cell"><strong>${totalAutres ? Utils.formatAmount(totalAutres).replace(' FCFA', '') : '0'}</strong></td>
           <td class="total-cell total-depenses"><strong>${totalDepensesLivreur ? Utils.formatAmount(totalDepensesLivreur).replace(' FCFA', '') : '0'}</strong></td>
           <td class="total-cell"><strong>${totalKm}</strong></td>
+          <td class="total-cell gps-total-cell"><strong>${Math.round(totalGpsKm * 100) / 100}</strong></td>
           <td class="total-cell benefice ${totalBenefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}"><strong>${Utils.formatAmount(totalBenefice).replace(' FCFA', '')}</strong></td>
         </tr>
       `;
@@ -1570,6 +1894,17 @@ class MonthlyDashboardManager {
         .livreur-cell {
           border-right: 2px solid #009E60;
         }
+        /* Styles pour la colonne GPS */
+        .gps-km-cell {
+          background-color: #e8f5e8 !important;
+          color: #2b6cb0;
+          font-weight: bold;
+        }
+        .gps-total-cell {
+          background-color: #d4edda !important;
+          color: #155724;
+          font-weight: bold;
+        }
       </style>
     `;
 
@@ -1605,7 +1940,7 @@ class MonthlyDashboardManager {
     }).join('');
   }
 
-  static displayMonthlySummaryByType(summary) {
+  static displayMonthlySummaryByType(summary, gpsData = []) {
     const container = document.getElementById('monthly-summary-by-type-container');
     
     if (summary.length === 0) {
@@ -1613,10 +1948,17 @@ class MonthlyDashboardManager {
       return;
     }
 
-    // Calculer le bénéfice pour chaque livreur
+    // Créer un map des données GPS par nom de livreur
+    const gpsMap = {};
+    gpsData.forEach(gps => {
+      gpsMap[gps.livreur_username] = gps;
+    });
+
+    // Calculer le bénéfice pour chaque livreur et ajouter les données GPS
     const enrichedSummary = summary.map(item => ({
       ...item,
-      benefice: (parseFloat(item.total_montant) || 0) - (parseFloat(item.total_depenses) || 0)
+      benefice: (parseFloat(item.total_montant) || 0) - (parseFloat(item.total_depenses) || 0),
+      gpsData: gpsMap[item.livreur] || null
     }));
 
     container.innerHTML = `
@@ -1631,6 +1973,7 @@ class MonthlyDashboardManager {
               <th>📦 MLC simple</th>
               <th>🎫 MLC abonnement</th>
               <th>📋 AUTRE</th>
+              <th>Distance GPS (km)</th>
               <th>Dépenses</th>
               <th>Bénéfice</th>
             </tr>
@@ -1654,6 +1997,9 @@ class MonthlyDashboardManager {
                   </td>
                   <td class="stats-cell">
                     ${statsByType.AUTRE ? `<span class="count">${statsByType.AUTRE.count}</span><br><span class="amount">${Utils.formatAmount(statsByType.AUTRE.total_amount)}</span>` : '<span class="no-data">-</span>'}
+                  </td>
+                  <td class="gps-distance-cell">
+                    ${item.gpsData ? `<span class="gps-distance">📍 ${Math.round(item.gpsData.total_distance_km * 100) / 100}</span>` : '<span class="no-gps-data">-</span>'}
                   </td>
                   <td>${Utils.formatAmount(item.total_depenses)}</td>
                   <td class="benefice ${item.benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(item.benefice)}</td>
@@ -1690,6 +2036,19 @@ class MonthlyDashboardManager {
           background-color: #f8d7da !important;
           color: #721c24;
           font-weight: bold;
+        }
+        .gps-distance-cell {
+          text-align: center;
+          vertical-align: middle;
+        }
+        .gps-distance {
+          font-weight: bold;
+          color: #2b6cb0;
+          font-size: 1.1em;
+        }
+        .no-gps-data {
+          color: #999;
+          font-style: italic;
         }
       </style>
     `;
@@ -4499,6 +4858,30 @@ class ProfileManager {
       roleElement.className = `role-badge ${user.role}`;
       document.getElementById('profile-created').textContent = Utils.formatDate(user.created_at);
 
+      // Initialiser l'interface GPS pour les livreurs
+      if (user.role === 'LIVREUR') {
+        const gpsLivreurSection = document.getElementById('gps-livreur-section');
+        if (gpsLivreurSection) {
+          gpsLivreurSection.style.display = 'block';
+          
+          // Attendre un peu pour que le DOM soit prêt
+          setTimeout(() => {
+            if (window.GpsLivreurManager && !window.gpsLivreurManager) {
+              try {
+                window.gpsLivreurManager = new window.GpsLivreurManager();
+                console.log('📍 Interface GPS livreur initialisée depuis le profil pour', user.username);
+              } catch (error) {
+                console.error('❌ Erreur initialisation GPS livreur:', error);
+              }
+            } else if (window.gpsLivreurManager) {
+              console.log('📍 Interface GPS livreur déjà initialisée');
+            } else {
+              console.log('⚠️ GpsLivreurManager non disponible');
+            }
+          }, 1000);
+        }
+      }
+
     } catch (error) {
       console.error('Erreur lors du chargement du profil:', error);
       ToastManager.error('Erreur lors du chargement du profil');
@@ -4604,6 +4987,15 @@ class App {
   static async init() {
     this.setupEventListeners();
     await AuthManager.init();
+    
+    // Initialiser le système GPS si l'utilisateur est connecté
+    if (AppState.user) {
+      setTimeout(() => {
+        if (typeof GpsManager !== 'undefined') {
+          GpsManager.init();
+        }
+      }, 1000);
+    }
   }
 
   static setupEventListeners() {
@@ -5032,10 +5424,31 @@ class App {
       LivreurManager.loadLivreurs(true);
     });
 
-    // Bouton changement de mot de passe
-    document.getElementById('change-password-btn').addEventListener('click', () => {
-      ProfileManager.showChangePasswordModal();
+    // Gestion des onglets de profil
+    const profileTabs = document.querySelectorAll('.profile-tab');
+    const profileTabContents = document.querySelectorAll('.profile-tab-content');
+    
+    profileTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+        
+        // Retirer la classe active de tous les onglets
+        profileTabs.forEach(t => t.classList.remove('active'));
+        profileTabContents.forEach(content => content.classList.remove('active'));
+        
+        // Ajouter la classe active à l'onglet cliqué
+        tab.classList.add('active');
+        document.getElementById(`profile-tab-${targetTab}`).classList.add('active');
+      });
     });
+
+    // Bouton changement de mot de passe (uniquement dans l'onglet sécurité)
+    const changePasswordButton = document.getElementById('change-password-btn-main');
+    if (changePasswordButton) {
+      changePasswordButton.addEventListener('click', () => {
+        ProfileManager.showChangePasswordModal();
+      });
+    }
 
     document.getElementById('change-password-link').addEventListener('click', () => {
       ProfileManager.showChangePasswordModal();
@@ -5227,6 +5640,15 @@ window.OrderManager = OrderManager;
 window.UserManager = UserManager;
 window.LivreurManager = LivreurManager;
 window.ExpenseManager = ExpenseManager;
+window.ApiClient = ApiClient;
+
+// Créer un objet apiClient compatible avec l'ancienne syntaxe
+window.apiClient = {
+  get: (url) => ApiClient.request(url),
+  post: (url, data) => ApiClient.request(url, { method: 'POST', body: JSON.stringify(data) }),
+  put: (url, data) => ApiClient.request(url, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (url) => ApiClient.request(url, { method: 'DELETE' })
+};
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
