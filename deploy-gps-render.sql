@@ -4,11 +4,12 @@
 -- Script complet pour déployer le système GPS
 -- =====================================================
 
-\echo '🚀 Début du déploiement GPS sur Render...'
+-- 🚀 DÉBUT DU DÉPLOIEMENT GPS SUR RENDER
+SELECT '🚀 Début du déploiement GPS sur Render...' as deployment_start;
 
 -- 1. EXTENSION UUID (requis pour les clés primaires)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-\echo '✅ Extension UUID activée'
+SELECT '✅ Extension UUID activée' as step_1_complete;
 
 -- 2. FONCTION DE CALCUL GPS (Haversine)
 CREATE OR REPLACE FUNCTION calculate_gps_distance(
@@ -38,7 +39,7 @@ BEGIN
     RETURN R * c; -- Distance en mètres
 END;
 $$ LANGUAGE plpgsql;
-\echo '✅ Fonction calculate_gps_distance créée'
+SELECT '✅ Fonction calculate_gps_distance créée' as step_2_complete;
 
 -- 3. TABLE DES POSITIONS GPS
 CREATE TABLE IF NOT EXISTS gps_locations (
@@ -53,7 +54,7 @@ CREATE TABLE IF NOT EXISTS gps_locations (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-\echo '✅ Table gps_locations créée'
+SELECT '✅ Table gps_locations créée' as step_3_complete;
 
 -- 4. TABLE DES PARAMÈTRES GPS
 CREATE TABLE IF NOT EXISTS gps_settings (
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS gps_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-\echo '✅ Table gps_settings créée'
+SELECT '✅ Table gps_settings créée' as step_4_complete;
 
 -- 5. TABLE DES MÉTRIQUES QUOTIDIENNES
 CREATE TABLE IF NOT EXISTS gps_daily_metrics (
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS gps_daily_metrics (
     
     UNIQUE(livreur_id, tracking_date)
 );
-\echo '✅ Table gps_daily_metrics créée'
+SELECT '✅ Table gps_daily_metrics créée' as step_5_complete;
 
 -- 6. INDEX POUR PERFORMANCES
 CREATE INDEX IF NOT EXISTS idx_gps_locations_livreur_id ON gps_locations(livreur_id);
@@ -99,7 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_gps_settings_enabled ON gps_settings(tracking_ena
 
 CREATE INDEX IF NOT EXISTS idx_gps_daily_metrics_livreur_date ON gps_daily_metrics(livreur_id, tracking_date);
 CREATE INDEX IF NOT EXISTS idx_gps_daily_metrics_date ON gps_daily_metrics(tracking_date);
-\echo '✅ Index créés'
+SELECT '✅ Index créés' as step_6_complete;
 
 -- 7. VUE DES DERNIÈRES POSITIONS
 CREATE OR REPLACE VIEW latest_gps_positions AS
@@ -121,7 +122,7 @@ JOIN users u ON gl.livreur_id = u.id
 LEFT JOIN gps_settings gs ON gl.livreur_id = gs.livreur_id
 WHERE u.role = 'LIVREUR' AND u.is_active = true
 ORDER BY gl.livreur_id, gl.timestamp DESC;
-\echo '✅ Vue latest_gps_positions créée'
+SELECT '✅ Vue latest_gps_positions créée' as step_7_complete;
 
 -- 8. VUE DES PERFORMANCES QUOTIDIENNES
 CREATE OR REPLACE VIEW gps_daily_performance AS
@@ -146,7 +147,7 @@ SELECT
 FROM gps_daily_metrics gdm
 JOIN users u ON gdm.livreur_id = u.id
 WHERE u.role = 'LIVREUR' AND u.is_active = true;
-\echo '✅ Vue gps_daily_performance créée'
+SELECT '✅ Vue gps_daily_performance créée' as step_8_complete;
 
 -- 9. FONCTION DE CALCUL DES MÉTRIQUES QUOTIDIENNES
 CREATE OR REPLACE FUNCTION calculate_daily_metrics(target_date DATE DEFAULT CURRENT_DATE)
@@ -241,7 +242,7 @@ BEGIN
     RETURN total_processed;
 END;
 $$ LANGUAGE plpgsql;
-\echo '✅ Fonction calculate_daily_metrics créée'
+SELECT '✅ Fonction calculate_daily_metrics créée' as step_9_complete;
 
 -- 10. FONCTION DE NETTOYAGE
 CREATE OR REPLACE FUNCTION cleanup_old_gps_data()
@@ -257,7 +258,7 @@ BEGIN
     RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql;
-\echo '✅ Fonction cleanup_old_gps_data créée'
+SELECT '✅ Fonction cleanup_old_gps_data créée' as step_10_complete;
 
 -- 11. INITIALISATION DES PARAMÈTRES GPS POUR TOUS LES LIVREURS
 INSERT INTO gps_settings (livreur_id, tracking_enabled, tracking_interval)
@@ -269,10 +270,10 @@ WHERE role = 'LIVREUR'
     SELECT livreur_id FROM gps_settings 
     WHERE livreur_id IS NOT NULL
   );
-\echo '✅ Paramètres GPS initialisés pour tous les livreurs'
+SELECT '✅ Paramètres GPS initialisés pour tous les livreurs' as step_11_complete;
 
 -- 12. VÉRIFICATIONS FINALES
-\echo '🔍 Vérifications finales...'
+SELECT '🔍 Vérifications finales...' as step_12_start;
 
 -- Compter les tables créées
 SELECT 
@@ -295,9 +296,9 @@ WHERE u.role = 'LIVREUR' AND u.is_active = true;
 -- Tester la fonction GPS
 SELECT calculate_gps_distance(14.6928, -17.4467, 14.7028, -17.4567) as test_distance_meters;
 
-\echo '🎉 Déploiement GPS terminé avec succès!'
-\echo 'Prochaines étapes:'
-\echo '1. Vérifier que les routes GPS sont actives dans app.js'
-\echo '2. Uploader les assets Leaflet dans frontend/assets/'
-\echo '3. Tester les endpoints GPS'
-\echo '4. Activer le suivi pour les livreurs souhaités' 
+SELECT '🎉 Déploiement GPS terminé avec succès!' as deployment_complete;
+SELECT 'Prochaines étapes:' as next_steps_title;
+SELECT '1. Vérifier que les routes GPS sont actives dans app.js' as next_step_1;
+SELECT '2. Uploader les assets Leaflet dans frontend/assets/' as next_step_2;
+SELECT '3. Tester les endpoints GPS' as next_step_3;
+SELECT '4. Activer le suivi pour les livreurs souhaités' as next_step_4; 

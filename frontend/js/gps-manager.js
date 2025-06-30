@@ -521,3 +521,4 @@ ApiClient.getGpsStats = async function() {
 ApiClient.getOfflineLivreurs = async function(minutes = 5) {
   return this.request(`/gps/offline?minutes=${minutes}`);
 };
+ 

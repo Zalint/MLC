@@ -4,10 +4,13 @@
 -- À exécuter après le déploiement pour vérifier que tout fonctionne
 -- =====================================================
 
-\echo '🔍 === VÉRIFICATION DU DÉPLOIEMENT GPS ==='
+-- =====================================================
+-- 🔍 VÉRIFICATION DU DÉPLOIEMENT GPS
+-- =====================================================
 
 -- 1. VÉRIFIER LES EXTENSIONS
-\echo '1. Vérification des extensions...'
+SELECT '🔍 === VÉRIFICATION DU DÉPLOIEMENT GPS ===' as verification_start;
+SELECT '1. Vérification des extensions...' as step_1;
 SELECT 
     extname as extension_name,
     extversion as version
@@ -15,7 +18,7 @@ FROM pg_extension
 WHERE extname = 'uuid-ossp';
 
 -- 2. VÉRIFIER LES TABLES GPS
-\echo '2. Vérification des tables GPS...'
+SELECT '2. Vérification des tables GPS...' as step_2;
 SELECT 
     table_name,
     table_type
@@ -25,7 +28,7 @@ WHERE table_schema = 'public'
 ORDER BY table_name;
 
 -- 3. VÉRIFIER LES FONCTIONS GPS
-\echo '3. Vérification des fonctions GPS...'
+SELECT '3. Vérification des fonctions GPS...' as step_3;
 SELECT 
     proname as function_name,
     pronargs as nb_arguments
@@ -33,13 +36,13 @@ FROM pg_proc
 WHERE proname IN ('calculate_gps_distance', 'calculate_daily_metrics', 'cleanup_old_gps_data');
 
 -- 4. TESTER LA FONCTION DE CALCUL GPS
-\echo '4. Test de la fonction de calcul GPS...'
+SELECT '4. Test de la fonction de calcul GPS...' as step_4;
 SELECT 
     calculate_gps_distance(14.6928, -17.4467, 14.7028, -17.4567) as distance_meters,
     ROUND(calculate_gps_distance(14.6928, -17.4467, 14.7028, -17.4567) / 1000.0, 2) as distance_km;
 
 -- 5. VÉRIFIER LES INDEX
-\echo '5. Vérification des index GPS...'
+SELECT '5. Vérification des index GPS...' as step_5;
 SELECT 
     schemaname,
     tablename,
@@ -49,7 +52,7 @@ WHERE tablename LIKE 'gps_%'
 ORDER BY tablename, indexname;
 
 -- 6. VÉRIFIER LES VUES
-\echo '6. Vérification des vues GPS...'
+SELECT '6. Vérification des vues GPS...' as step_6;
 SELECT 
     viewname,
     definition IS NOT NULL as has_definition
@@ -58,7 +61,7 @@ WHERE viewname LIKE '%gps%' OR viewname LIKE '%position%'
 ORDER BY viewname;
 
 -- 7. VÉRIFIER LES LIVREURS ET LEURS PARAMÈTRES GPS
-\echo '7. État des paramètres GPS des livreurs...'
+SELECT '7. État des paramètres GPS des livreurs...' as step_7;
 SELECT 
     u.username,
     u.role,
@@ -72,7 +75,7 @@ WHERE u.role = 'LIVREUR'
 ORDER BY u.username;
 
 -- 8. STATISTIQUES DES DONNÉES GPS
-\echo '8. Statistiques des données GPS...'
+SELECT '8. Statistiques des données GPS...' as step_8;
 SELECT 
     'gps_locations' as table_name,
     COUNT(*) as total_records,
@@ -98,7 +101,7 @@ SELECT
 FROM gps_daily_metrics;
 
 -- 9. VÉRIFIER QUE TOUS LES LIVREURS ONT DES PARAMÈTRES GPS
-\echo '9. Livreurs sans paramètres GPS...'
+SELECT '9. Livreurs sans paramètres GPS...' as step_9;
 SELECT 
     u.username,
     u.id
@@ -108,11 +111,11 @@ WHERE u.role = 'LIVREUR'
   AND u.id NOT IN (SELECT livreur_id FROM gps_settings WHERE livreur_id IS NOT NULL);
 
 -- 10. TEST DU CALCUL DES MÉTRIQUES
-\echo '10. Test du calcul des métriques quotidiennes...'
+SELECT '10. Test du calcul des métriques quotidiennes...' as step_10;
 SELECT calculate_daily_metrics(CURRENT_DATE) as livreurs_processed;
 
 -- 11. VÉRIFIER LES CONTRAINTES ET CLÉS ÉTRANGÈRES
-\echo '11. Vérification des contraintes...'
+SELECT '11. Vérification des contraintes...' as step_11;
 SELECT 
     tc.table_name,
     tc.constraint_name,
@@ -123,7 +126,7 @@ WHERE tc.table_name LIKE 'gps_%'
 ORDER BY tc.table_name, tc.constraint_type;
 
 -- 12. RÉSUMÉ FINAL
-\echo '12. === RÉSUMÉ FINAL ==='
+SELECT '12. === RÉSUMÉ FINAL ===' as step_12;
 
 WITH verification_summary AS (
     SELECT 
@@ -143,16 +146,17 @@ SELECT
 FROM verification_summary;
 
 -- 13. RECOMMANDATIONS
-\echo '13. === RECOMMANDATIONS ==='
-\echo 'Si tout est OK :'
-\echo '✅ 3 tables GPS créées'
-\echo '✅ 2 fonctions GPS fonctionnelles'  
-\echo '✅ Tous les livreurs ont des paramètres GPS'
-\echo ''
-\echo 'Prochaines étapes :'
-\echo '1. Tester les endpoints API GPS'
-\echo '2. Vérifier l''interface frontend'
-\echo '3. Activer le GPS pour les livreurs souhaités'
-\echo '4. Tester l''enregistrement de positions GPS'
+SELECT '13. === RECOMMANDATIONS ===' as step_13;
 
-\echo '🎉 Vérification terminée!' 
+SELECT 'Si tout est OK :' as recommendations_title;
+SELECT '✅ 3 tables GPS créées' as check_1;
+SELECT '✅ 2 fonctions GPS fonctionnelles' as check_2;
+SELECT '✅ Tous les livreurs ont des paramètres GPS' as check_3;
+
+SELECT 'Prochaines étapes :' as next_steps_title;
+SELECT '1. Tester les endpoints API GPS' as next_step_1;
+SELECT '2. Vérifier l''interface frontend' as next_step_2;
+SELECT '3. Activer le GPS pour les livreurs souhaités' as next_step_3;
+SELECT '4. Tester l''enregistrement de positions GPS' as next_step_4;
+
+SELECT '🎉 Vérification terminée!' as verification_complete; 
