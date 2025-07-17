@@ -63,6 +63,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           COUNT(*) as total_courses,
           COUNT(DISTINCT o.id) as total_commandes,
           SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
+          SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout du montant total MATA
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
           SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -130,7 +131,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       CROSS JOIN expense_stats es
       LEFT JOIN mlc_extras_stats mes ON true
       LEFT JOIN mata_point_vente_stats mpvs ON true
-      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, 
+      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, os.total_amount_mata,
                os.courses_mlc_avec_abonnement, os.courses_mlc_sans_abonnement,
                os.courses_mata_sup, os.courses_mlc_sup, os.courses_mata_panier_inf_seuil,
                os.courses_autre_nombre, os.courses_autre_prix,
@@ -146,6 +147,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         COUNT(o.id) as total_courses,
         COUNT(DISTINCT o.id) as total_commandes,
         SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
+        SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout du montant total MATA par livreur
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
         SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -242,6 +244,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         total_commandes: parseInt(livreur.total_commandes) || 0,
         courses_mata: {
           total: parseInt(livreur.courses_mata) || 0,
+          panier_moyen: (parseInt(livreur.courses_mata) > 0) ? (parseFloat(livreur.total_amount_mata) / parseInt(livreur.courses_mata)) : 0,
           par_point_vente: mataParPointVente,
           courses_sup: parseInt(livreur.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(livreur.courses_mata_panier_inf_seuil) || 0
@@ -316,6 +319,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         total_commandes: parseInt(summary.total_commandes) || 0,
         courses_mata: {
           total: parseInt(summary.courses_mata) || 0,
+          panier_moyen: (parseInt(summary.courses_mata) > 0) ? (parseFloat(summary.total_amount_mata) / parseInt(summary.courses_mata)) : 0,
           par_point_vente: summary.mata_par_point_vente || [],
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
@@ -446,6 +450,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
           COUNT(*) as total_courses,
           COUNT(DISTINCT o.id) as total_commandes,
           SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
+          SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
           SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $3 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -513,7 +518,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
       CROSS JOIN expense_stats es
       LEFT JOIN mlc_extras_stats mes ON true
       LEFT JOIN mata_point_vente_stats mpvs ON true
-      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, 
+      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, os.total_amount_mata,
                os.courses_mlc_avec_abonnement, os.courses_mlc_sans_abonnement,
                os.courses_mata_sup, os.courses_mlc_sup, os.courses_mata_panier_inf_seuil,
                os.courses_autre_nombre, os.courses_autre_prix,
@@ -529,6 +534,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         COUNT(o.id) as total_courses,
         COUNT(DISTINCT o.id) as total_commandes,
         SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
+        SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
         SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $3 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -625,6 +631,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         total_commandes: parseInt(livreur.total_commandes) || 0,
         courses_mata: {
           total: parseInt(livreur.courses_mata) || 0,
+          panier_moyen: (parseInt(livreur.courses_mata) > 0) ? (parseFloat(livreur.total_amount_mata) / parseInt(livreur.courses_mata)) : 0,
           par_point_vente: mataParPointVente,
           courses_sup: parseInt(livreur.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(livreur.courses_mata_panier_inf_seuil) || 0
@@ -703,6 +710,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         total_commandes: parseInt(summary.total_commandes) || 0,
         courses_mata: {
           total: parseInt(summary.courses_mata) || 0,
+          panier_moyen: (parseInt(summary.courses_mata) > 0) ? (parseFloat(summary.total_amount_mata) / parseInt(summary.courses_mata)) : 0,
           par_point_vente: summary.mata_par_point_vente || [],
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
