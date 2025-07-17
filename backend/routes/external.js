@@ -245,6 +245,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         courses_mata: {
           total: parseInt(livreur.courses_mata) || 0,
           panier_moyen: (parseInt(livreur.courses_mata) > 0) ? (parseFloat(livreur.total_amount_mata) / parseInt(livreur.courses_mata)) : 0,
+          panier_total_jour: parseFloat(livreur.total_amount_mata) || 0,
           par_point_vente: mataParPointVente,
           courses_sup: parseInt(livreur.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(livreur.courses_mata_panier_inf_seuil) || 0
@@ -320,6 +321,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         courses_mata: {
           total: parseInt(summary.courses_mata) || 0,
           panier_moyen: (parseInt(summary.courses_mata) > 0) ? (parseFloat(summary.total_amount_mata) / parseInt(summary.courses_mata)) : 0,
+          panier_total_jour: parseFloat(summary.total_amount_mata) || 0,
           par_point_vente: summary.mata_par_point_vente || [],
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
@@ -632,6 +634,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         courses_mata: {
           total: parseInt(livreur.courses_mata) || 0,
           panier_moyen: (parseInt(livreur.courses_mata) > 0) ? (parseFloat(livreur.total_amount_mata) / parseInt(livreur.courses_mata)) : 0,
+          panier_total_jour: parseFloat(livreur.total_amount_mata) || 0,
           par_point_vente: mataParPointVente,
           courses_sup: parseInt(livreur.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(livreur.courses_mata_panier_inf_seuil) || 0
@@ -711,6 +714,7 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         courses_mata: {
           total: parseInt(summary.courses_mata) || 0,
           panier_moyen: (parseInt(summary.courses_mata) > 0) ? (parseFloat(summary.total_amount_mata) / parseInt(summary.courses_mata)) : 0,
+          panier_total_jour: parseFloat(summary.total_amount_mata) || 0,
           par_point_vente: summary.mata_par_point_vente || [],
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
