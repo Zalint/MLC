@@ -157,7 +157,9 @@ const validateOrderCreation = [
   body('point_de_vente')
     .if(body('order_type').equals('MATA'))
     .notEmpty().withMessage('Le point de vente est obligatoire pour MATA')
-    .isIn(['O.Foire', 'Mbao', 'Keur Massar']).withMessage('Point de vente invalide'),
+    .isIn(['O.Foire', 'Mbao', 'Keur Massar', 'Sacre Coeur']).withMessage('Point de vente invalide'),
+  
+  body('items.*.description').trim().notEmpty().withMessage('La description de l\'article ne peut pas être vide.'),
   
   handleValidationErrors
 ];

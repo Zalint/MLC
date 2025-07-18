@@ -3247,6 +3247,7 @@ class OrderManager {
               <option value="O.Foire" ${order.point_de_vente === 'O.Foire' ? 'selected' : ''}>O.Foire</option>
               <option value="Mbao" ${order.point_de_vente === 'Mbao' ? 'selected' : ''}>Mbao</option>
               <option value="Keur Massar" ${order.point_de_vente === 'Keur Massar' ? 'selected' : ''}>Keur Massar</option>
+               <option value="Keur Massar" ${order.point_de_vente === 'Sacre Coeur' ? 'selected' : ''}>Sacre Coeur</option>
             </select>
           </div>
           <div class="form-group" id="edit-description-group">
