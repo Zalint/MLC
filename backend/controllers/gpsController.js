@@ -155,13 +155,13 @@ class GpsController {
       await db.query(upsertQuery, [
         livreur_id,
         today,
-        metrics.total_distance_km,
-        metrics.total_time_minutes,
-        metrics.total_time_minutes * 0.8, // Estimation du temps actif
-        metrics.average_speed_kmh,
-        metrics.max_speed_kmh,
-        metrics.fuel_efficiency_score,
-        metrics.route_efficiency_score
+        parseFloat(metrics.total_distance_km),
+        Math.round(parseFloat(metrics.total_time_minutes)), // Convert to integer
+        Math.round(parseFloat(metrics.total_time_minutes) * 0.8), // Convert to integer
+        parseFloat(metrics.average_speed_kmh),
+        parseFloat(metrics.max_speed_kmh),
+        parseFloat(metrics.fuel_efficiency_score),
+        parseFloat(metrics.route_efficiency_score)
       ]);
 
       console.log(`✅ Métriques mises à jour pour le livreur ${livreur_id} - ${today}`);
