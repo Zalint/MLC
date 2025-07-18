@@ -16,6 +16,7 @@ SALIOU    - Manager123!
 OUSMANE   - Manager123!
 DIDI      - Manager123!
 AMARY     - Manager123!
+Password123
 ```
 
 ## 📍 Comment accéder à la fonctionnalité

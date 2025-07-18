@@ -1,0 +1,50 @@
+# Configuration Render pour Nettoyage GPS Avancé
+services:
+  # Votre application principale (existante)
+  # - type: web
+  #   name: matix-livreur
+  #   ...
+
+  # NOUVEAU: Nettoyage GPS quotidien (version améliorée)
+  - type: cron
+    name: gps-cleanup-advanced
+    runtime: node
+    schedule: '0 2 * * *'           # 02:00 UTC tous les jours
+    buildCommand: 'npm ci'
+    startCommand: 'node scripts/cleanup-gps-advanced.js'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mlc-db              # Nom de votre base
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      
+      # === CONFIGURATION GPS CLEANUP ===
+      - key: GPS_RETENTION_DAYS
+        value: '7'                  # Conserver 7 jours (au lieu de 3)
+      - key: GPS_ARCHIVE_ENABLED
+        value: 'true'              # Activer l'archivage
+      - key: GPS_ARCHIVE_DAYS
+        value: '30'                # Archive pendant 30 jours
+      - key: VACUUM_THRESHOLD
+        value: '1000'              # Optimiser si > 1000 suppressions
+      - key: DRY_RUN
+        value: 'false'             # Mode production (true = test)
+      # - key: CLEANUP_WEBHOOK_URL
+      #   value: 'https://hooks.slack.com/...'  # Optionnel: notifications
+
+  # OPTIONNEL: Nettoyage archive mensuel
+  - type: cron
+    name: gps-archive-cleanup
+    runtime: node
+    schedule: '0 1 1 * *'          # 1er du mois à 01:00
+    buildCommand: 'npm ci'
+    startCommand: 'node scripts/cleanup-archive.js'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mlc-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production 

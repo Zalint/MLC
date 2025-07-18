@@ -19,6 +19,16 @@ class GpsController {
         });
       }
 
+      // NOUVEAU: Vérifier les heures de tracking configurées
+      const trackingAllowed = await isTrackingAllowed(livreur_id);
+      if (!trackingAllowed) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tracking GPS non autorisé en dehors des heures configurées',
+          code: 'TRACKING_HOURS_RESTRICTED'
+        });
+      }
+
       // Valider les données GPS
       if (!latitude || !longitude) {
         return res.status(400).json({
@@ -504,4 +514,480 @@ class GpsController {
   }
 }
 
-module.exports = GpsController;
+// Get daily trace for a specific livreur and date
+const getDailyTrace = async (req, res) => {
+  try {
+    const { livreur_id, date } = req.params;
+    
+    // Validate parameters
+    if (!livreur_id || !date) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'livreur_id et date sont requis' 
+      });
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Format de date invalide. Utilisez YYYY-MM-DD' 
+      });
+    }
+
+    console.log(`📍 Récupération tracé pour livreur ${livreur_id} le ${date}`);
+
+    // Get GPS points for the specific day
+    const traceQuery = `
+      SELECT 
+        latitude,
+        longitude,
+        timestamp,
+        accuracy,
+        speed,
+        EXTRACT(EPOCH FROM timestamp) as timestamp_epoch
+      FROM gps_locations 
+      WHERE livreur_id = $1 
+        AND DATE(timestamp) = $2
+        AND accuracy <= 100
+      ORDER BY timestamp ASC
+    `;
+
+    const traceResult = await db.query(traceQuery, [livreur_id, date]);
+    const gpsPoints = traceResult.rows;
+
+    if (gpsPoints.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Aucun point GPS trouvé pour cette date',
+        data: {
+          livreur_id: parseInt(livreur_id),
+          date: date,
+          points: [],
+          summary: null
+        }
+      });
+    }
+
+    // Calculate summary statistics
+    const firstPoint = gpsPoints[0];
+    const lastPoint = gpsPoints[gpsPoints.length - 1];
+    
+    // Calculate total distance using consecutive points
+    let totalDistance = 0;
+    for (let i = 1; i < gpsPoints.length; i++) {
+      const prev = gpsPoints[i - 1];
+      const curr = gpsPoints[i];
+      const distance = calculateDistance(
+        parseFloat(prev.latitude),
+        parseFloat(prev.longitude),
+        parseFloat(curr.latitude),
+        parseFloat(curr.longitude)
+      );
+      totalDistance += distance;
+    }
+
+    // Calculate duration in minutes
+    const startTime = new Date(firstPoint.timestamp);
+    const endTime = new Date(lastPoint.timestamp);
+    const durationMinutes = Math.round((endTime - startTime) / 1000 / 60);
+
+    // Calculate average speed
+    const averageSpeed = durationMinutes > 0 ? (totalDistance / durationMinutes * 60) : 0;
+
+    // Calculate max speed from recorded speeds
+    const maxSpeed = Math.max(...gpsPoints.map(p => parseFloat(p.speed) || 0));
+
+    const summary = {
+      total_distance_km: Math.round(totalDistance * 100) / 100,
+      duration_minutes: durationMinutes,
+      start_time: firstPoint.timestamp,
+      end_time: lastPoint.timestamp,
+      total_points: gpsPoints.length,
+      average_speed_kmh: Math.round(averageSpeed * 100) / 100,
+      max_speed_kmh: Math.round(maxSpeed * 100) / 100
+    };
+
+    console.log(`✅ Tracé récupéré: ${gpsPoints.length} points, ${summary.total_distance_km}km`);
+
+    res.json({
+      success: true,
+      data: {
+        livreur_id: parseInt(livreur_id),
+        date: date,
+        points: gpsPoints,
+        summary: summary
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération du tracé:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur serveur lors de la récupération du tracé' 
+    });
+  }
+};
+
+// Helper function to calculate distance between two GPS points (Haversine formula)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Distance in km
+};
+
+// Get available livreurs with GPS data
+const getAvailableLivreurs = async (req, res) => {
+  try {
+    console.log('📋 Récupération des livreurs disponibles avec données GPS');
+
+    const livreursQuery = `
+      SELECT DISTINCT 
+        u.id,
+        u.username,
+        COUNT(gl.id) as total_points,
+        MAX(DATE(gl.timestamp)) as last_gps_date,
+        MIN(DATE(gl.timestamp)) as first_gps_date
+      FROM users u
+      INNER JOIN gps_locations gl ON u.id = gl.livreur_id
+      WHERE u.role = 'LIVREUR'
+        AND gl.timestamp >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY u.id, u.username
+      ORDER BY last_gps_date DESC, u.username ASC
+    `;
+
+    const result = await db.query(livreursQuery);
+    
+    console.log(`✅ ${result.rows.length} livreurs trouvés avec données GPS`);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des livreurs:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur serveur lors de la récupération des livreurs' 
+    });
+  }
+};
+
+// Vérifier si le tracking GPS est autorisé pour un livreur à l'heure actuelle
+const isTrackingAllowed = async (livreur_id) => {
+  try {
+    // Récupérer la configuration de tracking du livreur (avec fallback si colonnes n'existent pas)
+    const configQuery = `
+      SELECT 
+        id,
+        username,
+        COALESCE(tracking_start_hour, 9) as tracking_start_hour,
+        COALESCE(tracking_end_hour, 21) as tracking_end_hour,
+        COALESCE(tracking_timezone, 'Africa/Dakar') as tracking_timezone,
+        COALESCE(tracking_enabled_days, '0,1,2,3,4,5,6') as tracking_enabled_days,
+        COALESCE(gps_tracking_active, true) as gps_tracking_active
+      FROM users 
+      WHERE id = $1 AND role = 'LIVREUR'
+    `;
+    
+    const configResult = await db.query(configQuery, [livreur_id]);
+    
+    if (configResult.rows.length === 0) {
+      console.log(`⚠️ Livreur ${livreur_id} non trouvé ou n'est pas un livreur`);
+      return false;
+    }
+    
+    const config = configResult.rows[0];
+    
+    // Vérifier si le tracking GPS est activé pour ce livreur
+    if (!config.gps_tracking_active) {
+      console.log(`🔴 Tracking GPS désactivé pour le livreur ${livreur_id}`);
+      return false;
+    }
+    
+    // Obtenir l'heure actuelle dans le fuseau horaire du livreur (Dakar par défaut)
+    const now = new Date();
+    const dakarTime = new Date(now.toLocaleString("en-US", {timeZone: config.tracking_timezone || "Africa/Dakar"}));
+    const currentHour = dakarTime.getHours();
+    const currentDay = dakarTime.getDay(); // 0=Dimanche, 1=Lundi, ..., 6=Samedi
+    
+    console.log(`⏰ Heure actuelle à Dakar: ${dakarTime.toLocaleString()} (${currentHour}h)`);
+    console.log(`📅 Jour actuel: ${currentDay} (0=Dimanche, 1=Lundi...)`);
+    
+    // Vérifier si aujourd'hui est un jour de tracking autorisé
+    const enabledDays = config.tracking_enabled_days.split(',').map(d => parseInt(d.trim()));
+    if (!enabledDays.includes(currentDay)) {
+      console.log(`📅 Tracking non autorisé le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][currentDay]}`);
+      return false;
+    }
+    
+    // Vérifier si l'heure actuelle est dans la plage autorisée
+    const startHour = config.tracking_start_hour;
+    const endHour = config.tracking_end_hour;
+    
+    console.log(`🕒 Plage horaire autorisée: ${startHour}h - ${endHour}h`);
+    
+    if (currentHour >= startHour && currentHour < endHour) {
+      console.log(`✅ Tracking GPS autorisé pour le livreur ${livreur_id}`);
+      return true;
+    } else {
+      console.log(`🔴 Tracking GPS non autorisé en dehors des heures (${currentHour}h)`);
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la vérification du tracking:', error);
+    return false;
+  }
+};
+
+// Récupérer la configuration de tracking d'un livreur
+const getTrackingConfig = async (req, res) => {
+  try {
+    const { livreur_id } = req.params;
+    
+    console.log(`📋 Récupération config tracking pour livreur ${livreur_id}`);
+    
+    const configQuery = `
+      SELECT 
+        id,
+        username,
+        COALESCE(tracking_start_hour, 9) as tracking_start_hour,
+        COALESCE(tracking_end_hour, 21) as tracking_end_hour,
+        COALESCE(tracking_timezone, 'Africa/Dakar') as tracking_timezone,
+        COALESCE(tracking_enabled_days, '0,1,2,3,4,5,6') as tracking_enabled_days,
+        COALESCE(gps_tracking_active, true) as gps_tracking_active
+      FROM users 
+      WHERE id = $1 AND role = 'LIVREUR'
+    `;
+    
+    const result = await db.query(configQuery, [livreur_id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Livreur non trouvé'
+      });
+    }
+    
+    const config = result.rows[0];
+    
+    // Convertir les jours en array
+    config.tracking_enabled_days = config.tracking_enabled_days.split(',').map(d => parseInt(d.trim()));
+    
+    console.log(`✅ Config récupérée pour ${config.username}`);
+    
+    res.json({
+      success: true,
+      data: config
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération de la config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération de la configuration'
+    });
+  }
+};
+
+// Mettre à jour la configuration de tracking d'un livreur
+const updateTrackingConfig = async (req, res) => {
+  try {
+    const { livreur_id } = req.params;
+    const { 
+      tracking_start_hour, 
+      tracking_end_hour, 
+      tracking_timezone, 
+      tracking_enabled_days, 
+      gps_tracking_active 
+    } = req.body;
+    
+    console.log(`🔧 Mise à jour config tracking pour livreur ${livreur_id}`);
+    console.log(`📊 Nouvelles valeurs:`, req.body);
+    
+    // Validations
+    if (tracking_start_hour !== undefined && (tracking_start_hour < 0 || tracking_start_hour > 23)) {
+      return res.status(400).json({
+        success: false,
+        message: 'L\'heure de début doit être entre 0 et 23'
+      });
+    }
+    
+    if (tracking_end_hour !== undefined && (tracking_end_hour < 0 || tracking_end_hour > 23)) {
+      return res.status(400).json({
+        success: false,
+        message: 'L\'heure de fin doit être entre 0 et 23'
+      });
+    }
+    
+    if (tracking_enabled_days && (!Array.isArray(tracking_enabled_days) || tracking_enabled_days.some(d => d < 0 || d > 6))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Les jours doivent être un array de nombres entre 0 et 6'
+      });
+    }
+    
+    // Construire la requête de mise à jour dynamiquement
+    const updates = [];
+    const values = [];
+    let valueIndex = 1;
+    
+    if (tracking_start_hour !== undefined) {
+      updates.push(`tracking_start_hour = $${valueIndex++}`);
+      values.push(tracking_start_hour);
+    }
+    
+    if (tracking_end_hour !== undefined) {
+      updates.push(`tracking_end_hour = $${valueIndex++}`);
+      values.push(tracking_end_hour);
+    }
+    
+    if (tracking_timezone !== undefined) {
+      updates.push(`tracking_timezone = $${valueIndex++}`);
+      values.push(tracking_timezone);
+    }
+    
+    if (tracking_enabled_days !== undefined) {
+      updates.push(`tracking_enabled_days = $${valueIndex++}`);
+      values.push(tracking_enabled_days.join(','));
+    }
+    
+    if (gps_tracking_active !== undefined) {
+      updates.push(`gps_tracking_active = $${valueIndex++}`);
+      values.push(gps_tracking_active);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucune donnée à mettre à jour'
+      });
+    }
+    
+    // Ajouter updated_at
+    updates.push(`updated_at = NOW()`);
+    values.push(livreur_id);
+    
+    const updateQuery = `
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE id = $${valueIndex} AND role = 'LIVREUR'
+      RETURNING 
+        id,
+        username,
+        tracking_start_hour,
+        tracking_end_hour,
+        tracking_timezone,
+        tracking_enabled_days,
+        gps_tracking_active
+    `;
+    
+    console.log(`🔍 Requête SQL:`, updateQuery);
+    console.log(`🔍 Valeurs:`, values);
+    
+    const result = await db.query(updateQuery, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Livreur non trouvé'
+      });
+    }
+    
+    const updatedConfig = result.rows[0];
+    
+    // Convertir les jours en array
+    updatedConfig.tracking_enabled_days = updatedConfig.tracking_enabled_days.split(',').map(d => parseInt(d.trim()));
+    
+    console.log(`✅ Config mise à jour pour ${updatedConfig.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Configuration de tracking mise à jour',
+      data: updatedConfig
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour de la config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la mise à jour de la configuration'
+    });
+  }
+};
+
+// Récupérer la configuration de tracking de tous les livreurs
+const getAllTrackingConfigs = async (req, res) => {
+  try {
+    console.log('📋 Récupération de toutes les configs de tracking');
+    
+    const configQuery = `
+      SELECT 
+        id,
+        username,
+        COALESCE(tracking_start_hour, 9) as tracking_start_hour,
+        COALESCE(tracking_end_hour, 21) as tracking_end_hour,
+        COALESCE(tracking_timezone, 'Africa/Dakar') as tracking_timezone,
+        COALESCE(tracking_enabled_days, '0,1,2,3,4,5,6') as tracking_enabled_days,
+        COALESCE(gps_tracking_active, true) as gps_tracking_active,
+        created_at,
+        updated_at
+      FROM users 
+      WHERE role = 'LIVREUR'
+      ORDER BY username ASC
+    `;
+    
+    const result = await db.query(configQuery);
+    
+    // Convertir les jours en array pour chaque livreur
+    const configs = result.rows.map(config => ({
+      ...config,
+      tracking_enabled_days: config.tracking_enabled_days.split(',').map(d => parseInt(d.trim()))
+    }));
+    
+    console.log(`✅ ${configs.length} configurations récupérées`);
+    
+    res.json({
+      success: true,
+      data: configs
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des configs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des configurations'
+    });
+  }
+};
+
+module.exports = {
+  recordLocation: GpsController.recordLocation,
+  updateDailyMetrics: GpsController.updateDailyMetrics,
+  getAllLatestPositions: GpsController.getAllLatestPositions,
+  getLocationByLivreur: GpsController.getLocationByLivreur,
+  getLocationHistory: GpsController.getLocationHistory,
+  calculateDistance: GpsController.calculateDistance,
+  toggleTracking: GpsController.toggleTracking,
+  getSettings: GpsController.getSettings,
+  updateInterval: GpsController.updateInterval,
+  getOfflineLivreurs: GpsController.getOfflineLivreurs,
+  deleteHistory: GpsController.deleteHistory,
+  getStats: GpsController.getStats,
+  cleanupOldData: GpsController.cleanupOldData,
+  getDailyTrace,
+  getAvailableLivreurs,
+  isTrackingAllowed,
+  getTrackingConfig,
+  updateTrackingConfig,
+  getAllTrackingConfigs
+};
