@@ -87,6 +87,32 @@ router.get('/stats',
   GpsController.getStats
 );
 
+// Get available livreurs with GPS data
+router.get('/available-livreurs', GpsController.getAvailableLivreurs);
+
+// Get daily trace for a specific livreur and date
+router.get('/daily-trace/:livreur_id/:date', GpsController.getDailyTrace);
+
+// ===== ROUTES POUR LA CONFIGURATION DU TRACKING =====
+
+// Récupérer toutes les configurations de tracking (managers/admins)
+router.get('/tracking-configs', 
+  requireManagerOrAdmin,
+  GpsController.getAllTrackingConfigs
+);
+
+// Récupérer la configuration de tracking d'un livreur spécifique (managers/admins)
+router.get('/tracking-config/:livreur_id', 
+  requireManagerOrAdmin,
+  GpsController.getTrackingConfig
+);
+
+// Mettre à jour la configuration de tracking d'un livreur (managers/admins)
+router.put('/tracking-config/:livreur_id', 
+  requireManagerOrAdmin,
+  GpsController.updateTrackingConfig
+);
+
 // ===== ROUTES POUR ADMINS SEULEMENT =====
 
 // Supprimer l'historique GPS d'un livreur

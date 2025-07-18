@@ -1996,6 +1996,294 @@
     }
 }
 
+/* ===== STYLES SPÉCIFIQUES POUR LES MARQUEURS GPS ===== */
+.gps-marker-with-name {
+    z-index: 1000 !important;
+    position: relative !important;
+}
+
+.gps-marker-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+    position: relative !important;
+    z-index: 1000 !important;
+}
+
+.gps-marker-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 1001 !important;
+    position: relative !important;
+}
+
+.gps-marker-label {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1002 !important;
+    position: relative !important;
+    font-family: Arial, sans-serif !important;
+    pointer-events: none !important;
+}
+
+/* S'assurer que les marqueurs GPS ne sont jamais cachés */
+.leaflet-marker-icon.gps-marker-with-name {
+    z-index: 1000 !important;
+}
+
+.leaflet-marker-icon.gps-marker-with-name * {
+    pointer-events: none !important;
+}
+
+/* Forcer l'affichage des labels GPS */
+.gps-marker-label {
+    min-height: 20px !important;
+    line-height: 1.2 !important;
+}
+
+/* Responsive pour les marqueurs GPS sur mobile */
+@media (max-width: 768px) {
+    .gps-marker-label {
+        font-size: 12px !important;
+        padding: 3px 8px !important;
+    }
+    
+    .gps-marker-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 16px !important;
+    }
+}
+
+/* ===== STYLES POUR LE TRACÉ GPS JOURNALIER ===== */
+.gps-trace-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    border: 1px solid #e1e5e9;
+    transition: all 0.3s ease;
+}
+
+.gps-trace-card:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.gps-trace-card h3 {
+    color: #2c5aa0;
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trace-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.trace-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.trace-input-group label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.trace-select,
+.trace-date-input {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.trace-select:focus,
+.trace-date-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.trace-select:hover,
+.trace-date-input:hover {
+    border-color: #9ca3af;
+}
+
+.trace-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.trace-buttons .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.trace-buttons .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #d1d5db;
+}
+
+.trace-buttons .btn:disabled:hover {
+    background: #f3f4f6;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ===== RÉSUMÉ DU TRACÉ ===== */
+.trace-summary {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+    animation: fadeIn 0.3s ease;
+}
+
+.trace-summary-header h4 {
+    margin: 0 0 15px 0;
+    color: #374151;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.trace-stats {
+    display: grid;
+    gap: 12px;
+}
+
+.trace-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.trace-stat-item:last-child {
+    border-bottom: none;
+}
+
+.trace-stat-label {
+    font-weight: 500;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.trace-stat-value {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+/* ===== STYLES POUR LA POLYLINE DU TRACÉ ===== */
+.trace-polyline {
+    stroke: #3b82f6;
+    stroke-width: 3;
+    stroke-opacity: 0.8;
+    fill: none;
+}
+
+.trace-start-marker {
+    background: #10b981 !important;
+    border: 3px solid white !important;
+}
+
+.trace-end-marker {
+    background: #ef4444 !important;
+    border: 3px solid white !important;
+}
+
+.trace-point-marker {
+    background: #3b82f6 !important;
+    border: 2px solid white !important;
+    opacity: 0.7;
+}
+
+/* ===== RESPONSIVE POUR LES CONTRÔLES DE TRACÉ ===== */
+@media (max-width: 768px) {
+    .gps-trace-card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .trace-buttons {
+        flex-direction: column;
+    }
+    
+    .trace-buttons .btn {
+        flex: none;
+        padding: 12px 16px;
+    }
+    
+    .trace-stats {
+        gap: 8px;
+    }
+    
+    .trace-stat-item {
+        padding: 6px 0;
+    }
+    
+    .trace-stat-label,
+    .trace-stat-value {
+        font-size: 0.85rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .trace-input-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .trace-input-group label {
+        min-width: 80px;
+        margin-bottom: 0;
+    }
+    
+    .trace-select,
+    .trace-date-input {
+        flex: 1;
+    }
+}
+
+/* Animation pour l'affichage du résumé */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Effets de focus pour l'accessibilité */
 .analytics-table:focus-within {
     outline: 2px solid #667eea;
@@ -2025,3 +2313,289 @@
     letter-spacing: 1px;
     color: #667eea !important;
 }
+
+/* ===== STYLES POUR LA CONFIGURATION DU TRACKING GPS ===== */
+.gps-tracking-config-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    border: 1px solid #e1e5e9;
+    transition: all 0.3s ease;
+}
+
+.gps-tracking-config-card:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.gps-tracking-config-card h3 {
+    color: #2c5aa0;
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tracking-config-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.config-summary {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+
+.config-summary p {
+    margin: 0;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.config-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-input-group label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.config-select,
+.config-time-select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.config-select:focus,
+.config-time-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.days-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.day-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.day-checkbox:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.day-checkbox input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.day-checkbox input[type="checkbox"]:checked + span,
+.day-checkbox:has(input[type="checkbox"]:checked) {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 500;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.toggle-label:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.toggle-label input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    transform: scale(1.1);
+}
+
+.toggle-label:has(input[type="checkbox"]:checked) {
+    background: #ecfdf5;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.config-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.config-buttons .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.config-buttons .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #d1d5db;
+}
+
+.config-buttons .btn:disabled:hover {
+    background: #f3f4f6;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Status indicators */
+.config-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.config-status.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.config-status.inactive {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.config-status.restricted {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Responsive pour la configuration de tracking */
+@media (max-width: 768px) {
+    .gps-tracking-config-card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .config-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .days-checkboxes {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .day-checkbox {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .config-buttons {
+        flex-direction: column;
+    }
+    
+    .config-buttons .btn {
+        flex: none;
+        padding: 12px 16px;
+    }
+}
+
+@media (min-width: 769px) {
+    .config-input-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .config-input-group label {
+        min-width: 140px;
+        margin-bottom: 0;
+        flex-shrink: 0;
+    }
+    
+    .config-select,
+    .config-time-select {
+        flex: 1;
+    }
+}
+
+/* Animation pour l'affichage du formulaire */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.config-form {
+    animation: slideDown 0.3s ease;
+}
+
+/* ===== FIN STYLES CONFIGURATION TRACKING ===== */

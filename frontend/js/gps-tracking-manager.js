@@ -5,6 +5,16 @@ class GpsTrackingManager {
   static currentPositions = [];
   static map = null;
   static markers = {};
+  
+  // Variables pour le tracé journalier
+  static currentTrace = null;
+  static tracePolyline = null;
+  static traceMarkers = [];
+  static availableLivreurs = [];
+  
+  // Variables pour la configuration de tracking
+  static trackingConfigs = [];
+  static currentConfigLivreur = null;
 
   // Initialiser la page de suivi GPS
   static async init() {
@@ -146,6 +156,49 @@ class GpsTrackingManager {
     const refreshBtn = document.getElementById('gps-refresh-btn');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => this.loadGpsData());
+    }
+    
+    // Event listeners pour le tracé journalier
+    this.setupTraceEventListeners();
+    
+    // Event listeners pour la configuration de tracking
+    this.setupTrackingConfigEventListeners();
+  }
+  
+  // Configurer les événements pour le tracé journalier
+  static setupTraceEventListeners() {
+    console.log('📍 Configuration des événements de tracé');
+    
+    // Charger les livreurs disponibles au démarrage
+    this.loadAvailableLivreurs();
+    
+    // Définir la date par défaut (aujourd'hui)
+    const traceDateInput = document.getElementById('trace-date-input');
+    if (traceDateInput) {
+      traceDateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Event listener pour changement de livreur
+    const livreurSelect = document.getElementById('trace-livreur-select');
+    if (livreurSelect) {
+      livreurSelect.addEventListener('change', this.onLivreurSelectionChange.bind(this));
+    }
+    
+    // Event listener pour changement de date
+    if (traceDateInput) {
+      traceDateInput.addEventListener('change', this.onDateSelectionChange.bind(this));
+    }
+    
+    // Event listener pour afficher le tracé
+    const showTraceBtn = document.getElementById('show-trace-btn');
+    if (showTraceBtn) {
+      showTraceBtn.addEventListener('click', this.showTrace.bind(this));
+    }
+    
+    // Event listener pour effacer le tracé
+    const clearTraceBtn = document.getElementById('clear-trace-btn');
+    if (clearTraceBtn) {
+      clearTraceBtn.addEventListener('click', this.clearTrace.bind(this));
     }
   }
 
@@ -545,26 +598,60 @@ class GpsTrackingManager {
         
         console.log(`🗺️ Création du marqueur pour ${position.livreur_username}...`);
         
+        // S'assurer que le nom existe
+        const displayName = position.livreur_username || 'Inconnu';
+        console.log(`🏷️ Nom à afficher: "${displayName}"`);
+        
         const marker = L.marker([lat, lng], {
           icon: L.divIcon({
-            html: `<div style="
-              background: ${iconColor}; 
-              border-radius: 50%; 
-              width: 30px; 
-              height: 30px; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              font-size: 16px;
-              border: 2px solid white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ">${iconHtml}</div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-            popupAnchor: [0, -15],
-            className: 'custom-marker'
+            html: `<div class="gps-marker-container" style="
+              display: flex !important; 
+              flex-direction: column !important; 
+              align-items: center !important; 
+              justify-content: center !important;
+              pointer-events: none !important;
+              position: relative !important;
+              z-index: 1000 !important;
+            ">
+              <div class="gps-marker-icon" style="
+                background: ${iconColor} !important; 
+                border-radius: 50% !important; 
+                width: 32px !important; 
+                height: 32px !important; 
+                display: flex !important; 
+                align-items: center !important; 
+                justify-content: center !important; 
+                font-size: 18px !important;
+                border: 3px solid white !important;
+                box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
+                margin-bottom: 4px !important;
+                z-index: 1001 !important;
+              ">${iconHtml}</div>
+              <div class="gps-marker-label" style="
+                background: rgba(255, 255, 255, 0.95) !important; 
+                padding: 4px 10px !important; 
+                border-radius: 8px !important; 
+                font-size: 14px !important; 
+                font-weight: bold !important; 
+                color: #333 !important; 
+                border: 2px solid #ccc !important;
+                box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
+                white-space: nowrap !important;
+                text-align: center !important;
+                min-width: 40px !important;
+                z-index: 1002 !important;
+                position: relative !important;
+                font-family: Arial, sans-serif !important;
+              ">${Utils.escapeHtml(displayName)}</div>
+            </div>`,
+            iconSize: [120, 70],
+            iconAnchor: [60, 65],
+            popupAnchor: [0, -65],
+            className: 'gps-marker-with-name'
           })
         });
+        
+        console.log(`✅ Marqueur créé pour ${displayName}`);
 
         console.log(`🗺️ Marqueur créé:`, marker);
 
@@ -840,6 +927,658 @@ class GpsTrackingManager {
       console.error('❌ Erreur lors du chargement des détails:', error);
       ToastManager.error('Erreur lors du chargement des détails GPS');
     }
+  }
+  
+  // ===== MÉTHODES POUR LE TRACÉ JOURNALIER =====
+  
+  // Charger la liste des livreurs disponibles
+  static async loadAvailableLivreurs() {
+    try {
+      console.log('👥 Chargement des livreurs disponibles...');
+      
+      const response = await fetch(`${window.API_BASE_URL}/gps/available-livreurs`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        this.availableLivreurs = data.data;
+        this.populateLivreurSelect();
+        console.log(`✅ ${this.availableLivreurs.length} livreurs chargés`);
+      } else {
+        console.warn('⚠️ Aucun livreur trouvé');
+        this.availableLivreurs = [];
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des livreurs:', error);
+      ToastManager.error('Erreur lors du chargement des livreurs');
+      this.availableLivreurs = [];
+    }
+  }
+  
+  // Remplir le select des livreurs
+  static populateLivreurSelect() {
+    const select = document.getElementById('trace-livreur-select');
+    if (!select) {
+      console.error('❌ Element select "trace-livreur-select" non trouvé !');
+      return;
+    }
+    
+    // Vider les options existantes (sauf la première)
+    while (select.children.length > 1) {
+      select.removeChild(select.lastChild);
+    }
+    
+    // Ajouter les livreurs
+    this.availableLivreurs.forEach(livreur => {
+      const option = document.createElement('option');
+      option.value = livreur.id;
+      option.textContent = `${livreur.username} - ${livreur.total_points} pts`;
+      select.appendChild(option);
+    });
+    
+    console.log(`📋 Dropdown rempli avec ${this.availableLivreurs.length} livreurs`);
+  }
+  
+  // Gestionnaire de changement de livreur
+  static onLivreurSelectionChange() {
+    const select = document.getElementById('trace-livreur-select');
+    const dateInput = document.getElementById('trace-date-input');
+    const showBtn = document.getElementById('show-trace-btn');
+    
+    if (select && dateInput && showBtn) {
+      const hasLivreur = select.value !== '';
+      const hasDate = dateInput.value !== '';
+      showBtn.disabled = !(hasLivreur && hasDate);
+    }
+  }
+  
+  // Gestionnaire de changement de date
+  static onDateSelectionChange() {
+    this.onLivreurSelectionChange(); // Même logique de validation
+  }
+  
+  // Afficher le tracé journalier
+  static async showTrace() {
+    const livreurSelect = document.getElementById('trace-livreur-select');
+    const dateInput = document.getElementById('trace-date-input');
+    const showBtn = document.getElementById('show-trace-btn');
+    const clearBtn = document.getElementById('clear-trace-btn');
+    
+    if (!livreurSelect.value || !dateInput.value) {
+      ToastManager.error('Veuillez sélectionner un livreur et une date');
+      return;
+    }
+    
+    // Désactiver le bouton pendant le chargement
+    showBtn.disabled = true;
+    showBtn.innerHTML = '<span class="icon">⏳</span> Chargement...';
+    
+    try {
+      console.log(`📍 Chargement du tracé pour livreur ${livreurSelect.value} le ${dateInput.value}`);
+      
+      const response = await fetch(
+        `${window.API_BASE_URL}/gps/daily-trace/${livreurSelect.value}/${dateInput.value}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.data.points.length === 0) {
+          ToastManager.info('Aucun point GPS trouvé pour cette date');
+          this.hidTraceSummary();
+        } else {
+          this.displayTrace(data.data);
+          ToastManager.success(`Tracé affiché: ${data.data.points.length} points`);
+        }
+      } else {
+        throw new Error(data.message || 'Erreur lors du chargement du tracé');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement du tracé:', error);
+      ToastManager.error('Erreur lors du chargement du tracé');
+      this.hidTraceSummary();
+    } finally {
+      // Restaurer le bouton
+      showBtn.disabled = false;
+      showBtn.innerHTML = '<span class="icon">📍</span> Afficher Tracé';
+      clearBtn.disabled = false;
+    }
+  }
+  
+  // Afficher le tracé sur la carte
+  static displayTrace(traceData) {
+    if (!this.map || !traceData.points || traceData.points.length === 0) {
+      return;
+    }
+    
+    console.log(`🗺️ Affichage du tracé: ${traceData.points.length} points`);
+    
+    // Effacer le tracé précédent
+    this.clearTrace();
+    
+    this.currentTrace = traceData;
+    
+    // Convertir les points en coordonnées Leaflet
+    const latLngs = traceData.points.map(point => [
+      parseFloat(point.latitude),
+      parseFloat(point.longitude)
+    ]);
+    
+    // Créer la polyline du tracé
+    this.tracePolyline = L.polyline(latLngs, {
+      color: '#3b82f6',
+      weight: 4,
+      opacity: 0.8,
+      dashArray: '5, 10'
+    }).addTo(this.map);
+    
+    // Ajouter marqueur de départ (vert)
+    const startPoint = traceData.points[0];
+    const startMarker = L.marker([parseFloat(startPoint.latitude), parseFloat(startPoint.longitude)], {
+      icon: L.divIcon({
+        html: '<div class="trace-start-marker">🏁</div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        className: 'trace-marker'
+      })
+    }).addTo(this.map);
+    
+    startMarker.bindPopup(`
+      <div>
+        <strong>🏁 Départ</strong><br>
+        <small>${new Date(startPoint.timestamp).toLocaleTimeString()}</small><br>
+        <small>Précision: ${startPoint.accuracy}m</small>
+      </div>
+    `);
+    
+    this.traceMarkers.push(startMarker);
+    
+    // Ajouter marqueur d'arrivée (rouge) si différent du départ
+    if (traceData.points.length > 1) {
+      const endPoint = traceData.points[traceData.points.length - 1];
+      const endMarker = L.marker([parseFloat(endPoint.latitude), parseFloat(endPoint.longitude)], {
+        icon: L.divIcon({
+          html: '<div class="trace-end-marker">🏁</div>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+          className: 'trace-marker'
+        })
+      }).addTo(this.map);
+      
+      endMarker.bindPopup(`
+        <div>
+          <strong>🏁 Arrivée</strong><br>
+          <small>${new Date(endPoint.timestamp).toLocaleTimeString()}</small><br>
+          <small>Précision: ${endPoint.accuracy}m</small>
+        </div>
+      `);
+      
+      this.traceMarkers.push(endMarker);
+    }
+    
+    // Ajuster la vue de la carte pour inclure tout le tracé
+    this.map.fitBounds(this.tracePolyline.getBounds(), { padding: [20, 20] });
+    
+    // Afficher le résumé
+    this.displayTraceSummary(traceData.summary);
+  }
+  
+  // Afficher le résumé du tracé
+  static displayTraceSummary(summary) {
+    const traceSummary = document.getElementById('trace-summary');
+    if (!traceSummary || !summary) return;
+    
+    // Mettre à jour les valeurs
+    document.getElementById('trace-distance').textContent = `${summary.total_distance_km} km`;
+    document.getElementById('trace-duration').textContent = this.formatDuration(summary.duration_minutes);
+    document.getElementById('trace-avg-speed').textContent = `${summary.average_speed_kmh} km/h`;
+    document.getElementById('trace-points-count').textContent = summary.total_points;
+    
+    const timeRange = `${new Date(summary.start_time).toLocaleTimeString()} - ${new Date(summary.end_time).toLocaleTimeString()}`;
+    document.getElementById('trace-time-range').textContent = timeRange;
+    
+    // Afficher le résumé
+    traceSummary.style.display = 'block';
+  }
+  
+  // Effacer le tracé
+  static clearTrace() {
+    console.log('🧹 Effacement du tracé');
+    
+    // Supprimer la polyline
+    if (this.tracePolyline) {
+      this.map.removeLayer(this.tracePolyline);
+      this.tracePolyline = null;
+    }
+    
+    // Supprimer les marqueurs de tracé
+    this.traceMarkers.forEach(marker => {
+      this.map.removeLayer(marker);
+    });
+    this.traceMarkers = [];
+    
+    // Réinitialiser les données
+    this.currentTrace = null;
+    
+    // Masquer le résumé
+    this.hidTraceSummary();
+    
+    // Désactiver le bouton effacer
+    const clearBtn = document.getElementById('clear-trace-btn');
+    if (clearBtn) {
+      clearBtn.disabled = true;
+    }
+    
+    ToastManager.info('Tracé effacé');
+  }
+  
+  // Masquer le résumé du tracé
+  static hidTraceSummary() {
+    const traceSummary = document.getElementById('trace-summary');
+    if (traceSummary) {
+      traceSummary.style.display = 'none';
+    }
+  }
+  
+  // Formater la durée en heures et minutes
+  static formatDuration(minutes) {
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (remainingMinutes === 0) {
+      return `${hours}h`;
+    }
+    
+    return `${hours}h ${remainingMinutes}min`;
+  }
+  
+  // ===== MÉTHODES POUR LA CONFIGURATION DU TRACKING =====
+  
+  // Configurer les événements pour la configuration de tracking
+  static setupTrackingConfigEventListeners() {
+    console.log('⏰ Configuration des événements de config tracking');
+    
+    // Charger les configurations au démarrage
+    this.loadAllTrackingConfigs();
+    this.initializeConfigForm();
+    
+    // Event listener pour changement de livreur dans la config
+    const configLivreurSelect = document.getElementById('config-livreur-select');
+    if (configLivreurSelect) {
+      configLivreurSelect.addEventListener('change', this.onConfigLivreurChange.bind(this));
+    }
+    
+    // Event listeners pour les champs de configuration
+    const startHourSelect = document.getElementById('tracking-start-hour');
+    const endHourSelect = document.getElementById('tracking-end-hour');
+    const trackingActiveCheckbox = document.getElementById('gps-tracking-active');
+    
+    if (startHourSelect) {
+      startHourSelect.addEventListener('change', this.onConfigFieldChange.bind(this));
+    }
+    
+    if (endHourSelect) {
+      endHourSelect.addEventListener('change', this.onConfigFieldChange.bind(this));
+    }
+    
+    if (trackingActiveCheckbox) {
+      trackingActiveCheckbox.addEventListener('change', this.onConfigFieldChange.bind(this));
+    }
+    
+    // Event listeners pour les jours de la semaine
+    for (let day = 0; day <= 6; day++) {
+      const dayCheckbox = document.getElementById(`day-${day}`);
+      if (dayCheckbox) {
+        dayCheckbox.addEventListener('change', this.onConfigFieldChange.bind(this));
+      }
+    }
+    
+    // Event listeners pour les boutons
+    const saveConfigBtn = document.getElementById('save-config-btn');
+    const resetConfigBtn = document.getElementById('reset-config-btn');
+    
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener('click', this.saveTrackingConfig.bind(this));
+    }
+    
+    if (resetConfigBtn) {
+      resetConfigBtn.addEventListener('click', this.resetTrackingConfig.bind(this));
+    }
+  }
+  
+  // Initialiser le formulaire de configuration
+  static initializeConfigForm() {
+    // Remplir les options d'heures (0-23)
+    const startHourSelect = document.getElementById('tracking-start-hour');
+    const endHourSelect = document.getElementById('tracking-end-hour');
+    
+    if (startHourSelect && endHourSelect) {
+      for (let hour = 0; hour < 24; hour++) {
+        const startOption = document.createElement('option');
+        startOption.value = hour;
+        startOption.textContent = `${hour.toString().padStart(2, '0')}:00`;
+        startHourSelect.appendChild(startOption);
+        
+        const endOption = document.createElement('option');
+        endOption.value = hour;
+        endOption.textContent = `${hour.toString().padStart(2, '0')}:00`;
+        endHourSelect.appendChild(endOption);
+      }
+    }
+  }
+  
+  // Charger toutes les configurations de tracking
+  static async loadAllTrackingConfigs() {
+    try {
+      console.log('⏰ Chargement des configurations de tracking...');
+      
+      const response = await fetch(`${window.API_BASE_URL}/gps/tracking-configs`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('📡 Réponse tracking-configs:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          this.showConfigPermissionError();
+          return;
+        }
+        const errorData = await response.json().catch(() => null);
+        console.error('❌ Erreur API:', response.status, errorData);
+        throw new Error(`Erreur HTTP: ${response.status} - ${errorData?.message || response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('📊 Données tracking configs reçues:', data);
+      
+      if (data.success && data.data && data.data.length > 0) {
+        this.trackingConfigs = data.data;
+        this.populateConfigLivreurSelect();
+        console.log(`✅ ${this.trackingConfigs.length} configurations chargées`);
+      } else {
+        console.warn('⚠️ Aucune configuration trouvée');
+        this.trackingConfigs = [];
+        this.showConfigNoDataMessage();
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des configurations:', error);
+      this.showConfigErrorMessage(error.message);
+      this.trackingConfigs = [];
+    }
+  }
+  
+  // Remplir le select des livreurs pour la configuration
+  static populateConfigLivreurSelect() {
+    const select = document.getElementById('config-livreur-select');
+    if (!select) return;
+    
+    // Vider les options existantes (sauf la première)
+    while (select.children.length > 1) {
+      select.removeChild(select.lastChild);
+    }
+    
+    // Ajouter les livreurs
+    this.trackingConfigs.forEach(config => {
+      const option = document.createElement('option');
+      option.value = config.id;
+      
+      // Afficher le statut de tracking
+      const status = config.gps_tracking_active ? '🟢' : '🔴';
+      const timeRange = `${config.tracking_start_hour}h-${config.tracking_end_hour}h`;
+      
+      option.textContent = `${status} ${config.username} (${timeRange})`;
+      select.appendChild(option);
+    });
+    
+    console.log(`📋 Dropdown config rempli avec ${this.trackingConfigs.length} livreurs`);
+  }
+  
+  // Gestionnaire de changement de livreur dans la config
+  static onConfigLivreurChange() {
+    const select = document.getElementById('config-livreur-select');
+    const configForm = document.getElementById('config-form');
+    const configSummary = document.getElementById('config-summary');
+    
+    if (!select || !configForm || !configSummary) return;
+    
+    const livreurId = select.value;
+    
+    if (livreurId) {
+      // Trouver la configuration du livreur sélectionné
+      const config = this.trackingConfigs.find(c => c.id === livreurId);
+      
+      if (config) {
+        this.currentConfigLivreur = config;
+        this.loadConfigIntoForm(config);
+        
+        // Afficher le formulaire et masquer le résumé
+        configForm.style.display = 'block';
+        configSummary.style.display = 'none';
+      }
+    } else {
+      // Masquer le formulaire et afficher le résumé
+      configForm.style.display = 'none';
+      configSummary.style.display = 'block';
+      this.currentConfigLivreur = null;
+    }
+  }
+  
+  // Charger la configuration dans le formulaire
+  static loadConfigIntoForm(config) {
+    // Heures de début et fin
+    const startHourSelect = document.getElementById('tracking-start-hour');
+    const endHourSelect = document.getElementById('tracking-end-hour');
+    const trackingActiveCheckbox = document.getElementById('gps-tracking-active');
+    
+    if (startHourSelect) startHourSelect.value = config.tracking_start_hour;
+    if (endHourSelect) endHourSelect.value = config.tracking_end_hour;
+    if (trackingActiveCheckbox) trackingActiveCheckbox.checked = config.gps_tracking_active;
+    
+    // Jours de la semaine
+    for (let day = 0; day <= 6; day++) {
+      const dayCheckbox = document.getElementById(`day-${day}`);
+      if (dayCheckbox) {
+        dayCheckbox.checked = config.tracking_enabled_days.includes(day);
+      }
+    }
+    
+    // Désactiver les boutons (aucun changement encore)
+    this.setConfigButtonsState(false);
+    
+    console.log(`📋 Configuration chargée pour ${config.username}`);
+  }
+  
+  // Gestionnaire de changement des champs de configuration
+  static onConfigFieldChange() {
+    // Activer les boutons de sauvegarde/reset
+    this.setConfigButtonsState(true);
+  }
+  
+  // Activer/désactiver les boutons de configuration
+  static setConfigButtonsState(enabled) {
+    const saveBtn = document.getElementById('save-config-btn');
+    const resetBtn = document.getElementById('reset-config-btn');
+    
+    if (saveBtn) saveBtn.disabled = !enabled;
+    if (resetBtn) resetBtn.disabled = !enabled;
+  }
+  
+  // Sauvegarder la configuration de tracking
+  static async saveTrackingConfig() {
+    if (!this.currentConfigLivreur) return;
+    
+    const saveBtn = document.getElementById('save-config-btn');
+    
+    // Désactiver le bouton pendant la sauvegarde
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="icon">⏳</span> Sauvegarde...';
+    }
+    
+    try {
+      // Récupérer les valeurs du formulaire
+      const configData = this.getConfigFromForm();
+      
+      console.log('💾 Sauvegarde de la configuration:', configData);
+      
+      const response = await fetch(
+        `${window.API_BASE_URL}/gps/tracking-config/${this.currentConfigLivreur.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(configData)
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Mettre à jour la configuration locale
+        const configIndex = this.trackingConfigs.findIndex(c => c.id === this.currentConfigLivreur.id);
+        if (configIndex !== -1) {
+          this.trackingConfigs[configIndex] = data.data;
+          this.currentConfigLivreur = data.data;
+        }
+        
+        // Mettre à jour le dropdown
+        this.populateConfigLivreurSelect();
+        
+        // Désactiver les boutons
+        this.setConfigButtonsState(false);
+        
+        ToastManager.success('Configuration sauvegardée avec succès');
+        console.log('✅ Configuration sauvegardée');
+      } else {
+        throw new Error(data.message || 'Erreur lors de la sauvegarde');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde:', error);
+      ToastManager.error('Erreur lors de la sauvegarde: ' + error.message);
+    } finally {
+      // Restaurer le bouton
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="icon">💾</span> Sauvegarder';
+      }
+    }
+  }
+  
+  // Réinitialiser la configuration
+  static resetTrackingConfig() {
+    if (!this.currentConfigLivreur) return;
+    
+    console.log('🔄 Réinitialisation de la configuration');
+    
+    // Recharger la configuration originale dans le formulaire
+    this.loadConfigIntoForm(this.currentConfigLivreur);
+    
+    ToastManager.info('Configuration réinitialisée');
+  }
+  
+  // Récupérer la configuration depuis le formulaire
+  static getConfigFromForm() {
+    const startHourSelect = document.getElementById('tracking-start-hour');
+    const endHourSelect = document.getElementById('tracking-end-hour');
+    const trackingActiveCheckbox = document.getElementById('gps-tracking-active');
+    
+    // Récupérer les jours sélectionnés
+    const enabledDays = [];
+    for (let day = 0; day <= 6; day++) {
+      const dayCheckbox = document.getElementById(`day-${day}`);
+      if (dayCheckbox && dayCheckbox.checked) {
+        enabledDays.push(day);
+      }
+    }
+    
+    return {
+      tracking_start_hour: parseInt(startHourSelect.value),
+      tracking_end_hour: parseInt(endHourSelect.value),
+      tracking_enabled_days: enabledDays,
+      gps_tracking_active: trackingActiveCheckbox.checked
+    };
+  }
+
+  // Afficher un message d'erreur de permissions
+  static showConfigPermissionError() {
+    const summaryElement = document.getElementById('config-summary');
+    if (summaryElement) {
+      summaryElement.innerHTML = `
+        <div style="color: #e74c3c; text-align: center; padding: 20px;">
+          <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 10px;"></i>
+          <h4>Accès non autorisé</h4>
+          <p>Vous devez être <strong>Manager</strong> ou <strong>Administrateur</strong> pour configurer les heures de tracking GPS.</p>
+          <p style="font-size: 14px; color: #7f8c8d;">Contactez votre administrateur pour obtenir les permissions nécessaires.</p>
+        </div>
+      `;
+    }
+  }
+
+  // Afficher un message quand aucune donnée n'est trouvée
+  static showConfigNoDataMessage() {
+    const summaryElement = document.getElementById('config-summary');
+    if (summaryElement) {
+      summaryElement.innerHTML = `
+        <div style="color: #f39c12; text-align: center; padding: 20px;">
+          <i class="fas fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 10px;"></i>
+          <h4>Aucun livreur trouvé</h4>
+          <p>Aucune configuration de tracking n'a été trouvée.</p>
+          <p style="font-size: 14px; color: #7f8c8d;">Vérifiez qu'il existe des livreurs dans le système.</p>
+        </div>
+      `;
+    }
+  }
+
+  // Afficher un message d'erreur générique
+  static showConfigErrorMessage(errorMessage) {
+    const summaryElement = document.getElementById('config-summary');
+    if (summaryElement) {
+      summaryElement.innerHTML = `
+        <div style="color: #e74c3c; text-align: center; padding: 20px;">
+          <i class="fas fa-exclamation-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+          <h4>Erreur de chargement</h4>
+          <p>Impossible de charger les configurations de tracking.</p>
+          <p style="font-size: 14px; color: #7f8c8d;">${errorMessage}</p>
+        </div>
+      `;
+    }
+    ToastManager.error('Erreur lors du chargement des configurations');
   }
 }
 

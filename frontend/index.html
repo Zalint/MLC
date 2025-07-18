@@ -823,6 +823,141 @@
                             <!-- Liste des livreurs sera chargée ici -->
                         </div>
                     </div>
+                    
+                    <div class="gps-trace-card">
+                        <h3>📍 Tracé journalier</h3>
+                        <div class="trace-controls">
+                            <div class="trace-input-group">
+                                <label for="trace-livreur-select">Livreur:</label>
+                                <select id="trace-livreur-select" class="trace-select">
+                                    <option value="">Sélectionner un livreur</option>
+                                </select>
+                            </div>
+                            
+                            <div class="trace-input-group">
+                                <label for="trace-date-input">Date:</label>
+                                <input type="date" id="trace-date-input" class="trace-date-input">
+                            </div>
+                            
+                            <div class="trace-buttons">
+                                <button id="show-trace-btn" class="btn btn-primary btn-sm" disabled>
+                                    <span class="icon">📍</span>
+                                    Afficher Tracé
+                                </button>
+                                <button id="clear-trace-btn" class="btn btn-secondary btn-sm" disabled>
+                                    <span class="icon">🗑️</span>
+                                    Effacer
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="trace-summary" class="trace-summary" style="display: none;">
+                            <div class="trace-summary-header">
+                                <h4>📊 Résumé du tracé</h4>
+                            </div>
+                            <div class="trace-stats">
+                                <div class="trace-stat-item">
+                                    <span class="trace-stat-label">Distance:</span>
+                                    <span class="trace-stat-value" id="trace-distance">-</span>
+                                </div>
+                                <div class="trace-stat-item">
+                                    <span class="trace-stat-label">Durée:</span>
+                                    <span class="trace-stat-value" id="trace-duration">-</span>
+                                </div>
+                                <div class="trace-stat-item">
+                                    <span class="trace-stat-label">Vitesse moy.:</span>
+                                    <span class="trace-stat-value" id="trace-avg-speed">-</span>
+                                </div>
+                                <div class="trace-stat-item">
+                                    <span class="trace-stat-label">Points GPS:</span>
+                                    <span class="trace-stat-value" id="trace-points-count">-</span>
+                                </div>
+                                <div class="trace-stat-item">
+                                    <span class="trace-stat-label">Période:</span>
+                                    <span class="trace-stat-value" id="trace-time-range">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="gps-tracking-config-card">
+                        <h3>⏰ Configuration des heures de tracking</h3>
+                        <div class="tracking-config-controls">
+                            <div class="config-summary" id="config-summary">
+                                <p>Sélectionnez un livreur pour configurer ses heures de tracking GPS</p>
+                            </div>
+                            
+                            <div class="config-form" id="config-form" style="display: none;">
+                                <div class="config-input-group">
+                                    <label for="config-livreur-select">Livreur:</label>
+                                    <select id="config-livreur-select" class="config-select">
+                                        <option value="">Sélectionner un livreur</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="config-row">
+                                    <div class="config-input-group">
+                                        <label for="tracking-start-hour">Heure de début:</label>
+                                        <select id="tracking-start-hour" class="config-time-select">
+                                            <!-- Options 0-23 will be populated by JS -->
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="config-input-group">
+                                        <label for="tracking-end-hour">Heure de fin:</label>
+                                        <select id="tracking-end-hour" class="config-time-select">
+                                            <!-- Options 0-23 will be populated by JS -->
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="config-input-group">
+                                    <label>Jours de tracking:</label>
+                                    <div class="days-checkboxes">
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-1" value="1"> Lundi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-2" value="2"> Mardi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-3" value="3"> Mercredi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-4" value="4"> Jeudi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-5" value="5"> Vendredi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-6" value="6"> Samedi
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" id="day-0" value="0"> Dimanche
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="config-input-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" id="gps-tracking-active"> 
+                                        Tracking GPS activé
+                                    </label>
+                                </div>
+                                
+                                <div class="config-buttons">
+                                    <button id="save-config-btn" class="btn btn-primary btn-sm" disabled>
+                                        <span class="icon">💾</span>
+                                        Sauvegarder
+                                    </button>
+                                    <button id="reset-config-btn" class="btn btn-secondary btn-sm" disabled>
+                                        <span class="icon">🔄</span>
+                                        Réinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="gps-map-container" id="gps-map">
