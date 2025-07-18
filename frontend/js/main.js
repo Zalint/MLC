@@ -624,7 +624,23 @@ class PageManager {
   static showPage(pageId) {
     console.log('🔄 Changement de page vers:', pageId);
     
-    // Cacher toutes les pages
+    // Si on est en train de montrer la page de login, s'assurer que seule cette page est visible
+    if (pageId === 'login') {
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+        page.style.display = 'none';
+      });
+      
+      const loginPage = document.getElementById('login-page');
+      if (loginPage) {
+        loginPage.classList.add('active');
+        loginPage.style.display = 'block';
+      }
+      AppState.currentPage = pageId;
+      return; // Ne pas charger de données pour la page login
+    }
+    
+    // Pour toutes les autres pages, cacher toutes les pages d'abord
     document.querySelectorAll('.page').forEach(page => {
       page.classList.remove('active');
       page.style.display = 'none';
@@ -635,7 +651,6 @@ class PageManager {
     console.log('🔄 Page cible trouvée:', !!targetPage, targetPage);
     if (targetPage) {
       targetPage.classList.add('active');
-      // Forcer l'affichage en supprimant le style inline display: none
       targetPage.style.display = 'block';
       AppState.currentPage = pageId;
       console.log('🔄 Page activée:', pageId);
@@ -643,7 +658,7 @@ class PageManager {
       console.error('❌ Page non trouvée:', `${pageId}-page`);
     }
 
-    // Mettre à jour la navigation
+    // Mettre à jour la navigation (seulement si pas en mode login)
     document.querySelectorAll('.nav-item').forEach(item => {
       item.classList.remove('active');
     });
@@ -891,8 +906,22 @@ class AuthManager {
     document.getElementById('navigation').classList.add('hidden');
     document.getElementById('main-content').classList.add('hidden');
     
-    PageManager.showPage('login');
+    // Hide all pages first to ensure clean state
+    document.querySelectorAll('.page').forEach(page => {
+      page.classList.remove('active');
+      page.style.display = 'none';
+    });
+    
+    // Show only login page
+    const loginPage = document.getElementById('login-page');
+    if (loginPage) {
+      loginPage.classList.add('active');
+      loginPage.style.display = 'block';
+    }
+    
+    // Show main content only after properly setting up login page
     document.getElementById('main-content').classList.remove('hidden');
+    AppState.currentPage = 'login';
   }
 
   static showAuthenticatedUI() {
