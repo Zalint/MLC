@@ -2120,11 +2120,11 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
     visibility: visible !important;
 }
 
-/* Cacher le bouton export au-dessus du tableau MATA */
+/* Bouton export au-dessus du tableau MATA - visible par défaut */
 #export-mata-monthly-excel-table {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
+    display: inline-flex;
+    visibility: visible;
+    opacity: 1;
 }
 
 .section-header {

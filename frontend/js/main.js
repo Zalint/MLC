@@ -457,8 +457,81 @@ class ApiClient {
   }
 
   static async exportMataMonthlyToExcel(month) {
-    const url = `${API_BASE_URL}/orders/mata-monthly-export?month=${month}`;
-    window.open(url, '_blank');
+    try {
+      const url = `${window.API_BASE_URL}/orders/mata-monthly-export?month=${month}`;
+      const token = this.getStoredToken();
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      // Récupérer le blob de la réponse
+      const blob = await response.blob();
+      
+      // Créer un lien de téléchargement
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `mata_mensuel_${month}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Nettoyer
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      ToastManager.success('Export Excel MATA téléchargé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel MATA:', error);
+      ToastManager.error('Erreur lors de l\'export Excel');
+    }
+  }
+
+  static async exportMonthlySummaryToExcel(month) {
+    try {
+      const url = `${window.API_BASE_URL}/orders/monthly-summary-export?month=${month}`;
+      const token = this.getStoredToken();
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      // Récupérer le blob de la réponse
+      const blob = await response.blob();
+      
+      // Créer un lien de téléchargement
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `recapitulatif_livreurs_${month}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Nettoyer
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      ToastManager.success('Export Excel récapitulatif téléchargé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel récapitulatif:', error);
+      ToastManager.error('Erreur lors de l\'export Excel récapitulatif');
+    }
   }
 
   static async updateMataOrderRating(orderId, ratingType, ratingValue) {
@@ -2110,6 +2183,17 @@ class MonthlyDashboardManager {
         ToastManager.success('Export Excel en cours...');
       });
     }
+
+    // Gestionnaire pour l'export Excel récapitulatif par livreur
+    const exportSummaryBtn = document.getElementById('export-monthly-summary-excel');
+    if (exportSummaryBtn) {
+      exportSummaryBtn.addEventListener('click', () => {
+        const monthInput = document.getElementById('monthly-dashboard-date-filter');
+        const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
+        ApiClient.exportMonthlySummaryToExcel(selectedMonth);
+        ToastManager.success('Export Excel récapitulatif en cours...');
+      });
+    }
   }
 }
 // ===== GESTIONNAIRE DE TABLEAU DE BORD MATA MENSUEL =====
@@ -2275,6 +2359,16 @@ class MataMonthlyDashboardManager {
 
   static displayMataOrdersTable(orders, month) {
     const container = document.getElementById('mata-orders-table-container');
+    
+    // Afficher/masquer le bouton d'export selon s'il y a des données
+    const exportBtn = document.getElementById('export-mata-monthly-excel-table');
+    if (exportBtn) {
+      if (orders && orders.length > 0) {
+        exportBtn.style.display = 'inline-flex';
+      } else {
+        exportBtn.style.display = 'none';
+      }
+    }
     
     if (!orders || orders.length === 0) {
       container.innerHTML = '<p class="no-data">Aucune commande MATA trouvée pour ce mois.</p>';

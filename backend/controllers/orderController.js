@@ -1634,6 +1634,248 @@ class OrderController {
       });
     }
   }
+
+  // Export Excel du récapitulatif par livreur
+  static async exportMonthlySummaryToExcel(req, res) {
+    try {
+      const month = req.query.month || new Date().toISOString().slice(0, 7);
+      
+      // Vérifier les permissions
+      if (req.user.role !== 'MANAGER' && req.user.role !== 'ADMIN') {
+        return res.status(403).json({
+          error: 'Accès refusé. Seuls les managers et admins peuvent exporter les données.'
+        });
+      }
+
+      // Récupérer les données du récapitulatif mensuel
+      const [monthlyData, dailyExpenses] = await Promise.all([
+        Order.getMonthlyDetailsByDay(month),
+        Expense.getMonthlyExpensesByDay(month)
+      ]);
+
+      // Récupérer les données GPS directement depuis la base de données
+      const db = require('../models/database');
+      let dailyGpsData = [];
+      try {
+        const gpsQuery = `
+          SELECT 
+            gdm.livreur_id,
+            u.username as livreur_username,
+            gdm.tracking_date,
+            gdm.total_distance_km
+          FROM gps_daily_metrics gdm
+          JOIN users u ON gdm.livreur_id = u.id
+          WHERE DATE_TRUNC('month', gdm.tracking_date) = DATE_TRUNC('month', $1::date)
+          ORDER BY gdm.tracking_date DESC, u.username
+        `;
+        const gpsResult = await db.query(gpsQuery, [month + '-01']);
+        dailyGpsData = gpsResult.rows;
+      } catch (error) {
+        console.warn('Erreur lors de la récupération des données GPS:', error);
+        dailyGpsData = [];
+      }
+
+      // Créer le workbook Excel
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Récapitulatif par livreur');
+
+      // Définir les colonnes
+      worksheet.columns = [
+        { header: 'Date', key: 'date', width: 12 },
+        { header: 'Livreur', key: 'livreur', width: 20 },
+        { header: 'Commandes', key: 'commandes', width: 12 },
+        { header: 'Courses (FCFA)', key: 'courses', width: 15 },
+        { header: 'Carburant (FCFA)', key: 'carburant', width: 15 },
+        { header: 'Réparations (FCFA)', key: 'reparations', width: 15 },
+        { header: 'Police (FCFA)', key: 'police', width: 15 },
+        { header: 'Autres (FCFA)', key: 'autres', width: 15 },
+        { header: 'Total Dépenses (FCFA)', key: 'total_depenses', width: 18 },
+        { header: 'Km Parcourus', key: 'km_parcourus', width: 15 },
+        { header: 'GPS Km', key: 'gps_km', width: 12 },
+        { header: 'Bénéfice (FCFA)', key: 'benefice', width: 15 }
+      ];
+
+      // Style des en-têtes
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF009E60' }
+      };
+      worksheet.getRow(1).alignment = { horizontal: 'center' };
+
+      // Obtenir la liste des livreurs et des dates
+      const livreurs = [...new Set(monthlyData.map(item => item.livreur))].sort();
+      const dates = [...new Set(monthlyData.map(item => item.date))].sort();
+
+      // Créer des maps pour un accès rapide aux données
+      const ordersMap = {};
+      const expensesMap = {};
+      const gpsMap = {};
+
+      monthlyData.forEach(item => {
+        const key = `${item.date}_${item.livreur}`;
+        ordersMap[key] = item;
+      });
+
+      dailyExpenses.forEach(item => {
+        const key = `${item.date}_${item.livreur}`;
+        expensesMap[key] = item;
+      });
+
+      dailyGpsData.forEach(item => {
+        const gpsDate = new Date(item.tracking_date);
+        const year = gpsDate.getFullYear();
+        const month = String(gpsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(gpsDate.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        const key = `${formattedDate}_${item.livreur_username}`;
+        gpsMap[key] = item;
+      });
+
+      // Ajouter les données ligne par ligne
+      dates.forEach(date => {
+        const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
+          day: '2-digit', 
+          month: '2-digit' 
+        });
+        
+        livreurs.forEach(livreur => {
+          const orderKey = `${date}_${livreur}`;
+          const expenseKey = `${date}_${livreur}`;
+          const gpsKey = `${date}_${livreur}`;
+          
+          const orderData = ordersMap[orderKey] || { nombre_commandes: 0, total_montant: 0 };
+          const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
+          const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
+          
+          const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
+          const benefice = (orderData.total_montant || 0) - totalDepenses;
+          
+          const row = worksheet.addRow({
+            date: formattedDate,
+            livreur: livreur,
+            commandes: orderData.nombre_commandes || 0,
+            courses: orderData.total_montant || 0,
+            carburant: expenseData.carburant || 0,
+            reparations: expenseData.reparations || 0,
+            police: expenseData.police || 0,
+            autres: expenseData.autres || 0,
+            total_depenses: totalDepenses,
+            km_parcourus: expenseData.km_parcourus || 0,
+            gps_km: gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : 0,
+            benefice: benefice
+          });
+
+          // Colorer les bénéfices
+          if (benefice >= 0) {
+            row.getCell('benefice').fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFD4EDDA' }
+            };
+            row.getCell('benefice').font = { color: { argb: 'FF155724' }, bold: true };
+          } else {
+            row.getCell('benefice').fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF8D7DA' }
+            };
+            row.getCell('benefice').font = { color: { argb: 'FF721C24' }, bold: true };
+          }
+        });
+      });
+
+      // Ajouter les totaux par livreur
+      livreurs.forEach(livreur => {
+        const livreurOrders = monthlyData.filter(item => item.livreur === livreur);
+        const livreurExpenses = dailyExpenses.filter(item => item.livreur === livreur);
+        
+        const totalCommandes = livreurOrders.reduce((sum, item) => sum + parseInt(item.nombre_commandes || 0), 0);
+        const totalMontant = livreurOrders.reduce((sum, item) => sum + parseFloat(item.total_montant || 0), 0);
+        const totalCarburant = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.carburant || 0), 0);
+        const totalReparations = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.reparations || 0), 0);
+        const totalPolice = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.police || 0), 0);
+        const totalAutres = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.autres || 0), 0);
+        const totalDepensesLivreur = totalCarburant + totalReparations + totalPolice + totalAutres;
+        const totalKm = livreurExpenses.reduce((sum, item) => sum + parseFloat(item.km_parcourus || 0), 0);
+        const totalGpsKm = dailyGpsData
+          .filter(item => item.livreur_username === livreur)
+          .reduce((sum, item) => sum + parseFloat(item.total_distance_km || 0), 0);
+        const totalBenefice = totalMontant - totalDepensesLivreur;
+        
+        const totalRow = worksheet.addRow({
+          date: 'TOTAL',
+          livreur: livreur,
+          commandes: totalCommandes,
+          courses: totalMontant,
+          carburant: totalCarburant,
+          reparations: totalReparations,
+          police: totalPolice,
+          autres: totalAutres,
+          total_depenses: totalDepensesLivreur,
+          km_parcourus: totalKm,
+          gps_km: Math.round(totalGpsKm * 100) / 100,
+          benefice: totalBenefice
+        });
+
+        // Style des lignes de total
+        totalRow.font = { bold: true };
+        totalRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFFF00' }
+        };
+
+        // Colorer les bénéfices totaux
+        if (totalBenefice >= 0) {
+          totalRow.getCell('benefice').fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD4EDDA' }
+          };
+          totalRow.getCell('benefice').font = { color: { argb: 'FF155724' }, bold: true };
+        } else {
+          totalRow.getCell('benefice').fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF8D7DA' }
+          };
+          totalRow.getCell('benefice').font = { color: { argb: 'FF721C24' }, bold: true };
+        }
+      });
+
+      // Ajouter des bordures
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber >= 2) {
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          });
+        }
+      });
+
+      // Définir les en-têtes de réponse
+      const filename = `recapitulatif_livreurs_${month}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      // Écrire le fichier dans la réponse
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel récapitulatif par livreur:', error);
+      res.status(500).json({
+        error: 'Erreur lors de l\'export Excel récapitulatif par livreur'
+      });
+    }
+  }
 }
 
 module.exports = OrderController; 

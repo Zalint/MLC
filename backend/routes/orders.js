@@ -49,6 +49,9 @@ router.get('/mata-monthly-dashboard', requireManagerOrAdmin, OrderController.get
 // Route pour l'export Excel du tableau de bord MATA mensuel (managers et admins seulement)
 router.get('/mata-monthly-export', requireManagerOrAdmin, OrderController.exportMataMonthlyToExcel);
 
+// Route pour l'export Excel du récapitulatif par livreur (managers et admins seulement)
+router.get('/monthly-summary-export', requireManagerOrAdmin, OrderController.exportMonthlySummaryToExcel);
+
 // Route pour les détails des courses d'un livreur (managers et admins seulement)
 router.get('/livreur/:livreurId/details', requireManagerOrAdmin, validateLivreurId, validateDate, OrderController.getLivreurOrderDetails);
 
