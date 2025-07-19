@@ -103,23 +103,53 @@ const validateUserUpdate = [
 
 // Validation pour la création de commande
 const validateOrderCreation = [
+  body('interne')
+    .optional()
+    .custom((value) => {
+      // Accepter les valeurs de checkbox HTML : 'on', true, 'true', false, 'false'
+      if (value === 'on' || value === true || value === 'true' || value === false || value === 'false' || value === undefined || value === null) {
+        return true;
+      }
+      throw new Error('Le champ interne doit être une valeur de checkbox valide');
+    }),
+    
   body('client_name')
-    .trim()
-    .notEmpty()
-    .withMessage('Le nom du client est requis')
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Le nom du client doit contenir entre 2 et 100 caractères'),
+    .custom((value, { req }) => {
+      // Si c'est une commande interne, le nom du client n'est pas requis
+      if (req.body.interne === 'on' || req.body.interne === true || req.body.interne === 'true') {
+        return true;
+      }
+      
+      // Sinon, validation normale
+      if (!value || value.trim() === '') {
+        throw new Error('Le nom du client est requis');
+      }
+      
+      if (value.trim().length < 2 || value.trim().length > 100) {
+        throw new Error('Le nom du client doit contenir entre 2 et 100 caractères');
+      }
+      
+      return true;
+    }),
     
   body('phone_number')
-    .trim()
-    .notEmpty()
-    .withMessage('Le numéro de téléphone est requis')
-    .custom((value) => {
+    .custom((value, { req }) => {
+      // Si c'est une commande interne, le numéro de téléphone n'est pas requis
+      if (req.body.interne === 'on' || req.body.interne === true || req.body.interne === 'true') {
+        return true;
+      }
+      
+      // Sinon, validation normale
+      if (!value || value.trim() === '') {
+        throw new Error('Le numéro de téléphone est requis');
+      }
+      
       // Accepter tous les formats numériques (avec ou sans espaces, tirets, parenthèses)
       const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
       if (!/^\d{6,20}$/.test(cleanPhone)) {
         throw new Error('Le numéro de téléphone doit contenir entre 6 et 20 chiffres');
       }
+      
       return true;
     }),
     

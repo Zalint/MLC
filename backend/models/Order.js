@@ -18,20 +18,21 @@ class Order {
     this.adresse_source = data.adresse_source;
     this.adresse_destination = data.adresse_destination;
     this.point_de_vente = data.point_de_vente;
+    this.interne = data.interne || false;
   }
 
   // Créer une nouvelle commande
-  static async create({ client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id }) {
+  static async create({ client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne }) {
     const id = uuidv4();
     
     const query = `
-      INSERT INTO orders (id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      INSERT INTO orders (id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
     
     const result = await db.query(query, [
-      id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null
+      id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null, interne || false
     ]);
     
     return new Order(result.rows[0]);

@@ -6,7 +6,29 @@ class OrderController {
   // Créer une nouvelle commande
   static async createOrder(req, res) {
     try {
-      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by } = req.body;
+      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, interne } = req.body;
+      
+      // Debug: logger les données reçues
+      console.log('🔍 Données reçues pour création de commande:', {
+        client_name,
+        phone_number,
+        order_type,
+        interne,
+        interneType: typeof interne,
+        interneValue: interne
+      });
+      
+      // Gestion des commandes internes
+      let finalClientName = client_name;
+      let finalPhoneNumber = phone_number;
+      let isInterne = false;
+      
+      if (interne === 'on' || interne === true || interne === 'true') {
+        finalClientName = 'COMMANDE INTERNE';
+        finalPhoneNumber = '0000000000';
+        isInterne = true;
+        console.log('🏢 Commande interne détectée, valeurs par défaut appliquées');
+      }
       
       // Déterminer qui est le créateur de la commande
       let actualCreatedBy = req.user.id; // Par défaut, l'utilisateur connecté
@@ -49,8 +71,8 @@ class OrderController {
       }
 
       const newOrder = await Order.create({
-        client_name,
-        phone_number,
+        client_name: finalClientName,
+        phone_number: finalPhoneNumber,
         adresse_source,
         adresse_destination,
         point_de_vente,
@@ -59,7 +81,8 @@ class OrderController {
         amount,
         course_price,
         order_type,
-        created_by: actualCreatedBy
+        created_by: actualCreatedBy,
+        interne: isInterne
       });
 
       res.status(201).json({

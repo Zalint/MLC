@@ -1388,7 +1388,9 @@ class DashboardManager {
           ${order.address ? `<p><strong>Adresse:</strong> ${Utils.escapeHtml(order.address)}</p>` : ''}
           <p><strong>Prix de la course:</strong> <span class="order-amount">${Utils.formatAmount(order.course_price)}</span></p>
           ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
-          <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span></p>
+          <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span>
+            ${order.interne ? '<span class="badge-internal" style="background:#dc2626;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;margin-left:8px;">🏢 Interne</span>' : ''}
+          </p>
         </div>
       </div>
     `).join('');
@@ -1592,7 +1594,9 @@ class DashboardManager {
                   ${orders.map(order => `
                     <tr>
                       <td>${new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td>${Utils.escapeHtml(order.client_name)}</td>
+                      <td>${Utils.escapeHtml(order.client_name)}
+                        ${order.interne ? '<span class="badge-internal" style="background:#dc2626;color:#fff;padding:2px 6px;border-radius:6px;font-size:0.7em;margin-left:4px;">🏢</span>' : ''}
+                      </td>
                       <td>${Utils.escapeHtml(order.phone_number)}</td>
                       <td><span class="order-type ${order.order_type}">${order.order_type}</span></td>
                       <td>${Utils.formatAmount(order.course_price)}</td>
@@ -3121,6 +3125,7 @@ class OrderManager {
           <div class="order-info">
             <span>📞 ${Utils.escapeHtml(order.phone_number)}</span>
             <span>📍 ${Utils.escapeHtml(order.address)}</span>
+            ${order.interne ? '<span class="badge-internal" style="background:#dc2626;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;margin-left:8px;">🏢 Interne</span>' : ''}
           </div>
           <div class="order-description">${Utils.escapeHtml(order.description || '')}</div>
           <div class="order-prices">
@@ -3153,6 +3158,7 @@ class OrderManager {
           ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> <span class="order-amount">${Utils.formatAmount(order.amount)}</span></p>` : ''}
           <p><strong>Type:</strong> <span class="order-type ${order.order_type}">${order.order_type}</span>
             ${order.order_type === 'MLC' && order.is_subscription ? '<span class="badge-abonnement" style="margin-left:8px;background:#2563eb;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;vertical-align:middle;">🎫 Abonnement</span>' : ''}
+            ${order.interne ? '<span class="badge-internal" style="margin-left:8px;background:#dc2626;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;vertical-align:middle;">🏢 Interne</span>' : ''}
           </p>
         </div>
       </div>
@@ -3315,6 +3321,7 @@ class OrderManager {
       const supplementOptionsGroup = document.getElementById('supplement-options-group');
       const supplementCustomGroup = document.getElementById('supplement-custom-group');
       const mataHorsZoneGroup = document.getElementById('mata-hors-zone-group');
+      const interneToggleGroup = document.getElementById('interne-toggle-group');
       const mlcZoneGroup = document.getElementById('mlc-zone-group');
       const mlcCustomPriceGroup = document.getElementById('mlc-custom-price-group');
       const zoneInfo = document.getElementById('zone-info');
@@ -3323,6 +3330,7 @@ class OrderManager {
       if (supplementOptionsGroup) supplementOptionsGroup.style.display = 'none';
       if (supplementCustomGroup) supplementCustomGroup.style.display = 'none';
       if (mataHorsZoneGroup) mataHorsZoneGroup.style.display = 'none';
+      if (interneToggleGroup) interneToggleGroup.style.display = 'none';
       if (mlcZoneGroup) mlcZoneGroup.style.display = 'none';
       if (mlcCustomPriceGroup) mlcCustomPriceGroup.style.display = 'none';
       if (zoneInfo) zoneInfo.style.display = 'none';
@@ -5173,13 +5181,25 @@ class App {
       // Réinitialiser les suppléments et zones
       document.getElementById('add-supplement').checked = false;
       document.getElementById('mata-hors-zone').checked = false;
+      document.getElementById('interne-toggle').checked = false;
       document.getElementById('mlc-zone').value = '';
       supplementToggleGroup.style.display = 'none';
       supplementOptionsGroup.style.display = 'none';
       supplementCustomGroup.style.display = 'none';
       mataHorsZoneGroup.style.display = 'none';
+      document.getElementById('interne-toggle-group').style.display = 'none';
       mlcZoneGroup.style.display = 'none';
       document.getElementById('zone-info').style.display = 'none';
+      
+      // Réafficher les champs client et téléphone par défaut
+      const clientNameGroup = document.querySelector('.form-group:has(#client-name)');
+      const phoneNumberGroup = document.querySelector('.form-group:has(#phone-number)');
+      const clientNameInput = document.getElementById('client-name');
+      const phoneNumberInput = document.getElementById('phone-number');
+      if (clientNameGroup) clientNameGroup.style.display = 'block';
+      if (phoneNumberGroup) phoneNumberGroup.style.display = 'block';
+      if (clientNameInput) clientNameInput.required = true;
+      if (phoneNumberInput) phoneNumberInput.required = true;
       
       if (orderType === 'MATA') {
         coursePriceGroup.style.display = 'block';
@@ -5187,6 +5207,7 @@ class App {
         subscriptionToggleGroup.style.display = 'none';
         subscriptionSelectGroup.style.display = 'none';
         mataHorsZoneGroup.style.display = 'block';
+        document.getElementById('interne-toggle-group').style.display = 'block';
         coursePriceInput.value = '1500';
         coursePriceInput.readOnly = true;
       } else if (orderType === 'MLC') {
@@ -5294,6 +5315,33 @@ class App {
       } else {
         // Remettre le prix par défaut de MATA
         coursePriceInput.value = '1500';
+      }
+    });
+
+    // Gestion du toggle "Interne" pour MATA
+    document.getElementById('interne-toggle').addEventListener('change', (e) => {
+      const isInterne = e.target.checked;
+      const clientNameGroup = document.querySelector('.form-group:has(#client-name)');
+      const phoneNumberGroup = document.querySelector('.form-group:has(#phone-number)');
+      const clientNameInput = document.getElementById('client-name');
+      const phoneNumberInput = document.getElementById('phone-number');
+      
+      if (isInterne) {
+        // Masquer les champs client et téléphone
+        clientNameGroup.style.display = 'none';
+        phoneNumberGroup.style.display = 'none';
+        // Vider les champs et les rendre non requis
+        clientNameInput.value = '';
+        phoneNumberInput.value = '';
+        clientNameInput.required = false;
+        phoneNumberInput.required = false;
+      } else {
+        // Afficher les champs client et téléphone
+        clientNameGroup.style.display = 'block';
+        phoneNumberGroup.style.display = 'block';
+        // Les rendre requis
+        clientNameInput.required = true;
+        phoneNumberInput.required = true;
       }
     });
 
@@ -5425,6 +5473,12 @@ class App {
         orderData.hors_zone = true;
       }
       
+      // Traitement de la commande interne pour MATA
+      if (orderData.order_type === 'MATA' && orderData.interne === 'on') {
+        // Les champs client_name et phone_number sont gérés côté serveur
+        // Pas besoin de traitement supplémentaire côté client
+      }
+      
       // Traitement des zones MLC sans abonnement
       if (orderData.order_type === 'MLC' && !orderData.use_subscription && orderData.mlc_zone) {
         // Pour toutes les zones (y compris Zone 4), le prix est dans course_price
@@ -5456,6 +5510,10 @@ class App {
           
           if (document.getElementById('mata-hors-zone-group')) {
               document.getElementById('mata-hors-zone-group').style.display = 'none';
+          }
+          
+          if (document.getElementById('interne-toggle-group')) {
+              document.getElementById('interne-toggle-group').style.display = 'none';
           }
           
           if (document.getElementById('mlc-zone-group')) {
