@@ -142,6 +142,56 @@ class Order {
     return result.rows.map(row => new Order(row));
   }
 
+  // Rechercher des clients par nom ou numéro de téléphone
+  static async searchClients(searchTerm, limit = 10) {
+    const query = `
+      SELECT DISTINCT 
+        client_name,
+        phone_number,
+        address,
+        adresse_source,
+        adresse_destination,
+        point_de_vente,
+        COUNT(*) as order_count,
+        MAX(created_at) as last_order_date
+      FROM orders 
+      WHERE (client_name ILIKE $1 OR phone_number ILIKE $1)
+        AND client_name != 'COMMANDE INTERNE'
+        AND phone_number != '0000000000'
+      GROUP BY client_name, phone_number, address, adresse_source, adresse_destination, point_de_vente
+      ORDER BY last_order_date DESC
+      LIMIT $2
+    `;
+    
+    const result = await db.query(query, [`%${searchTerm}%`, limit]);
+    return result.rows;
+  }
+
+  // Trouver un client par numéro de téléphone exact
+  static async findClientByPhone(phoneNumber) {
+    const query = `
+      SELECT DISTINCT 
+        client_name,
+        phone_number,
+        address,
+        adresse_source,
+        adresse_destination,
+        point_de_vente,
+        COUNT(*) as order_count,
+        MAX(created_at) as last_order_date
+      FROM orders 
+      WHERE phone_number = $1
+        AND client_name != 'COMMANDE INTERNE'
+        AND phone_number != '0000000000'
+      GROUP BY client_name, phone_number, address, adresse_source, adresse_destination, point_de_vente
+      ORDER BY last_order_date DESC
+      LIMIT 1
+    `;
+    
+    const result = await db.query(query, [phoneNumber]);
+    return result.rows.length > 0 ? result.rows[0] : null;
+  }
+
   // Obtenir les commandes du jour par utilisateur (pour managers)
   static async getTodayOrdersByUser(date = null) {
     const targetDate = date || new Date().toISOString().split('T')[0];

@@ -2584,14 +2584,123 @@
 
 /* Animation pour l'affichage du formulaire */
 @keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Styles pour le sélecteur de contacts */
+.input-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.input-group input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-group .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: none;
+}
+
+.contact-selector {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.contact-search-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.contact-search-section h3 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.contacts-list,
+.clients-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.contact-item,
+.client-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+}
+
+.contact-item:hover,
+.client-item:hover {
+  background-color: #f5f5f5;
+}
+
+.contact-item:last-child,
+.client-item:last-child {
+  border-bottom: none;
+}
+
+.contact-info,
+.client-info {
+  flex: 1;
+}
+
+.contact-name,
+.client-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.contact-phone,
+.client-phone {
+  color: #666;
+  font-size: 14px;
+}
+
+.client-details {
+  margin-top: 4px;
+}
+
+.contact-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+#contact-search:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
 }
 
 .config-form {

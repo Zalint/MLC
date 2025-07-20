@@ -58,9 +58,10 @@ app.use((err, req, res, next) => {
 });
 
 // Démarrage du serveur
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Serveur Frontend démarré sur le port ${PORT}`);
-  console.log(`📱 URL: http://localhost:${PORT}`);
+  console.log(`📱 URL locale: http://localhost:${PORT}`);
+  console.log(`📱 URL réseau: http://192.168.1.184:${PORT}`);
   console.log(`🔗 API Backend: ${BACKEND_URL}`);
 });
 

@@ -690,6 +690,20 @@ class ApiClient {
   static async getDailyGpsSummary(month) {
     return this.request(`/analytics/gps/daily-summary?month=${month}`);
   }
+
+  // Rechercher des clients
+  static async searchClients(query, limit = 10) {
+    return this.request(`/orders/search-clients?q=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+
+  // Obtenir les informations d'un client par numéro de téléphone
+  static async getClientByPhone(phoneNumber) {
+    return this.request(`/orders/client/${encodeURIComponent(phoneNumber)}`);
+  }
+
+  static async getTodayOrdersSummary(date) {
+    return this.request(`/orders/today-summary?date=${date}`);
+  }
 }
 
 // ===== GESTIONNAIRE DE PAGES =====
@@ -5423,6 +5437,30 @@ class App {
       }
     });
 
+    // Gestion du bouton de sélection de contacts
+    const selectContactBtn = document.getElementById('select-contact-btn');
+    if (selectContactBtn) {
+      selectContactBtn.addEventListener('click', () => {
+        ContactManager.showContactSelector();
+      });
+    }
+
+    // Recherche automatique de client lors de la saisie du numéro de téléphone
+    const phoneNumberInput = document.getElementById('phone-number');
+    if (phoneNumberInput) {
+      phoneNumberInput.addEventListener('blur', async (e) => {
+        const phoneNumber = e.target.value.trim();
+        if (phoneNumber && Utils.validatePhoneNumber(phoneNumber)) {
+          // Vérifier si le nom du client est déjà rempli
+          const clientNameInput = document.getElementById('client-name');
+          if (!clientNameInput.value.trim()) {
+            // Rechercher automatiquement les informations du client
+            await ContactManager.autoFillClientInfo(phoneNumber);
+          }
+        }
+      });
+    }
+
     // Gestion de la soumission du formulaire
     document.getElementById('new-order-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -5834,4 +5872,320 @@ window.apiClient = {
 window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
-window.ModalManager = ModalManager; 
+window.ModalManager = ModalManager;
+window.ContactManager = ContactManager; 
+
+class ContactManager {
+  static contacts = [];
+  static searchTimeout = null;
+
+  // Vérifier si l'API Contacts est disponible
+  static isContactsApiAvailable() {
+    return 'contacts' in navigator && 'ContactsManager' in window;
+  }
+
+  // Demander l'accès aux contacts
+  static async requestContactsPermission() {
+    if (!this.isContactsApiAvailable()) {
+      throw new Error('L\'API Contacts n\'est pas disponible sur ce navigateur');
+    }
+
+    try {
+      const props = ['name', 'tel'];
+      const opts = { multiple: true };
+      const contacts = await navigator.contacts.select(props, opts);
+      this.contacts = contacts;
+      return contacts;
+    } catch (error) {
+      console.error('Erreur lors de l\'accès aux contacts:', error);
+      throw error;
+    }
+  }
+
+  // Rechercher dans les contacts locaux
+  static searchLocalContacts(query) {
+    if (!this.contacts.length) return [];
+    
+    const searchTerm = query.toLowerCase();
+    return this.contacts.filter(contact => {
+      const name = contact.name ? contact.name[0] : '';
+      const phone = contact.tel ? contact.tel[0] : '';
+      
+      return name.toLowerCase().includes(searchTerm) || 
+             phone.includes(searchTerm);
+    });
+  }
+
+  // Rechercher des clients dans la base de données
+  static async searchDatabaseClients(query) {
+    try {
+      const response = await ApiClient.searchClients(query, 5);
+      return response.clients || [];
+    } catch (error) {
+      console.error('Erreur lors de la recherche de clients:', error);
+      return [];
+    }
+  }
+
+  // Obtenir les informations d'un client par téléphone
+  static async getClientInfo(phoneNumber) {
+    try {
+      const response = await ApiClient.getClientByPhone(phoneNumber);
+      return response.client || null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des informations client:', error);
+      return null;
+    }
+  }
+
+  // Afficher le modal de sélection de contact
+  static async showContactSelector() {
+    const content = `
+      <div class="contact-selector">
+        <div class="contact-search-section">
+          <h3>📱 Contacts du téléphone</h3>
+          <div class="form-group">
+            <input type="text" id="contact-search" placeholder="Rechercher dans vos contacts..." class="form-control">
+          </div>
+          <div id="local-contacts-list" class="contacts-list"></div>
+        </div>
+        
+        <div class="contact-search-section">
+          <h3>💾 Clients existants</h3>
+          <div class="form-group">
+            <input type="text" id="client-search" placeholder="Rechercher dans la base de données..." class="form-control">
+          </div>
+          <div id="database-clients-list" class="clients-list"></div>
+        </div>
+        
+        <div class="contact-actions">
+          <button type="button" id="access-contacts-btn" class="btn btn-primary">
+            <span class="icon">📱</span>
+            Accéder aux contacts
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
+            Annuler
+          </button>
+        </div>
+      </div>
+    `;
+
+    ModalManager.show('Sélectionner un contact', content);
+    this.setupContactSelectorEvents();
+  }
+
+  // Configurer les événements du sélecteur de contacts
+  static setupContactSelectorEvents() {
+    // Bouton d'accès aux contacts
+    const accessContactsBtn = document.getElementById('access-contacts-btn');
+    if (accessContactsBtn) {
+      accessContactsBtn.addEventListener('click', async () => {
+        try {
+          accessContactsBtn.disabled = true;
+          accessContactsBtn.textContent = 'Chargement...';
+          
+          await this.requestContactsPermission();
+          ToastManager.success('Contacts chargés avec succès');
+          
+          // Activer la recherche locale
+          const contactSearch = document.getElementById('contact-search');
+          if (contactSearch) {
+            contactSearch.disabled = false;
+            contactSearch.placeholder = 'Rechercher dans vos contacts...';
+          }
+        } catch (error) {
+          ToastManager.error('Impossible d\'accéder aux contacts: ' + error.message);
+        } finally {
+          accessContactsBtn.disabled = false;
+          accessContactsBtn.innerHTML = '<span class="icon">📱</span> Accéder aux contacts';
+        }
+      });
+    }
+
+    // Recherche dans les contacts locaux
+    const contactSearch = document.getElementById('contact-search');
+    if (contactSearch) {
+      contactSearch.addEventListener('input', Utils.debounce((e) => {
+        const query = e.target.value.trim();
+        if (query.length >= 2) {
+          const results = this.searchLocalContacts(query);
+          this.displayLocalContacts(results);
+        } else {
+          this.displayLocalContacts([]);
+        }
+      }, 300));
+    }
+
+    // Recherche dans la base de données
+    const clientSearch = document.getElementById('client-search');
+    if (clientSearch) {
+      clientSearch.addEventListener('input', Utils.debounce(async (e) => {
+        const query = e.target.value.trim();
+        if (query.length >= 2) {
+          const results = await this.searchDatabaseClients(query);
+          this.displayDatabaseClients(results);
+        } else {
+          this.displayDatabaseClients([]);
+        }
+      }, 300));
+    }
+  }
+
+  // Afficher les contacts locaux
+  static displayLocalContacts(contacts) {
+    const container = document.getElementById('local-contacts-list');
+    if (!container) return;
+
+    if (contacts.length === 0) {
+      container.innerHTML = '<p class="no-results">Aucun contact trouvé</p>';
+      return;
+    }
+
+    container.innerHTML = contacts.map(contact => {
+      const name = contact.name ? contact.name[0] : 'Sans nom';
+      const phone = contact.tel ? contact.tel[0] : 'Pas de téléphone';
+      
+      return `
+        <div class="contact-item" data-phone="${phone}" data-name="${name}">
+          <div class="contact-info">
+            <div class="contact-name">${Utils.escapeHtml(name)}</div>
+            <div class="contact-phone">${Utils.escapeHtml(phone)}</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary select-contact-btn">
+            Sélectionner
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Ajouter les événements de sélection
+    container.querySelectorAll('.select-contact-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const contactItem = e.target.closest('.contact-item');
+        const name = contactItem.dataset.name;
+        const phone = contactItem.dataset.phone;
+        
+        this.selectContact(name, phone);
+      });
+    });
+  }
+
+  // Afficher les clients de la base de données
+  static displayDatabaseClients(clients) {
+    const container = document.getElementById('database-clients-list');
+    if (!container) return;
+
+    if (clients.length === 0) {
+      container.innerHTML = '<p class="no-results">Aucun client trouvé</p>';
+      return;
+    }
+
+    container.innerHTML = clients.map(client => {
+      const lastOrderDate = client.last_order_date ? 
+        new Date(client.last_order_date).toLocaleDateString('fr-FR') : 'Jamais';
+      
+      return `
+        <div class="client-item" data-phone="${client.phone_number}" data-name="${client.client_name}">
+          <div class="client-info">
+            <div class="client-name">${Utils.escapeHtml(client.client_name)}</div>
+            <div class="client-phone">${Utils.escapeHtml(client.phone_number)}</div>
+            <div class="client-details">
+              <small>${client.order_count} commande(s) - Dernière: ${lastOrderDate}</small>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary select-client-btn">
+            Sélectionner
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Ajouter les événements de sélection
+    container.querySelectorAll('.select-client-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const clientItem = e.target.closest('.client-item');
+        const name = clientItem.dataset.name;
+        const phone = clientItem.dataset.phone;
+        
+        this.selectClient(name, phone);
+      });
+    });
+  }
+
+  // Sélectionner un contact local
+  static selectContact(name, phone) {
+    // Remplir les champs du formulaire
+    const clientNameInput = document.getElementById('client-name');
+    const phoneInput = document.getElementById('phone-number');
+    
+    if (clientNameInput) clientNameInput.value = name;
+    if (phoneInput) phoneInput.value = phone;
+    
+    // Fermer le modal
+    ModalManager.hide();
+    
+    // Rechercher automatiquement les informations du client dans la base
+    this.autoFillClientInfo(phone);
+  }
+
+  // Sélectionner un client de la base de données
+  static async selectClient(name, phone) {
+    // Remplir les champs du formulaire
+    const clientNameInput = document.getElementById('client-name');
+    const phoneInput = document.getElementById('phone-number');
+    
+    if (clientNameInput) clientNameInput.value = name;
+    if (phoneInput) phoneInput.value = phone;
+    
+    // Fermer le modal
+    ModalManager.hide();
+    
+    // Pré-remplir avec les informations du client
+    await this.autoFillClientInfo(phone);
+  }
+
+  // Pré-remplir automatiquement les informations du client
+  static async autoFillClientInfo(phoneNumber) {
+    try {
+      const client = await this.getClientInfo(phoneNumber);
+      if (!client) return;
+
+      // Pré-remplir les champs selon le type de commande
+      const orderType = document.getElementById('order-type').value;
+      
+      if (orderType === 'MATA') {
+        // Pour MATA, pré-remplir l'adresse destination et le point de vente
+        if (client.adresse_destination) {
+          const adresseDestInput = document.getElementById('adresse-destination');
+          if (adresseDestInput) adresseDestInput.value = client.adresse_destination;
+        }
+        
+        if (client.point_de_vente) {
+          const pointVenteSelect = document.getElementById('point-vente');
+          if (pointVenteSelect) pointVenteSelect.value = client.point_de_vente;
+        }
+      } else if (orderType === 'MLC' || orderType === 'AUTRE') {
+        // Pour MLC/AUTRE, pré-remplir les adresses source et destination
+        if (client.adresse_source) {
+          const adresseSourceInput = document.getElementById('adresse-source');
+          if (adresseSourceInput) adresseSourceInput.value = client.adresse_source;
+        }
+        
+        if (client.adresse_destination) {
+          const adresseDestInput = document.getElementById('adresse-destination');
+          if (adresseDestInput) adresseDestInput.value = client.adresse_destination;
+        }
+      }
+
+      // Pré-remplir l'adresse générale si disponible
+      if (client.address) {
+        const addressInput = document.getElementById('address');
+        if (addressInput) addressInput.value = client.address;
+      }
+
+      ToastManager.success('Informations client pré-remplies');
+    } catch (error) {
+      console.error('Erreur lors du pré-remplissage:', error);
+    }
+  }
+}

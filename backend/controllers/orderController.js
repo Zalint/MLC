@@ -1185,27 +1185,118 @@ class OrderController {
 
       // Debug: Log what we're getting from the database
       console.log('🔍 Debug - First MATA order from DB:', mataOrders[0]);
-      console.log('🔍 Debug - Point de vente values:', mataOrders.map(o => ({ id: o.id, client_name: o.client_name, point_de_vente: o.point_de_vente })).slice(0, 5));
 
-      // Calculer les statistiques
-      const totalCommandes = mataOrders.length;
-      const totalMontant = mataOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
-      const livreursUniques = [...new Set(mataOrders.map(order => order.livreur))].length;
+      // Calculate statistics
+      const totalOrders = mataOrders.length;
+      const totalAmount = mataOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
+      const uniqueLivreurs = [...new Set(mataOrders.map(order => order.livreur))];
+      const livreursActifs = uniqueLivreurs.length;
+
+      // Group by point de vente
+      const ordersByPointVente = {};
+      mataOrders.forEach(order => {
+        const pointVente = order.point_de_vente || 'Non spécifié';
+        if (!ordersByPointVente[pointVente]) {
+          ordersByPointVente[pointVente] = {
+            count: 0,
+            amount: 0,
+            orders: []
+          };
+        }
+        ordersByPointVente[pointVente].count++;
+        ordersByPointVente[pointVente].amount += parseFloat(order.montant_commande) || 0;
+        ordersByPointVente[pointVente].orders.push(order);
+      });
+
+      // Get unique point de vente for filter
+      const uniquePointVente = [...new Set(mataOrders.map(order => order.point_de_vente).filter(Boolean))];
+      const uniqueLivreursList = [...new Set(mataOrders.map(order => order.livreur))];
 
       res.json({
         orders: mataOrders,
-        month,
         statistics: {
-          total_commandes: totalCommandes,
-          total_montant: totalMontant,
-          livreurs_actifs: livreursUniques
-        }
+          total_orders: totalOrders,
+          total_amount: totalAmount,
+          livreurs_actifs: livreursActifs,
+          avg_order_value: totalOrders > 0 ? totalAmount / totalOrders : 0
+        },
+        orders_by_point_vente: ordersByPointVente,
+        filters: {
+          point_vente: uniquePointVente,
+          livreurs: uniqueLivreursList
+        },
+        month
       });
 
     } catch (error) {
       console.error('Erreur lors de la récupération du tableau de bord MATA mensuel:', error);
       res.status(500).json({
         error: 'Erreur interne du serveur'
+      });
+    }
+  }
+
+  // Rechercher des clients
+  static async searchClients(req, res) {
+    try {
+      const { q } = req.query;
+      const limit = parseInt(req.query.limit) || 10;
+
+      if (!q || q.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le terme de recherche doit contenir au moins 2 caractères'
+        });
+      }
+
+      const clients = await Order.searchClients(q.trim(), limit);
+
+      res.json({
+        success: true,
+        clients,
+        count: clients.length
+      });
+    } catch (error) {
+      console.error('Erreur lors de la recherche de clients:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la recherche de clients',
+        error: error.message
+      });
+    }
+  }
+
+  // Obtenir les informations d'un client par numéro de téléphone
+  static async getClientByPhone(req, res) {
+    try {
+      const { phoneNumber } = req.params;
+
+      if (!phoneNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le numéro de téléphone est requis'
+        });
+      }
+
+      const client = await Order.findClientByPhone(phoneNumber);
+
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          message: 'Aucun client trouvé avec ce numéro de téléphone'
+        });
+      }
+
+      res.json({
+        success: true,
+        client
+      });
+    } catch (error) {
+      console.error('Erreur lors de la récupération du client:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération du client',
+        error: error.message
       });
     }
   }

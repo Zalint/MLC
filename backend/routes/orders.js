@@ -105,4 +105,16 @@ router.delete('/user/date',
   OrderController.deleteUserOrdersForDate
 );
 
+// Route pour obtenir les commandes par date
+router.get('/by-date', authenticateToken, OrderController.getOrdersByDate);
+
+// Route pour rechercher des clients
+router.get('/search-clients', authenticateToken, OrderController.searchClients);
+
+// Route pour obtenir les informations d'un client par numéro de téléphone
+router.get('/client/:phoneNumber', authenticateToken, OrderController.getClientByPhone);
+
+// Route pour obtenir les dernières commandes de l'utilisateur connecté
+router.get('/user/last', authenticateToken, OrderController.getLastUserOrders);
+
 module.exports = router; 

@@ -38,6 +38,7 @@ const corsOptions = {
     const allowedOrigins = [
       `http://localhost:${process.env.FRONTEND_PORT || 3000}`,
       `https://localhost:${process.env.FRONTEND_PORT || 3000}`,
+      `http://192.168.1.184:${process.env.FRONTEND_PORT || 3000}`, // Local network access
       process.env.FRONTEND_URL, // Render frontend URL
       'https://matix-livreur-frontend.onrender.com', // Your specific frontend URL
       /\.onrender\.com$/ // Any Render subdomain
@@ -155,10 +156,11 @@ app.use('*', (req, res) => {
 });
 
 // Démarrage du serveur
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Serveur API démarré sur le port ${PORT}`);
   console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`🔗 URL locale: http://localhost:${PORT}`);
+  console.log(`🔗 URL réseau: http://192.168.1.184:${PORT}`);
 });
 
 module.exports = app; 
