@@ -5131,6 +5131,8 @@ class ProfileManager {
 // ===== INITIALISATION DE L'APPLICATION =====
 class App {
   static async init() {
+    console.log('🚀 Initialisation de l\'application Matix Livreur...');
+    
     this.setupEventListeners();
     await AuthManager.init();
     
@@ -5142,6 +5144,8 @@ class App {
         }
       }, 1000);
     }
+    
+    console.log('✅ Application initialisée avec succès');
   }
 
   static setupEventListeners() {
@@ -5440,9 +5444,13 @@ class App {
     // Gestion du bouton de sélection de contacts
     const selectContactBtn = document.getElementById('select-contact-btn');
     if (selectContactBtn) {
+      console.log('✅ Bouton de sélection de contacts trouvé et configuré');
       selectContactBtn.addEventListener('click', () => {
+        console.log('🖱️ Clic sur le bouton de sélection de contacts');
         ContactManager.showContactSelector();
       });
+    } else {
+      console.error('❌ Bouton de sélection de contacts non trouvé');
     }
 
     // Recherche automatique de client lors de la saisie du numéro de téléphone
@@ -5853,6 +5861,20 @@ class App {
 // ===== DÉMARRAGE DE L'APPLICATION =====
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
+  
+  // Vérifier l'API Contacts après l'initialisation
+  setTimeout(() => {
+    console.log('📱 Vérification de l\'API Contacts...');
+    try {
+      if (typeof ContactManager !== 'undefined' && ContactManager.isContactsApiAvailable()) {
+        console.log('✅ API Contacts disponible');
+      } else {
+        console.log('⚠️ API Contacts non disponible - utilisation de la recherche en base uniquement');
+      }
+    } catch (error) {
+      console.log('⚠️ ContactManager non encore initialisé');
+    }
+  }, 100);
 });
 
 // Exposer certaines fonctions globalement pour les event handlers inline
@@ -5873,11 +5895,12 @@ window.MonthlyDashboardManager = MonthlyDashboardManager;
 window.MataMonthlyDashboardManager = MataMonthlyDashboardManager;
 window.SubscriptionManager = SubscriptionManager;
 window.ModalManager = ModalManager;
-window.ContactManager = ContactManager; 
 
+// ===== GESTIONNAIRE DE CONTACTS =====
 class ContactManager {
   static contacts = [];
   static searchTimeout = null;
+  static mockMode = false; // Mode production - utiliser la vraie API Contacts
 
   // Vérifier si l'API Contacts est disponible
   static isContactsApiAvailable() {
@@ -5887,19 +5910,81 @@ class ContactManager {
   // Demander l'accès aux contacts
   static async requestContactsPermission() {
     if (!this.isContactsApiAvailable()) {
-      throw new Error('L\'API Contacts n\'est pas disponible sur ce navigateur');
+      console.log('⚠️ API Contacts non disponible');
+      ToastManager.error('L\'API Contacts n\'est pas disponible sur ce navigateur');
+      return [];
     }
 
     try {
+      console.log('📱 Demande d\'accès aux contacts du téléphone...');
       const props = ['name', 'tel'];
       const opts = { multiple: true };
       const contacts = await navigator.contacts.select(props, opts);
       this.contacts = contacts;
+      console.log(`✅ ${contacts.length} contacts récupérés`);
       return contacts;
     } catch (error) {
       console.error('Erreur lors de l\'accès aux contacts:', error);
-      throw error;
+      ToastManager.error('Impossible d\'accéder aux contacts: ' + error.message);
+      return [];
     }
+  }
+
+  // Obtenir des contacts de test (mock)
+  static getMockContacts() {
+    const mockContacts = [
+      { 
+        name: ['Jean Dupont'], 
+        tel: ['773920001'],
+        adresse_source: 'Rue de la Paix, Dakar',
+        adresse_destination: 'Avenue Georges Bush, Dakar'
+      },
+      { 
+        name: ['Marie Martin'], 
+        tel: ['773920002'],
+        adresse_source: 'Corniche Ouest, Dakar',
+        adresse_destination: 'Plateau, Dakar'
+      },
+      { 
+        name: ['Pierre Durand'], 
+        tel: ['773920003'],
+        adresse_source: 'Almadies, Dakar',
+        adresse_destination: 'Médina, Dakar'
+      },
+      { 
+        name: ['Sophie Bernard'], 
+        tel: ['773920004'],
+        adresse_source: 'Yoff, Dakar',
+        adresse_destination: 'Ouakam, Dakar'
+      },
+      { 
+        name: ['Michel Petit'], 
+        tel: ['773920005'],
+        adresse_source: 'Mermoz, Dakar',
+        adresse_destination: 'Fann, Dakar'
+      },
+      { 
+        name: ['Claire Moreau'], 
+        tel: ['773920006'],
+        adresse_source: 'Point E, Dakar',
+        adresse_destination: 'Sacré Cœur, Dakar'
+      },
+      { 
+        name: ['André Leroy'], 
+        tel: ['773920007'],
+        adresse_source: 'Hann, Dakar',
+        adresse_destination: 'Gueule Tapée, Dakar'
+      },
+      { 
+        name: ['Isabelle Roux'], 
+        tel: ['773920008'],
+        adresse_source: 'Pikine, Dakar',
+        adresse_destination: 'Thiaroye, Dakar'
+      }
+    ];
+    
+    this.contacts = mockContacts;
+    return mockContacts;
   }
 
   // Rechercher dans les contacts locaux
@@ -5940,38 +6025,50 @@ class ContactManager {
 
   // Afficher le modal de sélection de contact
   static async showContactSelector() {
-    const content = `
-      <div class="contact-selector">
-        <div class="contact-search-section">
-          <h3>📱 Contacts du téléphone</h3>
-          <div class="form-group">
-            <input type="text" id="contact-search" placeholder="Rechercher dans vos contacts..." class="form-control">
+    console.log('🔍 ContactManager.showContactSelector() appelé');
+    
+    try {
+      const content = `
+        <div class="contact-selector">
+          <div class="contact-search-section">
+            <h3>📱 Contacts du téléphone</h3>
+            <div class="form-group">
+              <input type="text" id="contact-search" placeholder="Rechercher dans vos contacts..." class="form-control">
+            </div>
+            <div id="local-contacts-list" class="contacts-list">
+              <p class="no-results">Cliquez sur "Charger les contacts" pour commencer</p>
+            </div>
           </div>
-          <div id="local-contacts-list" class="contacts-list"></div>
-        </div>
-        
-        <div class="contact-search-section">
-          <h3>💾 Clients existants</h3>
-          <div class="form-group">
-            <input type="text" id="client-search" placeholder="Rechercher dans la base de données..." class="form-control">
+          
+          <div class="contact-search-section">
+            <h3>💾 Clients existants</h3>
+            <div class="form-group">
+              <input type="text" id="client-search" placeholder="Rechercher dans la base de données..." class="form-control">
+            </div>
+            <div id="database-clients-list" class="clients-list">
+              <p class="no-results">Tapez pour rechercher des clients</p>
+            </div>
           </div>
-          <div id="database-clients-list" class="clients-list"></div>
+          
+          <div class="contact-actions">
+            <button type="button" id="access-contacts-btn" class="btn btn-primary">
+              <span class="icon">📱</span>
+              Accéder aux contacts du téléphone
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
+              Annuler
+            </button>
+          </div>
         </div>
-        
-        <div class="contact-actions">
-          <button type="button" id="access-contacts-btn" class="btn btn-primary">
-            <span class="icon">📱</span>
-            Accéder aux contacts
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">
-            Annuler
-          </button>
-        </div>
-      </div>
-    `;
+      `;
 
-    ModalManager.show('Sélectionner un contact', content);
-    this.setupContactSelectorEvents();
+      ModalManager.show('Sélectionner un contact', content);
+      this.setupContactSelectorEvents();
+      console.log('✅ Modal de sélection de contacts affiché');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'affichage du sélecteur de contacts:', error);
+      ToastManager.error('Erreur lors de l\'ouverture du sélecteur de contacts');
+    }
   }
 
   // Configurer les événements du sélecteur de contacts
@@ -5985,19 +6082,29 @@ class ContactManager {
           accessContactsBtn.textContent = 'Chargement...';
           
           await this.requestContactsPermission();
-          ToastManager.success('Contacts chargés avec succès');
           
-          // Activer la recherche locale
+          if (this.mockMode) {
+            ToastManager.success('Contacts de test chargés avec succès');
+          } else {
+            ToastManager.success('Contacts chargés avec succès');
+          }
+          
+          // Afficher les contacts chargés
+          this.displayLocalContacts(this.contacts);
+          
+          // Activer la recherche locale si des contacts sont disponibles
           const contactSearch = document.getElementById('contact-search');
-          if (contactSearch) {
-            contactSearch.disabled = false;
+          if (contactSearch && this.contacts.length > 0) {
             contactSearch.placeholder = 'Rechercher dans vos contacts...';
+          } else if (contactSearch) {
+            contactSearch.placeholder = 'Chargez d\'abord vos contacts...';
+            contactSearch.disabled = true;
           }
         } catch (error) {
           ToastManager.error('Impossible d\'accéder aux contacts: ' + error.message);
         } finally {
           accessContactsBtn.disabled = false;
-          accessContactsBtn.innerHTML = '<span class="icon">📱</span> Accéder aux contacts';
+          accessContactsBtn.innerHTML = `<span class="icon">📱</span> Accéder aux contacts du téléphone`;
         }
       });
     }
@@ -6036,8 +6143,8 @@ class ContactManager {
     const container = document.getElementById('local-contacts-list');
     if (!container) return;
 
-    if (contacts.length === 0) {
-      container.innerHTML = '<p class="no-results">Aucun contact trouvé</p>';
+    if (!contacts || contacts.length === 0) {
+      container.innerHTML = '<p class="no-results">Aucun contact disponible. Cliquez sur "Accéder aux contacts du téléphone" pour charger vos contacts.</p>';
       return;
     }
 
@@ -6189,3 +6296,7 @@ class ContactManager {
     }
   }
 }
+
+
+// Exposer ContactManager globalement
+window.ContactManager = ContactManager;

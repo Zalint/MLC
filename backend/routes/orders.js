@@ -68,6 +68,10 @@ router.post('/',
   OrderController.createOrder
 );
 
+// Routes pour la recherche de clients (AVANT les routes avec :id)
+router.get('/search-clients', OrderController.searchClients);
+router.get('/client/:phoneNumber', OrderController.getClientByPhone);
+
 // Routes avec ID spécifique
 router.get('/:id', validateUUID, OrderController.getOrderById);
 
@@ -105,16 +109,7 @@ router.delete('/user/date',
   OrderController.deleteUserOrdersForDate
 );
 
-// Route pour obtenir les commandes par date
-router.get('/by-date', authenticateToken, OrderController.getOrdersByDate);
-
-// Route pour rechercher des clients
-router.get('/search-clients', authenticateToken, OrderController.searchClients);
-
-// Route pour obtenir les informations d'un client par numéro de téléphone
-router.get('/client/:phoneNumber', authenticateToken, OrderController.getClientByPhone);
-
 // Route pour obtenir les dernières commandes de l'utilisateur connecté
-router.get('/user/last', authenticateToken, OrderController.getLastUserOrders);
+router.get('/user/last', OrderController.getLastUserOrders);
 
 module.exports = router; 
