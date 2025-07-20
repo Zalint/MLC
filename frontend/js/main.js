@@ -6030,7 +6030,7 @@ class ContactManager {
     try {
       const content = `
         <div class="contact-selector">
-          <div class="contact-search-section">
+          <!--<div class="contact-search-section">
             <h3>📱 Contacts du téléphone</h3>
             <div class="form-group">
               <input type="text" id="contact-search" placeholder="Rechercher dans vos contacts..." class="form-control">
@@ -6038,12 +6038,12 @@ class ContactManager {
             <div id="local-contacts-list" class="contacts-list">
               <p class="no-results">Cliquez sur "Charger les contacts" pour commencer</p>
             </div>
-          </div>
+          </div>-->
           
           <div class="contact-search-section">
-            <h3>💾 Clients existants</h3>
+            <h3>💾 Numeros clients existants</h3>
             <div class="form-group">
-              <input type="text" id="client-search" placeholder="Rechercher dans la base de données..." class="form-control">
+              <input type="text" id="client-search" placeholder="Rechercher un numero exemple 773000000..." class="form-control">
             </div>
             <div id="database-clients-list" class="clients-list">
               <p class="no-results">Tapez pour rechercher des clients</p>
