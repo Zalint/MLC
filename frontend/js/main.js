@@ -2423,6 +2423,7 @@ class MataMonthlyDashboardManager {
               <th>Point de vente</th>
               <th>Montant commande (FCFA)</th>
               <th>Livreur</th>
+              <th>Interne</th>
               <th>Commentaire</th>
               <th>Service livraison</th>
               <th>Qualité produits</th>
@@ -2464,6 +2465,11 @@ class MataMonthlyDashboardManager {
                 <td>${order.point_de_vente ? Utils.escapeHtml(order.point_de_vente) : '-'}</td>
                 <td>${Utils.formatAmount(order.montant_commande || 0)}</td>
                 <td>${Utils.escapeHtml(order.livreur)}</td>
+                <td>
+                  <span class="interne-badge ${order.interne ? 'interne-yes' : 'interne-no'}">
+                    ${order.interne ? 'Oui' : 'Non'}
+                  </span>
+                </td>
                 <td>
                   <div class="comment-cell">
                     <span class="comment-display" ${!order.commentaire ? 'style="color: #999; font-style: italic;"' : ''}>
@@ -2631,6 +2637,24 @@ class MataMonthlyDashboardManager {
         .rating-edit {
           width: 60px;
           padding: 4px;
+        }
+        .interne-badge {
+          display: inline-block;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: bold;
+          text-align: center;
+          min-width: 40px;
+        }
+        .interne-yes {
+          background-color: #ff6b6b;
+          color: white;
+        }
+        .interne-no {
+          background-color: #51cf66;
+          color: white;
+        }
           border: 1px solid #2563eb;
           border-radius: 4px;
           text-align: center;

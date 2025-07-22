@@ -1159,6 +1159,7 @@ class OrderController {
           o.quality_rating,
           o.price_rating,
           u.username as livreur,
+          o.interne,
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
@@ -1422,6 +1423,7 @@ class OrderController {
           o.quality_rating,
           o.price_rating,
           u.username as livreur,
+          o.interne,
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
@@ -1451,7 +1453,7 @@ class OrderController {
       const worksheet = workbook.addWorksheet('Commandes MATA Mensuel');
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:M1');
+      worksheet.mergeCells('A1:N1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -1476,6 +1478,7 @@ class OrderController {
         'Point de vente',
         'Montant commande (FCFA)',
         'Livreur',
+        'Interne',
         'Commentaire',
         'Service livraison',
         'Qualité produits', 
@@ -1503,6 +1506,7 @@ class OrderController {
         { width: 20 },  // Point de vente
         { width: 20 },  // Montant commande (FCFA)
         { width: 15 },  // Livreur
+        { width: 10 },  // Interne
         { width: 50 },  // Commentaire
         { width: 15 },  // Service livraison
         { width: 15 },  // Qualité produits
@@ -1532,6 +1536,7 @@ class OrderController {
           order.point_de_vente || '',
           order.montant_commande || 0,
           order.livreur,
+          order.interne ? 'Oui' : 'Non',
           order.commentaire || '',
           serviceRating !== null ? serviceRating + '/10' : 'NA',
           qualityRating !== null ? qualityRating + '/10' : 'NA',
@@ -1565,6 +1570,7 @@ class OrderController {
         '',                              // Point de vente
         totalMontant,                    // Montant commande
         `${mataOrders.length} commandes`, // Livreur
+        '',                              // Interne
         '',                              // Commentaire
         '',                              // Service livraison
         '',                              // Qualité produits
