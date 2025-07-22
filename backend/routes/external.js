@@ -63,7 +63,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           COUNT(*) as total_courses,
           COUNT(DISTINCT o.id) as total_commandes,
           SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
-          SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout du montant total MATA
+          -- Calcul du montant total MATA en excluant les commandes internes pour panier_moyen et panier_total_jour
+          SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata_clients,
+          -- Nombre de commandes MATA clients (non internes)
+          SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false THEN 1 ELSE 0 END) as courses_mata_clients,
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
           SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -108,7 +111,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       mata_point_vente_stats AS (
         SELECT 
           o.point_de_vente,
-          COUNT(*) as nombre_courses
+          COUNT(*) as nombre_courses,
+          COUNT(CASE WHEN o.interne = true THEN 1 END) as nombre_courses_internes
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE DATE(o.created_at) = $1 
@@ -124,14 +128,15 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         JSON_AGG(
           JSON_BUILD_OBJECT(
             'point_de_vente', mpvs.point_de_vente,
-            'nombre_courses', mpvs.nombre_courses
+            'nombre_courses', mpvs.nombre_courses,
+            'nombre_courses_internes', mpvs.nombre_courses_internes
           )
         ) FILTER (WHERE mpvs.point_de_vente IS NOT NULL) as mata_par_point_vente
       FROM order_stats os
       CROSS JOIN expense_stats es
       LEFT JOIN mlc_extras_stats mes ON true
       LEFT JOIN mata_point_vente_stats mpvs ON true
-      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, os.total_amount_mata,
+      GROUP BY os.total_courses, os.total_commandes, os.courses_mata, os.total_amount_mata_clients, os.courses_mata_clients,
                os.courses_mlc_avec_abonnement, os.courses_mlc_sans_abonnement,
                os.courses_mata_sup, os.courses_mlc_sup, os.courses_mata_panier_inf_seuil,
                os.courses_autre_nombre, os.courses_autre_prix,
@@ -147,7 +152,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         COUNT(o.id) as total_courses,
         COUNT(DISTINCT o.id) as total_commandes,
         SUM(CASE WHEN o.order_type = 'MATA' THEN 1 ELSE 0 END) as courses_mata,
-        SUM(CASE WHEN o.order_type = 'MATA' THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata, -- Ajout du montant total MATA par livreur
+        -- Calcul du montant total MATA en excluant les commandes internes pour panier_moyen et panier_total_jour
+        SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false THEN COALESCE(o.amount, 0) ELSE 0 END) as total_amount_mata_clients,
+        -- Nombre de commandes MATA clients (non internes)
+        SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false THEN 1 ELSE 0 END) as courses_mata_clients,
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as courses_mlc_avec_abonnement,
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
         SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
@@ -174,7 +182,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           CASE WHEN o.order_type = 'MATA' AND o.point_de_vente IS NOT NULL THEN
             JSON_BUILD_OBJECT(
               'point_de_vente', o.point_de_vente,
-              'nombre_courses', 1
+              'nombre_courses', 1,
+              'interne', o.interne
             )
           END
         ) FILTER (WHERE o.order_type = 'MATA' AND o.point_de_vente IS NOT NULL) as mata_details_points_vente
@@ -224,16 +233,25 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       let mataParPointVente = [];
       if (livreur.mata_details_points_vente) {
         const pointsVenteMap = new Map();
+        const pointsVenteInternesMap = new Map();
+        
         livreur.mata_details_points_vente.forEach(item => {
           if (item && item.point_de_vente) {
             const existingCount = pointsVenteMap.get(item.point_de_vente) || 0;
             pointsVenteMap.set(item.point_de_vente, existingCount + 1);
+            
+            // Compter les commandes internes par point de vente
+            if (item.interne === true) {
+              const existingInternesCount = pointsVenteInternesMap.get(item.point_de_vente) || 0;
+              pointsVenteInternesMap.set(item.point_de_vente, existingInternesCount + 1);
+            }
           }
         });
         
         mataParPointVente = Array.from(pointsVenteMap.entries()).map(([point_de_vente, nombre_courses]) => ({
           point_de_vente,
-          nombre_courses
+          nombre_courses,
+          nombre_courses_internes: pointsVenteInternesMap.get(point_de_vente) || 0
         }));
       }
 
@@ -244,8 +262,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         total_commandes: parseInt(livreur.total_commandes) || 0,
         courses_mata: {
           total: parseInt(livreur.courses_mata) || 0,
-          panier_moyen: (parseInt(livreur.courses_mata) > 0) ? (parseFloat(livreur.total_amount_mata) / parseInt(livreur.courses_mata)) : 0,
-          panier_total_jour: parseFloat(livreur.total_amount_mata) || 0,
+          panier_moyen: (parseInt(livreur.courses_mata_clients) > 0) ? (parseFloat(livreur.total_amount_mata_clients) / parseInt(livreur.courses_mata_clients)) : 0,
+          panier_total_jour: parseFloat(livreur.total_amount_mata_clients) || 0,
           par_point_vente: mataParPointVente,
           courses_sup: parseInt(livreur.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(livreur.courses_mata_panier_inf_seuil) || 0
@@ -320,8 +338,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         total_commandes: parseInt(summary.total_commandes) || 0,
         courses_mata: {
           total: parseInt(summary.courses_mata) || 0,
-          panier_moyen: (parseInt(summary.courses_mata) > 0) ? (parseFloat(summary.total_amount_mata) / parseInt(summary.courses_mata)) : 0,
-          panier_total_jour: parseFloat(summary.total_amount_mata) || 0,
+          panier_moyen: (parseInt(summary.courses_mata_clients) > 0) ? (parseFloat(summary.total_amount_mata_clients) / parseInt(summary.courses_mata_clients)) : 0,
+          panier_total_jour: parseFloat(summary.total_amount_mata_clients) || 0,
           par_point_vente: summary.mata_par_point_vente || [],
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
