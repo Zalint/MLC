@@ -262,7 +262,7 @@ class Order {
     // Récupérer les commandes du mois
     const ordersQuery = `
       SELECT 
-        DATE(o.created_at) as date,
+        TO_CHAR(o.created_at, 'YYYY-MM-DD') as date,
         u.id as livreur_id,
         u.username as livreur,
         COUNT(o.id) as nombre_commandes,
@@ -271,8 +271,8 @@ class Order {
       JOIN users u ON o.created_by = u.id
       WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
         AND u.role = 'LIVREUR' AND u.is_active = true
-      GROUP BY DATE(o.created_at), u.id, u.username
-      ORDER BY DATE(o.created_at), u.username
+      GROUP BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.id, u.username
+      ORDER BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.username
     `;
     
     const ordersResult = await db.query(ordersQuery, [targetMonth]);
@@ -320,6 +320,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END as order_type,
         COUNT(*) as count,
@@ -330,6 +332,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END
       ORDER BY count DESC
@@ -347,6 +351,8 @@ class Order {
         CASE 
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
           ELSE o.order_type
         END as order_type,
         COUNT(*) as count,
@@ -358,6 +364,8 @@ class Order {
         CASE 
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
           ELSE o.order_type
         END
       ORDER BY u.username, count DESC
@@ -374,6 +382,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END as order_type,
         COUNT(*) as count,
@@ -384,6 +394,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END
       ORDER BY count DESC
@@ -400,6 +412,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END as order_type,
         COUNT(*) as count,
@@ -410,6 +424,8 @@ class Order {
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN order_type = 'MLC' AND subscription_id IS NULL THEN 'MLC simple'
+          WHEN order_type = 'MATA' AND interne = true THEN 'MATA interne'
+          WHEN order_type = 'MATA' AND (interne = false OR interne IS NULL) THEN 'MATA client'
           ELSE order_type
         END
       ORDER BY count DESC
@@ -455,6 +471,38 @@ class Order {
     `;
     
     const result = await db.query(query, [userId, date]);
+    return result.rows;
+  }
+
+  // Obtenir, pour un mois donné, les stats par type (normalisées) pour chaque couple (date, livreur)
+  static async getDailyTypeStatsByMonth(month) {
+    const query = `
+      SELECT 
+        TO_CHAR(o.created_at, 'YYYY-MM-DD') as date,
+        u.username as livreur,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END as order_type,
+        COUNT(*) as count
+      FROM orders o
+      JOIN users u ON o.created_by = u.id
+      WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
+        AND u.role = 'LIVREUR' AND u.is_active = true
+      GROUP BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.username,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END
+      ORDER BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.username, COUNT(*) DESC
+    `;
+    const result = await db.query(query, [month]);
     return result.rows;
   }
 

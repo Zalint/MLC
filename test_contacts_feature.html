@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fonctionnalité Contacts - Matix Livreur</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .input-group {
+            display: flex;
+            align-items: stretch;
+        }
+        .input-group input {
+            flex: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .input-group .btn {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: none;
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+            cursor: pointer;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .test-result.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .test-result.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Fonctionnalité Contacts</h1>
+        <p>Cette page permet de tester la fonctionnalité d'accès aux contacts du téléphone et de recherche de clients.</p>
+
+        <div class="test-section">
+            <h3>📱 Test API Contacts</h3>
+            <p>Vérifier si l'API Contacts est disponible sur ce navigateur :</p>
+            <button class="btn btn-primary" onclick="testContactsAPI()">Tester API Contacts</button>
+            <div id="contacts-api-result" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Test Recherche Clients</h3>
+            <p>Rechercher des clients dans la base de données :</p>
+            <div class="form-group">
+                <label for="search-query">Terme de recherche :</label>
+                <input type="text" id="search-query" placeholder="Nom ou numéro de téléphone">
+            </div>
+            <button class="btn btn-primary" onclick="testClientSearch()">Rechercher</button>
+            <div id="search-result" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>👤 Test Recherche par Téléphone</h3>
+            <p>Rechercher un client par numéro de téléphone exact :</p>
+            <div class="form-group">
+                <label for="phone-search">Numéro de téléphone :</label>
+                <input type="tel" id="phone-search" placeholder="Ex: 773920000">
+            </div>
+            <button class="btn btn-primary" onclick="testPhoneSearch()">Rechercher</button>
+            <div id="phone-result" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Test Formulaire avec Contacts</h3>
+            <p>Simuler le formulaire de saisie de commande avec accès aux contacts :</p>
+            <div class="form-group">
+                <label for="test-client-name">Nom du client *</label>
+                <div class="input-group">
+                    <input type="text" id="test-client-name" name="client_name" required>
+                    <button type="button" class="btn btn-secondary" onclick="showContactSelector()" title="Sélectionner depuis les contacts">
+                        📱
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="test-phone-number">Numéro de téléphone *</label>
+                <input type="tel" id="test-phone-number" name="phone_number" required placeholder="Ex: 773920000">
+            </div>
+            <div class="form-group">
+                <label for="test-address">Adresse</label>
+                <input type="text" id="test-address" name="address" placeholder="Adresse du client">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration de l'API
+        window.API_BASE_URL = 'http://localhost:4000/api/v1';
+        
+        // Simuler un token d'authentification pour les tests
+        const testToken = 'test-token-123';
+        localStorage.setItem('authToken', testToken);
+
+        // Test de l'API Contacts
+        function testContactsAPI() {
+            const resultDiv = document.getElementById('contacts-api-result');
+            resultDiv.style.display = 'block';
+            
+            if ('contacts' in navigator && 'ContactsManager' in window) {
+                resultDiv.className = 'test-result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ API Contacts disponible</strong><br>
+                    L'API Contacts est supportée par ce navigateur.<br>
+                    <small>Note: L'accès aux contacts nécessite une autorisation de l'utilisateur.</small>
+                `;
+            } else {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ API Contacts non disponible</strong><br>
+                    L'API Contacts n'est pas supportée par ce navigateur.<br>
+                    <small>Cette fonctionnalité ne fonctionnera que sur les navigateurs mobiles compatibles.</small>
+                `;
+            }
+        }
+
+        // Test de recherche de clients
+        async function testClientSearch() {
+            const query = document.getElementById('search-query').value.trim();
+            const resultDiv = document.getElementById('search-result');
+            
+            if (!query) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = '<strong>❌ Erreur</strong><br>Veuillez saisir un terme de recherche.';
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result';
+            resultDiv.innerHTML = '<strong>🔍 Recherche en cours...</strong>';
+
+            try {
+                const response = await fetch(`${window.API_BASE_URL}/orders/search-clients?q=${encodeURIComponent(query)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${testToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.clients.length > 0) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ ${data.clients.length} client(s) trouvé(s)</strong><br>
+                        ${data.clients.map(client => `
+                            <div style="margin: 5px 0; padding: 5px; background: #e9ecef; border-radius: 3px;">
+                                <strong>${client.client_name}</strong> - ${client.phone_number}<br>
+                                <small>${client.order_count} commande(s) - Dernière: ${client.last_order_date ? new Date(client.last_order_date).toLocaleDateString('fr-FR') : 'Jamais'}</small>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultDiv.className = 'test-result';
+                    resultDiv.innerHTML = '<strong>ℹ️ Aucun client trouvé</strong><br>Aucun client ne correspond à votre recherche.';
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `<strong>❌ Erreur</strong><br>${error.message}`;
+            }
+        }
+
+        // Test de recherche par téléphone
+        async function testPhoneSearch() {
+            const phone = document.getElementById('phone-search').value.trim();
+            const resultDiv = document.getElementById('phone-result');
+            
+            if (!phone) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = '<strong>❌ Erreur</strong><br>Veuillez saisir un numéro de téléphone.';
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result';
+            resultDiv.innerHTML = '<strong>🔍 Recherche en cours...</strong>';
+
+            try {
+                const response = await fetch(`${window.API_BASE_URL}/orders/client/${encodeURIComponent(phone)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${testToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        resultDiv.className = 'test-result';
+                        resultDiv.innerHTML = '<strong>ℹ️ Client non trouvé</strong><br>Aucun client trouvé avec ce numéro de téléphone.';
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.client) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Client trouvé</strong><br>
+                        <div style="margin: 5px 0; padding: 10px; background: #e9ecef; border-radius: 3px;">
+                            <strong>Nom:</strong> ${data.client.client_name}<br>
+                            <strong>Téléphone:</strong> ${data.client.phone_number}<br>
+                            <strong>Adresse:</strong> ${data.client.address || 'Non renseignée'}<br>
+                            <strong>Commandes:</strong> ${data.client.order_count}<br>
+                            <strong>Dernière commande:</strong> ${data.client.last_order_date ? new Date(data.client.last_order_date).toLocaleDateString('fr-FR') : 'Jamais'}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.className = 'test-result';
+                    resultDiv.innerHTML = '<strong>ℹ️ Client non trouvé</strong><br>Aucun client trouvé avec ce numéro de téléphone.';
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `<strong>❌ Erreur</strong><br>${error.message}`;
+            }
+        }
+
+        // Afficher le sélecteur de contacts (simulation)
+        function showContactSelector() {
+            alert('📱 Fonctionnalité de sélection de contacts\n\nCette fonctionnalité permet de :\n• Accéder aux contacts du téléphone\n• Rechercher dans la base de données\n• Pré-remplir automatiquement les informations\n\nNote: Cette fonctionnalité nécessite l\'API Contacts du navigateur.');
+        }
+
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            console.log('🧪 Page de test des contacts chargée');
+            console.log('📱 API Contacts disponible:', 'contacts' in navigator && 'ContactsManager' in window);
+        });
+    </script>
+</body>
+</html> 

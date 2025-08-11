@@ -1502,7 +1502,8 @@ class DashboardManager {
 
     // Mapping des types avec leurs icônes et classes CSS
     const typeMapping = {
-      'MATA': { icon: '🛒', class: 'mata' },
+      'MATA client': { icon: '🛒', class: 'mata-client' },
+      'MATA interne': { icon: '🏢', class: 'mata-interne' },
       'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
       'MLC simple': { icon: '📦', class: 'mlc-simple' },
       'AUTRE': { icon: '📋', class: 'autre' }
@@ -1515,7 +1516,7 @@ class DashboardManager {
       
       // Ajouter les détails par point de vente pour MATA
       let pointsDeVenteDetails = '';
-      if (type === 'MATA' && mataPointsDeVente && mataPointsDeVente.length > 0) {
+      if (type && type.startsWith('MATA') && mataPointsDeVente && mataPointsDeVente.length > 0) {
         const pointsDeVenteText = mataPointsDeVente
           .map(point => `${Utils.escapeHtml(point.point_de_vente)}: ${point.count}`)
           .join(', ');
@@ -1663,7 +1664,8 @@ class DashboardManager {
 
     // Mapping des types avec leurs icônes et classes CSS
     const typeMapping = {
-      'MATA': { icon: '🛒', class: 'mata' },
+      'MATA client': { icon: '🛒', class: 'mata-client' },
+      'MATA interne': { icon: '🏢', class: 'mata-interne' },
       'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
       'MLC simple': { icon: '📦', class: 'mlc-simple' },
       'AUTRE': { icon: '📋', class: 'autre' }
@@ -1703,6 +1705,7 @@ class MonthlyDashboardManager {
 
       // Charger les données mensuelles
       const response = await ApiClient.getMonthlyOrdersSummary(selectedMonth);
+
       
       // Charger les données GPS mensuelles (avec gestion d'erreur)
       let gpsResponse = { data: [] };
@@ -1725,7 +1728,14 @@ class MonthlyDashboardManager {
       this.displayMonthlySummaryByType(response.summary || [], gpsResponse.data || []);
       
       // Afficher le tableau détaillé par jour avec données GPS
-      this.displayMonthlyDetailedTable(response.dailyData, response.dailyExpenses, selectedMonth, dailyGpsResponse.data || []);
+      this.displayMonthlyDetailedTable(
+        response.dailyData,
+        response.dailyExpenses,
+        selectedMonth,
+        dailyGpsResponse.data || [],
+        response.summary || [],
+        response.dailyTypeStats || []
+      );
       
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord mensuel:', error);
@@ -1765,7 +1775,7 @@ class MonthlyDashboardManager {
     }
   }
 
-  static displayMonthlyDetailedTable(dailyData, dailyExpenses, month, dailyGpsData = []) {
+  static displayMonthlyDetailedTable(dailyData, dailyExpenses, month, dailyGpsData = [], summary = [], dailyTypeStats = []) {
     const container = document.getElementById('monthly-summary-table-container');
     
     if (!dailyData || dailyData.length === 0) {
@@ -1773,7 +1783,7 @@ class MonthlyDashboardManager {
       return;
     }
 
-    // Obtenir la liste des livreurs et des dates
+    // Obtenir la liste des livreurs et des dates (pour totaux)
     const livreurs = [...new Set(dailyData.map(item => item.livreur))].sort();
     const dates = [...new Set(dailyData.map(item => item.date))].sort();
 
@@ -1808,6 +1818,7 @@ class MonthlyDashboardManager {
     const headers = `
       <th class="date-column">Date</th>
       <th class="livreur-column">Livreur</th>
+      <th class="sub-header">Type</th>
       <th class="sub-header">Cmd</th>
       <th class="sub-header">Courses</th>
       <th class="sub-header">Carburant</th>
@@ -1820,30 +1831,101 @@ class MonthlyDashboardManager {
       <th class="sub-header">Bénéfice</th>
     `;
 
-    // Créer les lignes de données (une ligne par date/livreur)
-    let rows = '';
-    dates.forEach(date => {
+    // Calculer la liste des paires (date, livreur) réellement présentes pour éviter de rendre des lignes vides
+    const keysSet = new Set([
+      ...Object.keys(ordersMap),
+      ...Object.keys(expensesMap),
+      ...Object.keys(gpsMap)
+    ]);
+    const dateToLivreurs = {};
+    const rowDates = new Set();
+    keysSet.forEach(key => {
+      const underscoreIndex = key.lastIndexOf('_');
+      if (underscoreIndex > 0) {
+        const dateKey = key.slice(0, underscoreIndex);
+        const livreurKey = key.slice(underscoreIndex + 1);
+        if (!dateToLivreurs[dateKey]) dateToLivreurs[dateKey] = new Set();
+        dateToLivreurs[dateKey].add(livreurKey);
+        rowDates.add(dateKey);
+      }
+    });
+
+    // Créer les lignes de données (une ligne par date/livreur existants)
+    const rowParts = [];
+    // Construire map (date, livreur) -> type dominant du jour
+    const typeByDateLivreur = {};
+    const orderTypePriority = [
+      'MLC avec abonnement',
+      'MLC simple',
+      'MATA client',
+      'MATA interne',
+      'AUTRES',
+      'AUTRE'
+    ];
+    // Agréger les counts par (date, livreur)
+    const agg = {};
+
+    (dailyTypeStats || []).forEach(row => {
+      const dateKey = (row.date instanceof Date) ? row.date.toISOString().split('T')[0] : (row.date || '').toString().slice(0,10);
+      const key = `${dateKey}_${(row.livreur || '').trim()}`;
+      if (!agg[key]) agg[key] = {};
+      const label = row.order_type === 'AUTRE' ? 'AUTRES' : row.order_type;
+      agg[key][label] = (agg[key][label] || 0) + (parseInt(row.count) || 0);
+
+    });
+
+    Object.keys(agg).forEach(key => {
+      // choisir le type avec count max; en cas d'égalité, appliquer la priorité
+      let best = null; let bestCount = -1;
+      Object.entries(agg[key]).forEach(([label, count]) => {
+        if (count > bestCount) { best = label; bestCount = count; }
+        else if (count === bestCount) {
+          const prevIdx = orderTypePriority.indexOf(best);
+          const curIdx = orderTypePriority.indexOf(label);
+          if (curIdx !== -1 && (prevIdx === -1 || curIdx < prevIdx)) best = label;
+        }
+      });
+      typeByDateLivreur[key] = best || '-';
+
+    });
+    Array.from(rowDates).sort().forEach(date => {
       const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
         day: '2-digit', 
         month: '2-digit' 
       });
       
-      livreurs.forEach(livreur => {
-        const orderKey = `${date}_${livreur}`;
+      const livreursForDate = dateToLivreurs[date] ? Array.from(dateToLivreurs[date]).sort() : [];
+      livreursForDate.forEach(livreur => {
+        const orderKey = `${date}_${(livreur || '').trim()}`;
         const expenseKey = `${date}_${livreur}`;
         const gpsKey = `${date}_${livreur}`;
         
         const orderData = ordersMap[orderKey] || { nombre_commandes: 0, total_montant: 0 };
+        const typeLabel = (orderData.nombre_commandes || 0) > 0
+          ? (typeByDateLivreur[orderKey] || '-')
+          : '';
+        // Debug temporaire
+        if (orderData.nombre_commandes > 0) {
+          console.log('🔍 DEBUG TYPE pour commandes:', { 
+            date, livreur, orderKey, 
+            cmd: orderData.nombre_commandes, 
+            typeLabel,
+            inMap: typeByDateLivreur[orderKey],
+            mapKeys: Object.keys(typeByDateLivreur),
+            allDailyTypeStats: dailyTypeStats
+          });
+        }
         const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
         const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
         
         const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
         const benefice = (orderData.total_montant || 0) - totalDepenses;
         
-        rows += `
+        rowParts.push(`
           <tr>
             <td class="date-cell">${formattedDate}</td>
             <td class="livreur-cell">${Utils.escapeHtml(livreur)}</td>
+            <td class="data-cell">${typeLabel}</td>
             <td class="data-cell">${orderData.nombre_commandes || 0}</td>
             <td class="data-cell">${orderData.total_montant ? Utils.formatAmount(orderData.total_montant).replace(' FCFA', '') : '0'}</td>
             <td class="data-cell">${expenseData.carburant ? Utils.formatAmount(expenseData.carburant).replace(' FCFA', '') : '0'}</td>
@@ -1855,9 +1937,13 @@ class MonthlyDashboardManager {
             <td class="data-cell gps-km-cell">${gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : '0'}</td>
             <td class="data-cell benefice ${benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(benefice).replace(' FCFA', '')}</td>
           </tr>
-        `;
+        `);
       });
     });
+
+    const RENDER_LIMIT = 500;
+    const hasMoreRows = rowParts.length > RENDER_LIMIT;
+    const initialRows = hasMoreRows ? rowParts.slice(0, RENDER_LIMIT).join('') : rowParts.join('');
 
     // Créer les lignes de totaux par livreur
     let totalRows = '';
@@ -1882,6 +1968,7 @@ class MonthlyDashboardManager {
         <tr class="total-row">
           <td class="total-cell"><strong>TOTAL</strong></td>
           <td class="total-cell"><strong>${Utils.escapeHtml(livreur)}</strong></td>
+          <td class="total-cell"><strong>-</strong></td>
           <td class="total-cell"><strong>${totalCommandes}</strong></td>
           <td class="total-cell"><strong>${totalMontant ? Utils.formatAmount(totalMontant).replace(' FCFA', '') : '0'}</strong></td>
           <td class="total-cell"><strong>${totalCarburant ? Utils.formatAmount(totalCarburant).replace(' FCFA', '') : '0'}</strong></td>
@@ -1896,8 +1983,23 @@ class MonthlyDashboardManager {
       `;
     });
 
+    // Filtre Type (client-side)
+    const filterHtml = `
+      <div class="table-filters" style="padding:8px;display:flex;gap:8px;align-items:center;">
+        <label for="type-filter" style="font-weight:600;">Type:</label>
+        <select id="type-filter" class="form-control" style="max-width:220px;">
+          <option value="">Tous</option>
+          <option value="MLC simple">MLC simple</option>
+          <option value="MLC avec abonnement">MLC abonnement</option>
+          <option value="MATA client">MATA client</option>
+          <option value="MATA interne">MATA interne</option>
+          <option value="AUTRES">Autres</option>
+        </select>
+      </div>`;
+
     const table = `
       <div class="monthly-detailed-table-container">
+        ${filterHtml}
         <table class="monthly-detailed-table">
           <thead>
             <tr class="main-header">
@@ -1905,12 +2007,17 @@ class MonthlyDashboardManager {
             </tr>
           </thead>
           <tbody>
-            ${rows}
+            ${initialRows}
           </tbody>
           <tfoot>
             ${totalRows}
           </tfoot>
         </table>
+        ${hasMoreRows ? `
+          <div class="table-actions" style="padding:8px;text-align:center;">
+            <button id="show-all-monthly-rows" class="btn btn-sm btn-outline-secondary">Afficher toutes les lignes (${rowParts.length})</button>
+          </div>
+        ` : ''}
       </div>
       <style>
         .monthly-detailed-table-container {
@@ -2029,6 +2136,35 @@ class MonthlyDashboardManager {
     `;
 
     container.innerHTML = table;
+
+    const showAllBtn = document.getElementById('show-all-monthly-rows');
+    if (showAllBtn) {
+      showAllBtn.addEventListener('click', () => {
+        const tbody = container.querySelector('.monthly-detailed-table tbody');
+        if (tbody) {
+          tbody.innerHTML = rowParts.join('');
+          showAllBtn.remove();
+        }
+      });
+    }
+
+    // Filtrage par type
+    const typeFilter = document.getElementById('type-filter');
+    if (typeFilter) {
+      const applyTypeFilter = () => {
+        const value = typeFilter.value;
+        const tbody = container.querySelector('.monthly-detailed-table tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.forEach(tr => {
+          const typeCell = tr.children[2];
+          if (!typeCell) return;
+          const cellText = (typeCell.textContent || '').trim();
+          tr.style.display = !value || value === '' || cellText === value ? '' : 'none';
+        });
+      };
+      typeFilter.addEventListener('change', applyTypeFilter);
+    }
   }
 
   static displayMonthlyOrdersByType(monthlyStatsByType) {
@@ -2041,7 +2177,8 @@ class MonthlyDashboardManager {
 
     // Mapping des types avec leurs icônes et classes CSS
     const typeMapping = {
-      'MATA': { icon: '🛒', class: 'mata' },
+      'MATA client': { icon: '🛒', class: 'mata-client' },
+      'MATA interne': { icon: '🏢', class: 'mata-interne' },
       'MLC avec abonnement': { icon: '🎫', class: 'mlc-avec-abonnement' },
       'MLC simple': { icon: '📦', class: 'mlc-simple' },
       'AUTRE': { icon: '📋', class: 'autre' }
@@ -2089,10 +2226,7 @@ class MonthlyDashboardManager {
               <th>Livreur</th>
               <th>Total Cmd</th>
               <th>Total Courses</th>
-              <th>🛒 MATA</th>
-              <th>📦 MLC simple</th>
-              <th>🎫 MLC abonnement</th>
-              <th>📋 AUTRE</th>
+              <th>Type</th>
               <th>Distance GPS (km)</th>
               <th>Dépenses</th>
               <th>Bénéfice</th>
@@ -2101,23 +2235,20 @@ class MonthlyDashboardManager {
           <tbody>
             ${enrichedSummary.map(item => {
               const statsByType = item.statsByType || {};
+              // Déterminer le type dominant
+              const candidates = ['MLC avec abonnement','MLC simple','MATA client','MATA interne','AUTRE'];
+              let best = null; let bestCount = -1;
+              candidates.forEach(k => {
+                const c = statsByType[k] ? parseInt(statsByType[k].count) || 0 : 0;
+                if (c > bestCount) { best = k; bestCount = c; }
+              });
+              const typeLabel = best === 'AUTRE' ? 'AUTRES' : (best || '-');
               return `
                 <tr>
                   <td><strong>${Utils.escapeHtml(item.livreur)}</strong></td>
                   <td>${item.nombre_commandes}</td>
                   <td>${Utils.formatAmount(item.total_montant)}</td>
-                  <td class="stats-cell">
-                    ${statsByType.MATA ? `<span class="count">${statsByType.MATA.count}</span><br><span class="amount">${Utils.formatAmount(statsByType.MATA.total_amount)}</span>` : '<span class="no-data">-</span>'}
-                  </td>
-                  <td class="stats-cell">
-                    ${statsByType['MLC simple'] ? `<span class="count">${statsByType['MLC simple'].count}</span><br><span class="amount">${Utils.formatAmount(statsByType['MLC simple'].total_amount)}</span>` : '<span class="no-data">-</span>'}
-                  </td>
-                  <td class="stats-cell">
-                    ${statsByType['MLC avec abonnement'] ? `<span class="count">${statsByType['MLC avec abonnement'].count}</span><br><span class="amount">${Utils.formatAmount(statsByType['MLC avec abonnement'].total_amount)}</span>` : '<span class="no-data">-</span>'}
-                  </td>
-                  <td class="stats-cell">
-                    ${statsByType.AUTRE ? `<span class="count">${statsByType.AUTRE.count}</span><br><span class="amount">${Utils.formatAmount(statsByType.AUTRE.total_amount)}</span>` : '<span class="no-data">-</span>'}
-                  </td>
+                  <td class="stats-cell">${typeLabel}</td>
                   <td class="gps-distance-cell">
                     ${item.gpsData ? `<span class="gps-distance">📍 ${Math.round(item.gpsData.total_distance_km * 100) / 100}</span>` : '<span class="no-gps-data">-</span>'}
                   </td>

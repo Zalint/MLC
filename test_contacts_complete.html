@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Complet - Fonctionnalité Contacts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .input-group {
+            display: flex;
+            align-items: stretch;
+        }
+        .input-group input {
+            flex: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .input-group .btn {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: none;
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+            cursor: pointer;
+        }
+        .btn {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .test-result.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .test-result.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .test-result.warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .contact-item, .client-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #e9ecef;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .contact-info, .client-info {
+            flex: 1;
+        }
+        .contact-name, .client-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .contact-phone, .client-phone {
+            color: #666;
+            font-size: 14px;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .contact-search-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .contact-search-section h4 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        .contacts-list, .clients-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .contact-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .preview-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .preview-section h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .preview-field {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #007bff;
+        }
+        .preview-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .preview-value {
+            color: #6c757d;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Complet - Fonctionnalité Contacts</h1>
+        <p>Cette page simule le formulaire de saisie de commande avec la fonctionnalité de contacts en mode test.</p>
+
+        <!-- Section 1: Test du formulaire -->
+        <div class="test-section">
+            <h3>📝 Formulaire de saisie de commande</h3>
+            <form id="test-order-form">
+                <div class="form-group">
+                    <label for="order-type">Type de commande *</label>
+                    <select id="order-type" name="order_type" required>
+                        <option value="">Sélectionner un type</option>
+                        <option value="MATA">MATA</option>
+                        <option value="MLC">MLC</option>
+                        <option value="AUTRE">AUTRE</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="client-name">Nom du client *</label>
+                    <div class="input-group">
+                        <input type="text" id="client-name" name="client_name" required>
+                        <button type="button" id="select-contact-btn" class="btn btn-secondary" title="Sélectionner depuis les contacts">
+                            📱
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone-number">Numéro de téléphone *</label>
+                    <input type="tel" id="phone-number" name="phone_number" required placeholder="Ex: 773920000">
+                </div>
+                
+                <div class="form-group" id="adresse-source-group" style="display: none;">
+                    <label for="adresse-source">Adresse source *</label>
+                    <textarea id="adresse-source" name="adresse_source" rows="2" placeholder="Adresse de départ"></textarea>
+                </div>
+                
+                <div class="form-group" id="adresse-destination-group" style="display: none;">
+                    <label for="adresse-destination">Adresse destination *</label>
+                    <textarea id="adresse-destination" name="adresse_destination" rows="2" placeholder="Adresse d'arrivée"></textarea>
+                </div>
+                
+                <div class="form-group" id="point-vente-group" style="display: none;">
+                    <label for="point-vente">Point de vente *</label>
+                    <select id="point-vente" name="point_de_vente">
+                        <option value="">Sélectionner un point de vente</option>
+                        <option value="O.Foire">O.Foire</option>
+                        <option value="Mbao">Mbao</option>
+                        <option value="Keur Massar">Keur Massar</option>
+                        <option value="Sacre Coeur">Sacre Coeur</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="address-group" style="display: none;">
+                    <label for="address">Adresse</label>
+                    <textarea id="address" name="address" rows="3" placeholder="Adresse de livraison (optionnel)"></textarea>
+                </div>
+                
+                <div class="form-group" id="amount-group" style="display: none;">
+                    <label for="amount">Montant du panier (FCFA)</label>
+                    <input type="number" id="amount" name="amount" step="0.01" min="0" placeholder="0.00">
+                </div>
+                
+                <div class="form-group" id="course-price-group" style="display: none;">
+                    <label for="course-price">Prix de la course (FCFA)</label>
+                    <input type="number" id="course-price" name="course_price" step="0.01" min="0" value="1500">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="4" placeholder="Description détaillée de la commande"></textarea>
+                </div>
+            </form>
+            
+            <!-- Aperçu des données pré-remplies -->
+            <div class="preview-section" id="preview-section" style="display: none;">
+                <h4>📋 Aperçu des données pré-remplies</h4>
+                <div id="preview-content"></div>
+            </div>
+        </div>
+
+        <!-- Section 2: Tests -->
+        <div class="test-section">
+            <h3>🧪 Tests de fonctionnalité</h3>
+            
+            <button class="btn btn-primary" onclick="testContactSelector()">
+                📱 Tester le sélecteur de contacts
+            </button>
+            
+            <button class="btn btn-secondary" onclick="testAutoFill()">
+                🔄 Tester le pré-remplissage automatique
+            </button>
+            
+            <button class="btn btn-success" onclick="testCompleteFlow()">
+                ✅ Test complet du flux
+            </button>
+            
+            <button class="btn btn-secondary" onclick="resetForm()">
+                🔄 Réinitialiser le formulaire
+            </button>
+            
+            <div id="test-results"></div>
+        </div>
+
+        <!-- Section 3: Logs -->
+        <div class="test-section">
+            <h3>📊 Logs de débogage</h3>
+            <div id="debug-logs" style="background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+        </div>
+    </div>
+
+    <!-- Modal de sélection de contacts -->
+    <div id="contact-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Sélectionner un contact (Mode Test)</h3>
+                <button class="modal-close" onclick="closeContactModal()">&times;</button>
+            </div>
+            
+            <div class="contact-selector">
+                <div class="contact-search-section">
+                    <h4>📱 Contacts du téléphone (Mode Test)</h4>
+                    <div class="form-group">
+                        <input type="text" id="contact-search" placeholder="Rechercher dans les contacts de test..." class="form-control">
+                    </div>
+                    <div id="local-contacts-list" class="contacts-list">
+                        <p class="no-results">Cliquez sur "Charger les contacts" pour commencer</p>
+                    </div>
+                </div>
+                
+                <div class="contact-search-section">
+                    <h4>💾 Clients existants</h4>
+                    <div class="form-group">
+                        <input type="text" id="client-search" placeholder="Rechercher dans la base de données..." class="form-control">
+                    </div>
+                    <div id="database-clients-list" class="clients-list">
+                        <p class="no-results">Tapez pour rechercher des clients</p>
+                    </div>
+                </div>
+                
+                <div class="contact-actions">
+                    <button type="button" id="access-contacts-btn" class="btn btn-primary">
+                        <span class="icon">📱</span>
+                        Charger les contacts (Test)
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeContactModal()">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration de l'API
+        window.API_BASE_URL = 'http://localhost:4000/api/v1';
+        
+        // Simuler un token d'authentification pour les tests
+        const testToken = 'test-token-123';
+        localStorage.setItem('authToken', testToken);
+
+        // Contacts de test (mock)
+        const mockContacts = [
+            { name: ['Jean Dupont'], tel: ['773920001'] },
+            { name: ['Marie Martin'], tel: ['773920002'] },
+            { name: ['Pierre Durand'], tel: ['773920003'] },
+            { name: ['Sophie Bernard'], tel: ['773920004'] },
+            { name: ['Michel Petit'], tel: ['773920005'] },
+            { name: ['Claire Moreau'], tel: ['773920006'] },
+            { name: ['André Leroy'], tel: ['773920007'] },
+            { name: ['Isabelle Roux'], tel: ['773920008'] }
+        ];
+
+        // Clients de test dans la base
+        const mockClients = [
+            {
+                client_name: 'Jean Dupont (Test)',
+                phone_number: '773920001',
+                address: '123 Rue de la Paix, Dakar',
+                adresse_source: 'O.Foire',
+                adresse_destination: 'Sicap Liberté 2, Dakar',
+                point_de_vente: 'O.Foire',
+                order_count: 2,
+                last_order_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+            },
+            {
+                client_name: 'Marie Martin (Test)',
+                phone_number: '773920002',
+                address: '456 Avenue Georges Bush, Dakar',
+                adresse_source: 'Point E, Dakar',
+                adresse_destination: 'Yoff, Dakar',
+                point_de_vente: null,
+                order_count: 2,
+                last_order_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+            },
+            {
+                client_name: 'Pierre Durand (Test)',
+                phone_number: '773920003',
+                address: '789 Boulevard de la Corniche, Dakar',
+                adresse_source: 'Plateau, Dakar',
+                adresse_destination: 'Médina, Dakar',
+                point_de_vente: null,
+                order_count: 2,
+                last_order_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+            }
+        ];
+
+        // Fonction de log
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('debug-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007bff';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        // Initialisation
+        window.addEventListener('load', () => {
+            log('🚀 Page de test chargée');
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Gestion du type de commande
+            document.getElementById('order-type').addEventListener('change', (e) => {
+                const orderType = e.target.value;
+                log(`📋 Type de commande sélectionné: ${orderType}`);
+                
+                const adresseSourceGroup = document.getElementById('adresse-source-group');
+                const adresseDestinationGroup = document.getElementById('adresse-destination-group');
+                const pointVenteGroup = document.getElementById('point-vente-group');
+                const addressGroup = document.getElementById('address-group');
+                const amountGroup = document.getElementById('amount-group');
+                const coursePriceGroup = document.getElementById('course-price-group');
+                
+                // Masquer tous les groupes
+                [adresseSourceGroup, adresseDestinationGroup, pointVenteGroup, addressGroup, amountGroup, coursePriceGroup].forEach(group => {
+                    if (group) group.style.display = 'none';
+                });
+                
+                if (orderType === 'MATA') {
+                    adresseDestinationGroup.style.display = 'block';
+                    pointVenteGroup.style.display = 'block';
+                    amountGroup.style.display = 'block';
+                    coursePriceGroup.style.display = 'block';
+                } else if (orderType === 'MLC' || orderType === 'AUTRE') {
+                    adresseSourceGroup.style.display = 'block';
+                    adresseDestinationGroup.style.display = 'block';
+                    coursePriceGroup.style.display = 'block';
+                }
+            });
+
+            // Bouton de sélection de contacts
+            const selectContactBtn = document.getElementById('select-contact-btn');
+            if (selectContactBtn) {
+                selectContactBtn.addEventListener('click', () => {
+                    log('🖱️ Clic sur le bouton de sélection de contacts');
+                    showContactModal();
+                });
+            }
+
+            // Recherche automatique lors de la saisie du téléphone
+            const phoneNumberInput = document.getElementById('phone-number');
+            if (phoneNumberInput) {
+                phoneNumberInput.addEventListener('blur', async (e) => {
+                    const phoneNumber = e.target.value.trim();
+                    if (phoneNumber && phoneNumber.length >= 6) {
+                        log(`📞 Recherche automatique pour le téléphone: ${phoneNumber}`);
+                        await autoFillClientInfo(phoneNumber);
+                    }
+                });
+            }
+        }
+
+        function showContactModal() {
+            log('📱 Ouverture du modal de sélection de contacts');
+            document.getElementById('contact-modal').style.display = 'flex';
+            setupContactModalEvents();
+        }
+
+        function closeContactModal() {
+            log('❌ Fermeture du modal de sélection de contacts');
+            document.getElementById('contact-modal').style.display = 'none';
+        }
+
+        function setupContactModalEvents() {
+            // Bouton de chargement des contacts
+            const accessContactsBtn = document.getElementById('access-contacts-btn');
+            if (accessContactsBtn) {
+                accessContactsBtn.addEventListener('click', () => {
+                    log('📱 Chargement des contacts de test');
+                    loadMockContacts();
+                });
+            }
+
+            // Recherche dans les contacts
+            const contactSearch = document.getElementById('contact-search');
+            if (contactSearch) {
+                contactSearch.addEventListener('input', (e) => {
+                    const query = e.target.value.trim();
+                    if (query.length >= 2) {
+                        const results = searchMockContacts(query);
+                        displayMockContacts(results);
+                    } else {
+                        displayMockContacts([]);
+                    }
+                });
+            }
+
+            // Recherche dans la base de données
+            const clientSearch = document.getElementById('client-search');
+            if (clientSearch) {
+                clientSearch.addEventListener('input', (e) => {
+                    const query = e.target.value.trim();
+                    if (query.length >= 2) {
+                        const results = searchMockClients(query);
+                        displayMockClients(results);
+                    } else {
+                        displayMockClients([]);
+                    }
+                });
+            }
+        }
+
+        function loadMockContacts() {
+            log('✅ Contacts de test chargés');
+            displayMockContacts(mockContacts);
+            
+            const accessContactsBtn = document.getElementById('access-contacts-btn');
+            if (accessContactsBtn) {
+                accessContactsBtn.textContent = '✅ Contacts chargés';
+                accessContactsBtn.disabled = true;
+            }
+        }
+
+        function searchMockContacts(query) {
+            const searchTerm = query.toLowerCase();
+            return mockContacts.filter(contact => {
+                const name = contact.name ? contact.name[0] : '';
+                const phone = contact.tel ? contact.tel[0] : '';
+                return name.toLowerCase().includes(searchTerm) || phone.includes(searchTerm);
+            });
+        }
+
+        function searchMockClients(query) {
+            const searchTerm = query.toLowerCase();
+            return mockClients.filter(client => {
+                return client.client_name.toLowerCase().includes(searchTerm) || 
+                       client.phone_number.includes(searchTerm);
+            });
+        }
+
+        function displayMockContacts(contacts) {
+            const container = document.getElementById('local-contacts-list');
+            if (!container) return;
+
+            if (contacts.length === 0) {
+                container.innerHTML = '<p class="no-results">Aucun contact trouvé</p>';
+                return;
+            }
+
+            container.innerHTML = contacts.map(contact => {
+                const name = contact.name ? contact.name[0] : 'Sans nom';
+                const phone = contact.tel ? contact.tel[0] : 'Pas de téléphone';
+                
+                return `
+                    <div class="contact-item" data-phone="${phone}" data-name="${name}">
+                        <div class="contact-info">
+                            <div class="contact-name">${name}</div>
+                            <div class="contact-phone">${phone}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="selectMockContact('${name}', '${phone}')">
+                            Sélectionner
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayMockClients(clients) {
+            const container = document.getElementById('database-clients-list');
+            if (!container) return;
+
+            if (clients.length === 0) {
+                container.innerHTML = '<p class="no-results">Aucun client trouvé</p>';
+                return;
+            }
+
+            container.innerHTML = clients.map(client => {
+                const lastOrderDate = client.last_order_date ? 
+                    client.last_order_date.toLocaleDateString('fr-FR') : 'Jamais';
+                
+                return `
+                    <div class="client-item" data-phone="${client.phone_number}" data-name="${client.client_name}">
+                        <div class="client-info">
+                            <div class="client-name">${client.client_name}</div>
+                            <div class="client-phone">${client.phone_number}</div>
+                            <div class="client-details">
+                                <small>${client.order_count} commande(s) - Dernière: ${lastOrderDate}</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="selectMockClient('${client.client_name}', '${client.phone_number}')">
+                            Sélectionner
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectMockContact(name, phone) {
+            log(`📱 Contact sélectionné: ${name} - ${phone}`);
+            fillFormFields(name, phone);
+            closeContactModal();
+            autoFillClientInfo(phone);
+        }
+
+        function selectMockClient(name, phone) {
+            log(`💾 Client sélectionné: ${name} - ${phone}`);
+            fillFormFields(name, phone);
+            closeContactModal();
+            autoFillClientInfo(phone);
+        }
+
+        function fillFormFields(name, phone) {
+            document.getElementById('client-name').value = name;
+            document.getElementById('phone-number').value = phone;
+            log(`✅ Formulaire rempli: ${name} - ${phone}`);
+        }
+
+        async function autoFillClientInfo(phoneNumber) {
+            log(`🔄 Pré-remplissage automatique pour: ${phoneNumber}`);
+            
+            // Simuler la recherche en base
+            const client = mockClients.find(c => c.phone_number === phoneNumber);
+            if (!client) {
+                log(`⚠️ Aucun client trouvé pour: ${phoneNumber}`);
+                return;
+            }
+
+            const orderType = document.getElementById('order-type').value;
+            log(`📋 Pré-remplissage pour le type: ${orderType}`);
+
+            // Pré-remplir selon le type de commande
+            if (orderType === 'MATA') {
+                if (client.adresse_destination) {
+                    document.getElementById('adresse-destination').value = client.adresse_destination;
+                }
+                if (client.point_de_vente) {
+                    document.getElementById('point-vente').value = client.point_de_vente;
+                }
+            } else if (orderType === 'MLC' || orderType === 'AUTRE') {
+                if (client.adresse_source) {
+                    document.getElementById('adresse-source').value = client.adresse_source;
+                }
+                if (client.adresse_destination) {
+                    document.getElementById('adresse-destination').value = client.adresse_destination;
+                }
+            }
+
+            // Pré-remplir l'adresse générale
+            if (client.address) {
+                document.getElementById('address').value = client.address;
+            }
+
+            log('✅ Pré-remplissage terminé');
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const previewSection = document.getElementById('preview-section');
+            const previewContent = document.getElementById('preview-content');
+            
+            const formData = new FormData(document.getElementById('test-order-form'));
+            const data = Object.fromEntries(formData.entries());
+            
+            let previewHtml = '';
+            Object.entries(data).forEach(([key, value]) => {
+                if (value) {
+                    previewHtml += `
+                        <div class="preview-field">
+                            <span class="preview-label">${key}:</span>
+                            <span class="preview-value">${value}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            previewContent.innerHTML = previewHtml;
+            previewSection.style.display = 'block';
+        }
+
+        // Fonctions de test
+        function testContactSelector() {
+            log('🧪 Test du sélecteur de contacts');
+            showContactModal();
+            addTestResult('Test du sélecteur de contacts', 'success', 'Modal ouvert avec succès');
+        }
+
+        function testAutoFill() {
+            log('🧪 Test du pré-remplissage automatique');
+            const testPhone = '773920001';
+            document.getElementById('phone-number').value = testPhone;
+            document.getElementById('order-type').value = 'MATA';
+            document.getElementById('order-type').dispatchEvent(new Event('change'));
+            autoFillClientInfo(testPhone);
+            addTestResult('Test du pré-remplissage', 'success', 'Pré-remplissage effectué');
+        }
+
+        function testCompleteFlow() {
+            log('🧪 Test complet du flux');
+            
+            // 1. Sélectionner un type de commande
+            document.getElementById('order-type').value = 'MLC';
+            document.getElementById('order-type').dispatchEvent(new Event('change'));
+            
+            // 2. Ouvrir le sélecteur de contacts
+            showContactModal();
+            
+            // 3. Charger les contacts
+            setTimeout(() => {
+                loadMockContacts();
+                
+                // 4. Sélectionner un contact
+                setTimeout(() => {
+                    selectMockContact('Marie Martin', '773920002');
+                    addTestResult('Test complet du flux', 'success', 'Flux complet testé avec succès');
+                }, 1000);
+            }, 500);
+        }
+
+        function resetForm() {
+            log('🔄 Réinitialisation du formulaire');
+            document.getElementById('test-order-form').reset();
+            document.getElementById('preview-section').style.display = 'none';
+            
+            // Masquer tous les groupes
+            ['adresse-source-group', 'adresse-destination-group', 'point-vente-group', 'address-group', 'amount-group', 'course-price-group'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = 'none';
+            });
+            
+            addTestResult('Réinitialisation', 'success', 'Formulaire réinitialisé');
+        }
+
+        function addTestResult(testName, type, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = `<strong>${testName}:</strong> ${message}`;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        // Logs initiaux
+        log('📱 API Contacts disponible: ' + ('contacts' in navigator && 'ContactsManager' in window));
+        log('🌐 User Agent: ' + navigator.userAgent);
+        log('✅ Mode test activé - utilisation des données mock');
+    </script>
+</body>
+</html> 

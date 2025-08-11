@@ -71,7 +71,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
           SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
           SUM(CASE WHEN o.order_type = 'MLC' AND o.course_price > $3 THEN 1 ELSE 0 END) as courses_mlc_sup,
-          SUM(CASE WHEN o.order_type = 'MATA' AND COALESCE(o.amount, 0) < $4 THEN 1 ELSE 0 END) as courses_mata_panier_inf_seuil,
+          SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false AND COALESCE(o.amount, 0) < $4 THEN 1 ELSE 0 END) as courses_mata_panier_inf_seuil,
           -- Statistiques pour les commandes AUTRE
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
@@ -160,7 +160,7 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as courses_mlc_sans_abonnement,
         SUM(CASE WHEN o.order_type = 'MATA' AND o.course_price > $2 THEN 1 ELSE 0 END) as courses_mata_sup,
         SUM(CASE WHEN o.order_type = 'MLC' AND o.course_price > $3 THEN 1 ELSE 0 END) as courses_mlc_sup,
-        SUM(CASE WHEN o.order_type = 'MATA' AND COALESCE(o.amount, 0) < $4 THEN 1 ELSE 0 END) as courses_mata_panier_inf_seuil,
+        SUM(CASE WHEN o.order_type = 'MATA' AND o.interne = false AND COALESCE(o.amount, 0) < $4 THEN 1 ELSE 0 END) as courses_mata_panier_inf_seuil,
         -- Statistiques pour les commandes AUTRE par livreur
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,

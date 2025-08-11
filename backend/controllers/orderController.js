@@ -382,11 +382,16 @@ class OrderController {
         statsByType: statsByTypeMap[item.livreur] || {}
       }));
 
+      // Récupérer les stats par type par (date, livreur) pour déduction fine du type par jour
+      const dailyTypeStats = await Order.getDailyTypeStatsByMonth(month);
+      console.log('🔍 dailyTypeStats data:', JSON.stringify(dailyTypeStats, null, 2));
+
       res.json({
         summary: enrichedSummary,
         dailyData,
         dailyExpenses,
         monthlyStatsByType,
+        dailyTypeStats,
         month,
         total_livreurs: summary.length,
         total_commandes: summary.reduce((sum, item) => sum + parseInt(item.nombre_commandes), 0),
@@ -1768,9 +1773,10 @@ class OrderController {
       }
 
       // Récupérer les données du récapitulatif mensuel
-      const [monthlyData, dailyExpenses] = await Promise.all([
+      const [monthlyData, dailyExpenses, dailyTypeStats] = await Promise.all([
         Order.getMonthlyDetailsByDay(month),
-        Expense.getMonthlyExpensesByDay(month)
+        Expense.getMonthlyExpensesByDay(month),
+        Order.getDailyTypeStatsByMonth(month)
       ]);
 
       // Récupérer les données GPS directement depuis la base de données
@@ -1804,6 +1810,7 @@ class OrderController {
       worksheet.columns = [
         { header: 'Date', key: 'date', width: 12 },
         { header: 'Livreur', key: 'livreur', width: 20 },
+        { header: 'Type', key: 'type', width: 18 },
         { header: 'Commandes', key: 'commandes', width: 12 },
         { header: 'Courses (FCFA)', key: 'courses', width: 15 },
         { header: 'Carburant (FCFA)', key: 'carburant', width: 15 },
@@ -1833,6 +1840,7 @@ class OrderController {
       const ordersMap = {};
       const expensesMap = {};
       const gpsMap = {};
+      const typeMap = {};
 
       monthlyData.forEach(item => {
         const key = `${item.date}_${item.livreur}`;
@@ -1842,6 +1850,29 @@ class OrderController {
       dailyExpenses.forEach(item => {
         const key = `${item.date}_${item.livreur}`;
         expensesMap[key] = item;
+      });
+
+      // Construire la map (date, livreur) -> type dominant du jour
+      const orderTypePriority = ['MLC avec abonnement','MLC simple','MATA client','MATA interne','AUTRES','AUTRE'];
+      const agg = {};
+      dailyTypeStats.forEach(row => {
+        const dateKey = row.date instanceof Date ? row.date.toISOString().split('T')[0] : row.date;
+        const key = `${dateKey}_${row.livreur}`;
+        if (!agg[key]) agg[key] = {};
+        const label = row.order_type === 'AUTRE' ? 'AUTRES' : row.order_type;
+        agg[key][label] = (agg[key][label] || 0) + (parseInt(row.count) || 0);
+      });
+      Object.keys(agg).forEach(key => {
+        let best = null; let bestCount = -1;
+        Object.entries(agg[key]).forEach(([label, count]) => {
+          if (count > bestCount) { best = label; bestCount = count; }
+          else if (count === bestCount) {
+            const prevIdx = orderTypePriority.indexOf(best);
+            const curIdx = orderTypePriority.indexOf(label);
+            if (curIdx !== -1 && (prevIdx === -1 || curIdx < prevIdx)) best = label;
+          }
+        });
+        typeMap[key] = best || '';
       });
 
       dailyGpsData.forEach(item => {
@@ -1873,9 +1904,11 @@ class OrderController {
           const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
           const benefice = (orderData.total_montant || 0) - totalDepenses;
           
+          const typeLabel = (orderData.nombre_commandes || 0) > 0 ? (typeMap[orderKey] || '') : '';
           const row = worksheet.addRow({
             date: formattedDate,
             livreur: livreur,
+            type: typeLabel,
             commandes: orderData.nombre_commandes || 0,
             courses: orderData.total_montant || 0,
             carburant: expenseData.carburant || 0,

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple - Fonctionnalité Contacts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .input-group {
+            display: flex;
+            align-items: stretch;
+        }
+        .input-group input {
+            flex: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .input-group .btn {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: none;
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+            cursor: pointer;
+        }
+        .btn {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .result.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .result.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .contact-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #e9ecef;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .contact-info {
+            flex: 1;
+        }
+        .contact-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .contact-phone {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Simple - Fonctionnalité Contacts</h1>
+        <p>Test du bouton de sélection de contacts et du pré-remplissage</p>
+
+        <!-- Formulaire de test -->
+        <form id="test-form">
+            <div class="form-group">
+                <label for="order-type">Type de commande</label>
+                <select id="order-type" name="order_type">
+                    <option value="">Sélectionner un type</option>
+                    <option value="MATA">MATA</option>
+                    <option value="MLC">MLC</option>
+                    <option value="AUTRE">AUTRE</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="client-name">Nom du client</label>
+                <div class="input-group">
+                    <input type="text" id="client-name" name="client_name" placeholder="Nom du client">
+                    <button type="button" id="select-contact-btn" class="btn btn-secondary" title="Sélectionner depuis les contacts">
+                        📱
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone-number">Numéro de téléphone</label>
+                <input type="tel" id="phone-number" name="phone_number" placeholder="Ex: 773920000">
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Adresse</label>
+                <input type="text" id="address" name="address" placeholder="Adresse de livraison">
+            </div>
+        </form>
+
+        <!-- Résultats -->
+        <div id="results"></div>
+    </div>
+
+    <!-- Modal de sélection de contacts -->
+    <div id="contact-modal" class="modal">
+        <div class="modal-content">
+            <h3>Sélectionner un contact (Mode Test)</h3>
+            <p>Contacts de test disponibles :</p>
+            
+            <div id="contacts-list">
+                <!-- Les contacts seront ajoutés ici -->
+            </div>
+            
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Contacts de test
+        const mockContacts = [
+            { name: 'Jean Dupont', phone: '773920001', address: '123 Rue de la Paix, Dakar' },
+            { name: 'Marie Martin', phone: '773920002', address: '456 Avenue Georges Bush, Dakar' },
+            { name: 'Pierre Durand', phone: '773920003', address: '789 Boulevard de la Corniche, Dakar' },
+            { name: 'Sophie Bernard', phone: '773920004', address: '321 Rue des Ambassadeurs, Dakar' },
+            { name: 'Michel Petit', phone: '773920005', address: '654 Avenue Cheikh Anta Diop, Dakar' }
+        ];
+
+        // Clients de test (simulation base de données)
+        const mockClients = [
+            {
+                name: 'Jean Dupont (Test)',
+                phone: '773920001',
+                address: '123 Rue de la Paix, Dakar',
+                adresse_source: 'O.Foire',
+                adresse_destination: 'Sicap Liberté 2, Dakar',
+                point_de_vente: 'O.Foire',
+                order_type: 'MATA'
+            },
+            {
+                name: 'Marie Martin (Test)',
+                phone: '773920002',
+                address: '456 Avenue Georges Bush, Dakar',
+                adresse_source: 'Point E, Dakar',
+                adresse_destination: 'Yoff, Dakar',
+                point_de_vente: null,
+                order_type: 'MLC'
+            },
+            {
+                name: 'Pierre Durand (Test)',
+                phone: '773920003',
+                address: '789 Boulevard de la Corniche, Dakar',
+                adresse_source: 'Plateau, Dakar',
+                adresse_destination: 'Médina, Dakar',
+                point_de_vente: null,
+                order_type: 'AUTRE'
+            }
+        ];
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Page de test chargée');
+            setupEventListeners();
+            loadContacts();
+        });
+
+        function setupEventListeners() {
+            // Bouton de sélection de contacts
+            const selectContactBtn = document.getElementById('select-contact-btn');
+            if (selectContactBtn) {
+                selectContactBtn.addEventListener('click', () => {
+                    console.log('🖱️ Clic sur le bouton de sélection de contacts');
+                    showModal();
+                });
+            }
+
+            // Recherche automatique lors de la saisie du téléphone
+            const phoneNumberInput = document.getElementById('phone-number');
+            if (phoneNumberInput) {
+                phoneNumberInput.addEventListener('blur', (e) => {
+                    const phoneNumber = e.target.value.trim();
+                    if (phoneNumber && phoneNumber.length >= 6) {
+                        console.log(`📞 Recherche automatique pour: ${phoneNumber}`);
+                        autoFillClientInfo(phoneNumber);
+                    }
+                });
+            }
+
+            // Gestion du type de commande
+            const orderTypeSelect = document.getElementById('order-type');
+            if (orderTypeSelect) {
+                orderTypeSelect.addEventListener('change', (e) => {
+                    console.log(`📋 Type de commande sélectionné: ${e.target.value}`);
+                });
+            }
+        }
+
+        function loadContacts() {
+            const contactsList = document.getElementById('contacts-list');
+            if (!contactsList) return;
+
+            contactsList.innerHTML = mockContacts.map(contact => `
+                <div class="contact-item" data-phone="${contact.phone}" data-name="${contact.name}">
+                    <div class="contact-info">
+                        <div class="contact-name">${contact.name}</div>
+                        <div class="contact-phone">${contact.phone}</div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="selectContact('${contact.name}', '${contact.phone}')">
+                        Sélectionner
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function showModal() {
+            console.log('📱 Ouverture du modal de sélection de contacts');
+            document.getElementById('contact-modal').style.display = 'flex';
+            addResult('Modal ouvert avec succès', 'success');
+        }
+
+        function closeModal() {
+            console.log('❌ Fermeture du modal');
+            document.getElementById('contact-modal').style.display = 'none';
+        }
+
+        function selectContact(name, phone) {
+            console.log(`📱 Contact sélectionné: ${name} - ${phone}`);
+            
+            // Remplir le formulaire
+            document.getElementById('client-name').value = name;
+            document.getElementById('phone-number').value = phone;
+            
+            // Fermer le modal
+            closeModal();
+            
+            // Pré-remplir les informations client
+            autoFillClientInfo(phone);
+            
+            addResult(`Contact sélectionné: ${name}`, 'success');
+        }
+
+        function autoFillClientInfo(phoneNumber) {
+            console.log(`🔄 Pré-remplissage automatique pour: ${phoneNumber}`);
+            
+            // Chercher le client dans la base de données simulée
+            const client = mockClients.find(c => c.phone === phoneNumber);
+            if (!client) {
+                console.log(`⚠️ Aucun client trouvé pour: ${phoneNumber}`);
+                addResult(`Aucun client trouvé pour ${phoneNumber}`, 'error');
+                return;
+            }
+
+            // Pré-remplir l'adresse
+            if (client.address) {
+                document.getElementById('address').value = client.address;
+            }
+
+            console.log('✅ Pré-remplissage terminé');
+            addResult(`Client trouvé: ${client.name} (${client.order_type})`, 'success');
+        }
+
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        // Logs initiaux
+        console.log('📱 API Contacts disponible: ' + ('contacts' in navigator && 'ContactsManager' in window));
+        console.log('✅ Mode test activé - utilisation des données mock');
+    </script>
+</body>
+</html> 
