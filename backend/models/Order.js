@@ -389,7 +389,7 @@ class Order {
         COUNT(*) as count,
         COALESCE(SUM(course_price), 0) as total_amount
       FROM orders
-      WHERE created_by = $1 AND DATE(created_at) = $2
+      WHERE created_by = $1 AND TO_CHAR(created_at, 'YYYY-MM-DD') = $2
       GROUP BY 
         CASE 
           WHEN order_type = 'MLC' AND subscription_id IS NOT NULL THEN 'MLC avec abonnement'
@@ -631,18 +631,22 @@ class Order {
         CASE 
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
           ELSE o.order_type
         END as order_type,
         COUNT(*) as count,
         COALESCE(SUM(o.course_price), 0) as total_amount
       FROM orders o
       JOIN users u ON o.created_by = u.id
-      WHERE DATE(o.created_at) = $1
+      WHERE TO_CHAR(o.created_at, 'YYYY-MM-DD') = $1
         AND u.role = 'LIVREUR' AND u.is_active = true
       GROUP BY u.username, 
         CASE 
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
           WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
           ELSE o.order_type
         END
       ORDER BY u.username, count DESC
