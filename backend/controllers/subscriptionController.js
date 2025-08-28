@@ -168,8 +168,51 @@ class SubscriptionController {
   // Créer une commande MLC avec déduction automatique
   static async createMLCOrderWithSubscription(req, res) {
     try {
-      const { client_name, phone_number, address, description, course_price, card_number } = req.body;
-      const created_by = req.user.id;
+      const { client_name, phone_number, address, description, course_price, card_number, created_by } = req.body;
+      
+      // Déterminer qui est le créateur de la commande
+      let actualCreatedBy = req.user.id; // Par défaut, l'utilisateur connecté
+      
+      // Si l'utilisateur est manager/admin, il DOIT spécifier un livreur
+      if (req.user.role === 'MANAGER' || req.user.role === 'ADMIN') {
+        if (!created_by) {
+          return res.status(400).json({
+            success: false,
+            message: 'Vous devez sélectionner un livreur pour cette commande'
+          });
+        }
+        
+        // Vérifier que le livreur spécifié existe et est bien un livreur actif
+        const User = require('../models/User');
+        const targetUser = await User.findById(created_by);
+        
+        if (!targetUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'Le livreur sélectionné n\'existe pas'
+          });
+        }
+        
+        if (targetUser.role !== 'LIVREUR') {
+          return res.status(400).json({
+            success: false,
+            message: 'L\'utilisateur sélectionné n\'est pas un livreur'
+          });
+        }
+        
+        if (!targetUser.is_active) {
+          return res.status(400).json({
+            success: false,
+            message: 'Le livreur sélectionné n\'est pas actif'
+          });
+        }
+        
+        actualCreatedBy = created_by; // Assigner la commande au livreur sélectionné
+      }
+      // Pour les livreurs, ils créent leurs propres commandes
+      else if (req.user.role === 'LIVREUR') {
+        actualCreatedBy = req.user.id;
+      }
 
       // Vérifier si une carte est spécifiée
       let subscription = null;
@@ -198,7 +241,7 @@ class SubscriptionController {
         amount: null, // MLC n'a pas de montant panier
         course_price: course_price || 0,
         order_type: 'MLC',
-        created_by,
+        created_by: actualCreatedBy, // ✅ Utiliser le livreur assigné
         subscription_id: subscription ? subscription.id : null
       });
 
