@@ -35,7 +35,10 @@ class Utils {
   // Formater un montant
   static formatAmount(amount) {
     if (amount === null || amount === undefined) return '0';
-    return parseFloat(amount).toFixed(2);
+    const num = parseFloat(amount);
+    const formatted = num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    // Enlever .00 si c'est un nombre entier
+    return formatted.replace(/\.00$/, '');
   }
 
   // Valider un numéro de téléphone selon les contraintes de la base de données

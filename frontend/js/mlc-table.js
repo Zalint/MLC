@@ -60,6 +60,12 @@ class MlcTableManager {
             applyFiltersBtn.addEventListener('click', () => this.applyFilters());
         }
 
+        // Bouton d'export Excel
+        const exportExcelBtn = document.getElementById('export-mlc-table-excel');
+        if (exportExcelBtn) {
+            exportExcelBtn.addEventListener('click', () => this.exportMlcTableToExcel());
+        }
+
         // Changement des dates
         const startDateInput = document.getElementById('mlc-start-date');
         const endDateInput = document.getElementById('mlc-end-date');
@@ -152,6 +158,7 @@ class MlcTableManager {
                             <th>MLC abonnement</th>
                             <th>MLC simple</th>
                             <th>Ajouter supplément</th>
+                            <th>Pack (restant)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -174,6 +181,11 @@ class MlcTableManager {
             Utils.formatDisplayDate(client.last_order_date.split('T')[0]) : 
             'N/A';
 
+        // Formater l'affichage du pack en cours
+        const packInfo = client.active_pack_info ? 
+            `<span class="badge badge-pack">${client.active_pack_info}</span>` : 
+            '<span class="text-muted">-</span>';
+
         return `
             <tr>
                 <td>${Utils.escapeHtml(client.client_name)}</td>
@@ -183,6 +195,7 @@ class MlcTableManager {
                 <td class="text-center">${client.mlc_abonnement_count}</td>
                 <td class="text-center">${client.mlc_simple_count}</td>
                 <td class="text-center">${client.supplement_count}</td>
+                <td class="text-center">${packInfo}</td>
                 <td class="text-center">
                     <button class="btn btn-primary btn-sm btn-details" 
                             data-phone="${Utils.escapeHtml(client.phone_number)}"
@@ -220,7 +233,7 @@ class MlcTableManager {
             );
 
             if (response.success) {
-                this.displayClientDetailsModal(response.data);
+                this.displayClientDetailsModal(response.data, clientName);
             } else {
                 throw new Error(response.message || 'Erreur lors du chargement des détails');
             }
@@ -232,19 +245,113 @@ class MlcTableManager {
     }
 
     // Afficher la modal de détails
-    static displayClientDetailsModal(data) {
-        const { phoneNumber, clientNames, orders, period } = data;
+    static displayClientDetailsModal(data, displayName) {
+        const { phoneNumber, clientNames, orders, period, activeCard } = data;
+
+        // Calculer les statistiques par livreur
+        const livreurStats = {};
+        orders.forEach(order => {
+            const livreur = order.livreur_name || 'Non assigné';
+            if (!livreurStats[livreur]) {
+                livreurStats[livreur] = 0;
+            }
+            livreurStats[livreur]++;
+        });
+
+        // Calculer le total correct des courses
+        const totalCourses = orders.reduce((sum, order) => {
+            const price = parseFloat(order.course_price) || 0;
+            return sum + price;
+        }, 0);
+
+        // Calculer la somme des suppléments
+        const totalSupplements = orders.reduce((sum, order) => {
+            if (order.has_supplement && order.subscription_id) {
+                // Le supplément est la différence entre le prix payé et le prix de base de l'abonnement
+                const basePrice = parseFloat(order.subscription_price) / parseFloat(order.total_deliveries);
+                const paidPrice = parseFloat(order.course_price) || 0;
+                const supplement = paidPrice - basePrice;
+                return sum + (supplement > 0 ? supplement : 0);
+            }
+            return sum;
+        }, 0);
+        
+        // Debug: afficher les détails du calcul
+        console.log('🔍 Debug calcul total courses:');
+        console.log('- Nombre de commandes:', orders.length);
+        console.log('- Prix individuels (strings):', orders.map(o => o.course_price));
+        console.log('- Prix convertis (numbers):', orders.map(o => parseFloat(o.course_price) || 0));
+        console.log('- Total calculé:', totalCourses);
 
         // Créer le contenu de la modal
         const content = `
             <div class="client-details">
                 <div class="details-header">
-                    <h4>Détails des commandes MLC</h4>
+                    <div class="header-top">
+                        <h4>Détails - ${Utils.escapeHtml(displayName || 'Client')}</h4>
+                        <button id="export-mlc-details-excel" class="btn btn-primary btn-sm">
+                            <span class="icon">📊</span>
+                            Export Excel
+                        </button>
+                    </div>
                     <p><strong>Numéro de téléphone:</strong> ${Utils.escapeHtml(phoneNumber)}</p>
                     <p><strong>Période:</strong> ${Utils.formatDisplayDate(period.startDate)} - ${Utils.formatDisplayDate(period.endDate)}</p>
                     
+                    ${activeCard ? `
+                        <div class="active-card-toggle">
+                            <button id="toggle-active-card" class="btn btn-secondary btn-sm">
+                                <span class="icon">📋</span>
+                                Afficher la carte active
+                            </button>
+                        </div>
+                        <div class="active-card-info" style="display: none;">
+                            <h5>📋 Carte active</h5>
+                            <div class="card-details">
+                                <div class="card-header">
+                                    <span class="card-number">${Utils.escapeHtml(activeCard.card_number)}</span>
+                                    <span class="card-status active">ACTIVE</span>
+                                </div>
+                                <div class="card-stats">
+                                    <div class="stat-item">
+                                        <span class="label">Livraisons:</span>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${(activeCard.used_deliveries / activeCard.total_deliveries) * 100}%"></div>
+                                        </div>
+                                        <span class="value">${activeCard.used_deliveries}/${activeCard.total_deliveries}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">Restantes:</span>
+                                        <span class="value">${activeCard.remaining_deliveries}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">Prix de la carte:</span>
+                                        <span class="value">${Utils.formatAmount(activeCard.price)} FCFA</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">Adresse:</span>
+                                        <span class="value">${Utils.escapeHtml(activeCard.address || 'Non renseignée')}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">Achat:</span>
+                                        <span class="value">${Utils.formatDisplayDate(activeCard.purchase_date.split('T')[0])}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">Expiration:</span>
+                                        <span class="value">${Utils.formatDisplayDate(activeCard.expiry_date.split('T')[0])}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
                     ${clientNames.length > 1 ? `
-                        <div class="client-names-section">
+                        <div class="client-names-toggle">
+                            <button id="toggle-client-names" class="btn btn-secondary btn-sm">
+                                <span class="icon">👥</span>
+                                Afficher les noms associés (${clientNames.length})
+                            </button>
+                        </div>
+                        <div class="client-names-section" style="display: none;">
                             <h5>Noms associés à ce numéro:</h5>
                             <ul class="client-names-list">
                                 ${clientNames.map(name => `<li>${Utils.escapeHtml(name)}</li>`).join('')}
@@ -258,9 +365,25 @@ class MlcTableManager {
                         <span class="label">Nombre de commandes:</span>
                         <span class="value">${orders.length}</span>
                     </div>
-                    <div class="summary-item">
-                        <span class="label">Total courses:</span>
-                        <span class="value">${Utils.formatAmount(orders.reduce((sum, order) => sum + (order.course_price || 0), 0))}</span>
+                <div class="summary-item">
+                    <span class="label">Total courses:</span>
+                    <span class="value" id="total-courses-display">${Utils.formatAmount(totalCourses)} FCFA</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Somme des suppléments:</span>
+                    <span class="value" id="total-supplements-display">${Utils.formatAmount(totalSupplements)} FCFA</span>
+                </div>
+                </div>
+
+                <div class="livreur-stats">
+                    <h5>Répartition par livreur:</h5>
+                    <div class="livreur-stats-grid">
+                        ${Object.entries(livreurStats).map(([livreur, count]) => `
+                            <div class="livreur-stat-item">
+                                <span class="livreur-name">${Utils.escapeHtml(livreur)}</span>
+                                <span class="livreur-count">${count} course${count > 1 ? 's' : ''}</span>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
 
@@ -290,7 +413,19 @@ class MlcTableManager {
             </div>
         `;
 
-        ModalManager.show(`Détails - ${Utils.escapeHtml(clientNames[0] || 'Client')}`, content, { large: true });
+        ModalManager.show('Détails client', content, { large: true });
+
+        // Vérifier que le total affiché est correct
+        setTimeout(() => {
+            const totalDisplay = document.getElementById('total-courses-display');
+            if (totalDisplay) {
+                console.log('🔍 Total affiché dans le DOM:', totalDisplay.textContent);
+                console.log('🔍 Total calculé:', Utils.formatAmount(totalCourses));
+            }
+        }, 100);
+
+        // Ajouter les gestionnaires d'événements
+        this.setupClientDetailsEventListeners(data);
     }
 
     // Créer une ligne de détail de commande
@@ -324,6 +459,90 @@ class MlcTableManager {
         `;
     }
 
+    // Configurer les gestionnaires d'événements pour les détails client
+    static setupClientDetailsEventListeners(data) {
+        // Toggle des noms associés
+        const toggleButton = document.getElementById('toggle-client-names');
+        const namesSection = document.querySelector('.client-names-section');
+        
+        if (toggleButton && namesSection) {
+            toggleButton.addEventListener('click', () => {
+                const isVisible = namesSection.style.display !== 'none';
+                namesSection.style.display = isVisible ? 'none' : 'block';
+                toggleButton.innerHTML = isVisible ? 
+                    `<span class="icon">👥</span> Afficher les noms associés (${data.clientNames.length})` :
+                    `<span class="icon">👥</span> Masquer les noms associés (${data.clientNames.length})`;
+            });
+        }
+
+        // Toggle de la carte active
+        const toggleCardButton = document.getElementById('toggle-active-card');
+        const cardSection = document.querySelector('.active-card-info');
+        
+        if (toggleCardButton && cardSection) {
+            toggleCardButton.addEventListener('click', () => {
+                const isVisible = cardSection.style.display !== 'none';
+                cardSection.style.display = isVisible ? 'none' : 'block';
+                toggleCardButton.innerHTML = isVisible ? 
+                    `<span class="icon">📋</span> Afficher la carte active` :
+                    `<span class="icon">📋</span> Masquer la carte active`;
+            });
+        }
+
+        // Export Excel
+        const exportButton = document.getElementById('export-mlc-details-excel');
+        if (exportButton) {
+            exportButton.addEventListener('click', () => {
+                this.exportClientDetailsToExcel(data);
+            });
+        }
+    }
+
+    // Exporter les détails client en Excel
+    static async exportClientDetailsToExcel(data) {
+        try {
+            const { phoneNumber, clientNames, orders, period } = data;
+            
+            // Préparer les données pour l'export
+            const exportData = {
+                phoneNumber,
+                clientNames,
+                orders,
+                period,
+                totalCourses: orders.reduce((sum, order) => sum + (order.course_price || 0), 0),
+                totalOrders: orders.length
+            };
+
+            // Appeler l'API d'export (même approche que mata-monthly-export)
+            const url = `http://localhost:4000/api/v1/orders/export-mlc-client-details?phoneNumber=${encodeURIComponent(phoneNumber)}&startDate=${period.startDate}&endDate=${period.endDate}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `details-mlc-${phoneNumber}-${period.startDate}-${period.endDate}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                ToastManager.success('Export Excel généré avec succès');
+            } else {
+                throw new Error('Erreur lors de l\'export');
+            }
+        } catch (error) {
+            console.error('Erreur export Excel:', error);
+            ToastManager.error('Erreur lors de l\'export Excel');
+        }
+    }
+
     // Afficher une erreur
     static showError(message) {
         const container = document.getElementById('mlc-table-container');
@@ -336,6 +555,56 @@ class MlcTableManager {
                     </button>
                 </div>
             `;
+        }
+    }
+
+    // Exporter le tableau MLC en Excel
+    static async exportMlcTableToExcel() {
+        try {
+            console.log('📊 Export Excel du tableau MLC...');
+            
+            // Vérifier que les dates sont définies
+            if (!this.currentFilters.startDate || !this.currentFilters.endDate) {
+                Utils.showNotification('Veuillez sélectionner une période', 'error');
+                return;
+            }
+
+            // Construire l'URL avec les paramètres
+            const url = `http://localhost:4000/api/v1/orders/export-mlc-table?startDate=${this.currentFilters.startDate}&endDate=${this.currentFilters.endDate}`;
+            
+            // Faire la requête
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
+            }
+
+            // Télécharger le fichier
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            
+            // Nom du fichier avec la période
+            const startDate = this.currentFilters.startDate.replace(/-/g, '');
+            const endDate = this.currentFilters.endDate.replace(/-/g, '');
+            link.download = `tableau_mlc_${startDate}_${endDate}.xlsx`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+
+            Utils.showNotification('Export Excel réussi !', 'success');
+            
+        } catch (error) {
+            console.error('Erreur export Excel:', error);
+            Utils.showNotification('Erreur lors de l\'export Excel', 'error');
         }
     }
 

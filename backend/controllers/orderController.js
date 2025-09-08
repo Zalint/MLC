@@ -1323,7 +1323,7 @@ class OrderController {
 
       console.log('🔍 getMlcTable - startDate:', startDate, 'endDate:', endDate, 'user role:', req.user.role);
 
-      // Requête pour obtenir les statistiques des clients MLC
+      // Requête pour obtenir les statistiques des clients MLC avec les packs actifs
       const query = `
         WITH client_stats AS (
           SELECT 
@@ -1346,17 +1346,35 @@ class OrderController {
             AND o.client_name != 'COMMANDE INTERNE'
             AND o.phone_number != '0000000000'
           GROUP BY o.phone_number
+        ),
+        active_packs AS (
+          SELECT 
+            s.phone_number,
+            s.id as subscription_id,
+            s.total_deliveries,
+            s.used_deliveries,
+            (s.total_deliveries - s.used_deliveries) as remaining_deliveries,
+            s.is_active
+          FROM subscriptions s
+          WHERE s.is_active = true
+            AND s.used_deliveries < s.total_deliveries
         )
         SELECT 
-          phone_number,
-          client_name,
-          total_orders,
-          last_order_date,
-          mlc_abonnement_count,
-          mlc_simple_count,
-          supplement_count
-        FROM client_stats
-        ORDER BY client_name ASC
+          cs.phone_number,
+          cs.client_name,
+          cs.total_orders,
+          cs.last_order_date,
+          cs.mlc_abonnement_count,
+          cs.mlc_simple_count,
+          cs.supplement_count,
+          CASE 
+            WHEN ap.subscription_id IS NOT NULL THEN 
+              CONCAT(ap.remaining_deliveries, '/', ap.total_deliveries)
+            ELSE NULL
+          END as active_pack_info
+        FROM client_stats cs
+        LEFT JOIN active_packs ap ON cs.phone_number = ap.phone_number
+        ORDER BY cs.client_name ASC
       `;
 
       const db = require('../models/database');
@@ -1402,6 +1420,28 @@ class OrderController {
         ORDER BY client_name ASC
       `;
 
+      // Requête pour obtenir les informations de la carte active
+      const activeCardQuery = `
+        SELECT 
+          s.id,
+          s.card_number,
+          s.price,
+          s.total_deliveries,
+          s.used_deliveries,
+          s.remaining_deliveries,
+          s.is_active,
+          s.created_at as purchase_date,
+          s.expiry_date,
+          s.address
+        FROM subscriptions s
+        WHERE s.phone_number = $1
+          AND s.is_active = true
+          AND s.remaining_deliveries > 0
+          AND s.expiry_date > NOW()
+        ORDER BY s.created_at DESC
+        LIMIT 1
+      `;
+
       // Requête pour obtenir les détails des commandes
       const ordersQuery = `
         SELECT 
@@ -1434,9 +1474,10 @@ class OrderController {
       `;
 
       const db = require('../models/database');
-      const [namesResult, ordersResult] = await Promise.all([
+      const [namesResult, ordersResult, activeCardResult] = await Promise.all([
         db.query(namesQuery, [phoneNumber]),
-        db.query(ordersQuery, [phoneNumber, startDate, endDate])
+        db.query(ordersQuery, [phoneNumber, startDate, endDate]),
+        db.query(activeCardQuery, [phoneNumber])
       ]);
 
       res.json({
@@ -1445,6 +1486,7 @@ class OrderController {
           phoneNumber,
           clientNames: namesResult.rows.map(row => row.client_name),
           orders: ordersResult.rows,
+          activeCard: activeCardResult.rows.length > 0 ? activeCardResult.rows[0] : null,
           period: {
             startDate,
             endDate
@@ -2195,6 +2237,284 @@ class OrderController {
       console.error('Erreur lors de l\'export Excel récapitulatif par livreur:', error);
       res.status(500).json({
         error: 'Erreur lors de l\'export Excel récapitulatif par livreur'
+      });
+    }
+  }
+
+  // Export Excel des détails d'un client MLC
+  static async exportMlcClientDetailsToExcel(req, res) {
+    try {
+      const { phoneNumber, startDate, endDate } = req.query;
+
+      if (!phoneNumber || !startDate || !endDate) {
+        return res.status(400).json({
+          error: 'phoneNumber, startDate et endDate sont requis'
+        });
+      }
+
+      // Récupérer les détails du client (même logique que getMlcClientDetails)
+      const ordersQuery = `
+        SELECT 
+          o.id,
+          o.client_name,
+          o.phone_number,
+          o.address,
+          o.description,
+          o.amount,
+          o.course_price,
+          o.order_type,
+          o.subscription_id,
+          o.created_at,
+          u.username as creator_username,
+          s.card_number,
+          s.price as subscription_price,
+          s.total_deliveries,
+          CASE 
+            WHEN o.subscription_id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN true
+            ELSE false
+          END as has_supplement
+        FROM orders o
+        LEFT JOIN users u ON o.created_by = u.id
+        LEFT JOIN subscriptions s ON o.subscription_id = s.id
+        WHERE o.phone_number = $1
+          AND DATE(o.created_at) BETWEEN $2 AND $3
+          AND o.order_type = 'MLC'
+          AND o.client_name != 'COMMANDE INTERNE'
+        ORDER BY o.created_at DESC
+      `;
+      
+      const db = require('../models/database');
+      const result = await db.query(ordersQuery, [phoneNumber, startDate, endDate]);
+      const orders = result.rows;
+
+      if (!orders || orders.length === 0) {
+        return res.status(404).json({
+          error: 'Aucune commande trouvée pour ce client'
+        });
+      }
+
+      // Créer un nouveau classeur Excel
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Détails Client MLC');
+
+      // Définir les colonnes
+      worksheet.columns = [
+        { header: 'Date/Heure', key: 'created_at', width: 20 },
+        { header: 'Livreur', key: 'creator_username', width: 15 },
+        { header: 'Client', key: 'client_name', width: 25 },
+        { header: 'Téléphone', key: 'phone_number', width: 15 },
+        { header: 'Adresse', key: 'address', width: 40 },
+        { header: 'Description', key: 'description', width: 50 },
+        { header: 'Prix de la course (FCFA)', key: 'course_price', width: 18 },
+        { header: 'Montant du panier (FCFA)', key: 'amount', width: 20 },
+        { header: 'Type', key: 'order_type', width: 10 }
+      ];
+
+      // Styliser l'en-tête
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF009E60' } // Vert de la charte
+      };
+      worksheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
+
+      // Ajouter les données
+      orders.forEach(order => {
+        worksheet.addRow({
+          created_at: new Date(order.created_at).toLocaleString('fr-FR'),
+          creator_username: order.creator_username || 'N/A',
+          client_name: order.client_name,
+          phone_number: order.phone_number,
+          address: order.address || '',
+          description: order.description || '',
+          course_price: parseFloat(order.course_price) || 0,
+          amount: order.amount || '',
+          order_type: order.order_type
+        });
+      });
+
+      // Ajouter une ligne de total
+      const totalRow = orders.length + 3;
+      worksheet.getCell(`G${totalRow}`).value = 'TOTAL:';
+      worksheet.getCell(`G${totalRow}`).font = { bold: true };
+      worksheet.getCell(`H${totalRow}`).value = orders.reduce((sum, order) => sum + (parseFloat(order.course_price) || 0), 0);
+      worksheet.getCell(`H${totalRow}`).font = { bold: true };
+
+      // Définir les en-têtes de réponse
+      const fileName = `details_client_mlc_${phoneNumber}_${startDate}_${endDate}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      // Écrire le fichier dans la réponse
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel des détails client MLC:', error);
+      res.status(500).json({
+        error: 'Erreur lors de l\'export Excel des détails client MLC'
+      });
+    }
+  }
+
+  // Export Excel du tableau MLC complet
+  static async exportMlcTableToExcel(req, res) {
+    try {
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          error: 'Les paramètres startDate et endDate sont requis'
+        });
+      }
+
+      console.log(`📊 Export Excel tableau MLC - Période: ${startDate} à ${endDate}`);
+
+      // Utiliser la même requête que getMlcTable
+      const mlcTableQuery = `
+        WITH client_stats AS (
+          SELECT 
+            o.phone_number,
+            MIN(o.client_name) as client_name, -- Premier nom par ordre alphabétique
+            COUNT(*) as total_orders,
+            MAX(o.created_at) as last_order_date,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as mlc_abonnement_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as mlc_simple_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.course_price > (
+              CASE 
+                WHEN o.subscription_id IS NOT NULL THEN 
+                  (SELECT s.price / s.total_deliveries FROM subscriptions s WHERE s.id = o.subscription_id)
+                ELSE 0
+              END
+            ) THEN 1 ELSE 0 END) as supplement_count
+          FROM orders o
+          WHERE DATE(o.created_at) BETWEEN $1 AND $2
+            AND o.order_type = 'MLC'
+            AND o.client_name != 'COMMANDE INTERNE'
+            AND o.phone_number != '0000000000'
+          GROUP BY o.phone_number
+        ),
+        active_packs AS (
+          SELECT 
+            s.phone_number,
+            s.id as subscription_id,
+            s.total_deliveries,
+            s.used_deliveries,
+            (s.total_deliveries - s.used_deliveries) as remaining_deliveries,
+            s.is_active
+          FROM subscriptions s
+          WHERE s.is_active = true
+            AND s.used_deliveries < s.total_deliveries
+        )
+        SELECT 
+          cs.phone_number,
+          cs.client_name,
+          cs.total_orders,
+          cs.last_order_date,
+          cs.mlc_abonnement_count,
+          cs.mlc_simple_count,
+          cs.supplement_count,
+          CASE 
+            WHEN ap.subscription_id IS NOT NULL THEN 
+              CONCAT(ap.remaining_deliveries, '/', ap.total_deliveries)
+            ELSE NULL
+          END as active_pack_info
+        FROM client_stats cs
+        LEFT JOIN active_packs ap ON cs.phone_number = ap.phone_number
+        ORDER BY cs.client_name ASC
+      `;
+
+      const db = require('../models/database');
+      const result = await db.query(mlcTableQuery, [startDate, endDate]);
+      const clients = result.rows;
+
+      // Créer le fichier Excel
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Tableau MLC');
+
+      // Définir les colonnes
+      worksheet.columns = [
+        { header: 'Nom du client', key: 'client_name', width: 25 },
+        { header: 'Numéro de téléphone', key: 'phone_number', width: 18 },
+        { header: 'Total des commandes', key: 'total_orders', width: 18 },
+        { header: 'Date dernière commande', key: 'last_order_date', width: 20 },
+        { header: 'MLC abonnement', key: 'mlc_abonnement_count', width: 15 },
+        { header: 'MLC simple', key: 'mlc_simple_count', width: 12 },
+        { header: 'Ajouter supplément', key: 'supplement_count', width: 18 },
+        { header: 'Pack (restant)', key: 'active_pack_info', width: 15 }
+      ];
+
+      // Style des en-têtes
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE3F2FD' }
+      };
+
+      // Ajouter les données
+      clients.forEach(client => {
+        const row = worksheet.addRow({
+          client_name: client.client_name,
+          phone_number: client.phone_number,
+          total_orders: client.total_orders,
+          last_order_date: new Date(client.last_order_date).toLocaleDateString('fr-FR'),
+          mlc_abonnement_count: client.mlc_abonnement_count,
+          mlc_simple_count: client.mlc_simple_count,
+          supplement_count: client.supplement_count,
+          active_pack_info: client.active_pack_info || '-'
+        });
+      });
+
+      // Ajouter une ligne de totaux
+      const totalRow = worksheet.addRow({
+        client_name: 'TOTAL',
+        phone_number: '',
+        total_orders: clients.reduce((sum, client) => sum + parseInt(client.total_orders), 0),
+        last_order_date: '',
+        mlc_abonnement_count: clients.reduce((sum, client) => sum + parseInt(client.mlc_abonnement_count), 0),
+        mlc_simple_count: clients.reduce((sum, client) => sum + parseInt(client.mlc_simple_count), 0),
+        supplement_count: clients.reduce((sum, client) => sum + parseInt(client.supplement_count), 0),
+        active_pack_info: ''
+      });
+
+      // Style de la ligne de totaux
+      totalRow.font = { bold: true };
+      totalRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF3E0' }
+      };
+
+      // Ajouter des bordures
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber >= 2) {
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          });
+        }
+      });
+
+      // Définir les en-têtes de réponse
+      const filename = `tableau_mlc_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      // Écrire le fichier dans la réponse
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel du tableau MLC:', error);
+      res.status(500).json({
+        error: 'Erreur lors de l\'export Excel du tableau MLC'
       });
     }
   }

@@ -75,6 +75,8 @@ router.get('/client/:phoneNumber', OrderController.getClientByPhone);
 // Routes pour le tableau MLC (AVANT les routes avec :id)
 router.get('/mlc-table', requireManagerOrAdmin, OrderController.getMlcTable);
 router.get('/mlc-table/client-details', requireManagerOrAdmin, OrderController.getMlcClientDetails);
+router.get('/export-mlc-client-details', requireManagerOrAdmin, OrderController.exportMlcClientDetailsToExcel);
+router.get('/export-mlc-table', requireManagerOrAdmin, OrderController.exportMlcTableToExcel);
 
 // Routes avec ID spécifique
 router.get('/:id', validateUUID, OrderController.getOrderById);
