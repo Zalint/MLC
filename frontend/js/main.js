@@ -1538,7 +1538,9 @@ class DashboardManager {
               
               // Calcul des commandes MATA et MLC
               const statsByType = item.statsByType || {};
-              const mataCount = statsByType.MATA ? parseInt(statsByType.MATA.count) : 0;
+              const mataClientCount = statsByType['MATA client'] ? parseInt(statsByType['MATA client'].count) : 0;
+              const mataInterneCount = statsByType['MATA interne'] ? parseInt(statsByType['MATA interne'].count) : 0;
+              const mataCount = mataClientCount + mataInterneCount;
               const mlcSimpleCount = statsByType['MLC simple'] ? parseInt(statsByType['MLC simple'].count) : 0;
               const mlcAbonnementCount = statsByType['MLC avec abonnement'] ? parseInt(statsByType['MLC avec abonnement'].count) : 0;
               const mlcTotalCount = mlcSimpleCount + mlcAbonnementCount;
