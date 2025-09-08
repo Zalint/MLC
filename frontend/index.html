@@ -1378,7 +1378,7 @@
             </div>
             
             <!-- Filtres de date -->
-            <div class="mlc-table-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; padding: 0 1rem;">
+            <div class="mlc-table-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; padding: 0 1rem; flex-wrap: wrap;">
                 <label for="mlc-start-date" style="font-weight: bold;">Date de début:</label>
                 <input type="date" id="mlc-start-date" name="startDate" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
                 
@@ -1393,6 +1393,31 @@
                 <button id="export-mlc-table-excel" class="btn btn-success btn-sm">
                     <span class="icon">📊</span>
                     Export Excel
+                </button>
+            </div>
+            
+            <!-- Filtres de recherche -->
+            <div class="mlc-table-search-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; padding: 0 1rem; flex-wrap: wrap;">
+                <label for="mlc-search-client" style="font-weight: bold;">Rechercher client:</label>
+                <div class="autocomplete-container" style="position: relative;">
+                    <input type="text" id="mlc-search-client" placeholder="Nom du client..." class="form-control autocomplete-input" style="width: 200px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <div id="mlc-client-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                
+                <label for="mlc-search-phone" style="font-weight: bold;">Rechercher téléphone:</label>
+                <div class="autocomplete-container" style="position: relative;">
+                    <input type="text" id="mlc-search-phone" placeholder="Numéro de téléphone..." class="form-control autocomplete-input" style="width: 200px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <div id="mlc-phone-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                
+                <button id="apply-mlc-search" class="btn btn-primary btn-sm">
+                    <span class="icon">🔍</span>
+                    Appliquer
+                </button>
+                
+                <button id="clear-mlc-search" class="btn btn-secondary btn-sm">
+                    <span class="icon">🗑️</span>
+                    Effacer
                 </button>
             </div>
             

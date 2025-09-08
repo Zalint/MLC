@@ -6,6 +6,18 @@ class MlcTableManager {
         startDate: '',
         endDate: ''
     };
+    static currentSort = {
+        column: null,
+        direction: 'asc' // 'asc' ou 'desc'
+    };
+    static currentSearch = {
+        client: '',
+        phone: ''
+    };
+    static autocompleteData = {
+        clients: [],
+        phones: []
+    };
 
     // Initialiser le gestionnaire
     static async init() {
@@ -66,6 +78,69 @@ class MlcTableManager {
             exportExcelBtn.addEventListener('click', () => this.exportMlcTableToExcel());
         }
 
+        // Filtres de recherche
+        const searchClientInput = document.getElementById('mlc-search-client');
+        const searchPhoneInput = document.getElementById('mlc-search-phone');
+        const clearSearchBtn = document.getElementById('clear-mlc-search');
+
+        if (searchClientInput) {
+            searchClientInput.addEventListener('input', (e) => {
+                this.showAutocompleteSuggestions('client', e.target.value);
+            });
+
+            searchClientInput.addEventListener('focus', (e) => {
+                this.showAutocompleteSuggestions('client', e.target.value);
+            });
+
+            searchClientInput.addEventListener('blur', (e) => {
+                // Délai pour permettre le clic sur une suggestion
+                setTimeout(() => {
+                    this.hideAutocompleteSuggestions('client');
+                }, 200);
+            });
+        }
+
+        if (searchPhoneInput) {
+            searchPhoneInput.addEventListener('input', (e) => {
+                this.showAutocompleteSuggestions('phone', e.target.value);
+            });
+
+            searchPhoneInput.addEventListener('focus', (e) => {
+                this.showAutocompleteSuggestions('phone', e.target.value);
+            });
+
+            searchPhoneInput.addEventListener('blur', (e) => {
+                // Délai pour permettre le clic sur une suggestion
+                setTimeout(() => {
+                    this.hideAutocompleteSuggestions('phone');
+                }, 200);
+            });
+        }
+
+        // Bouton d'application des filtres de recherche
+        const applySearchBtn = document.getElementById('apply-mlc-search');
+        if (applySearchBtn) {
+            applySearchBtn.addEventListener('click', () => {
+                const searchClientInput = document.getElementById('mlc-search-client');
+                const searchPhoneInput = document.getElementById('mlc-search-phone');
+                
+                this.currentSearch.client = searchClientInput ? searchClientInput.value.toLowerCase() : '';
+                this.currentSearch.phone = searchPhoneInput ? searchPhoneInput.value.toLowerCase() : '';
+                
+                this.applyFiltersAndSearch();
+            });
+        }
+
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', () => {
+                this.currentSearch.client = '';
+                this.currentSearch.phone = '';
+                if (searchClientInput) searchClientInput.value = '';
+                if (searchPhoneInput) searchPhoneInput.value = '';
+                this.applyFiltersAndSearch();
+            });
+        }
+
         // Changement des dates
         const startDateInput = document.getElementById('mlc-start-date');
         const endDateInput = document.getElementById('mlc-end-date');
@@ -87,6 +162,15 @@ class MlcTableManager {
     static async applyFilters() {
         console.log('🔍 Application des filtres:', this.currentFilters);
         await this.loadMlcTable();
+    }
+
+    // Appliquer les filtres et la recherche (sans recharger les données)
+    static applyFiltersAndSearch() {
+        console.log('🔍 Application des filtres de recherche:', this.currentSearch);
+        this.displayMlcTable(this.currentData, {
+            startDate: this.currentFilters.startDate,
+            endDate: this.currentFilters.endDate
+        });
     }
 
     // Charger les données du tableau MLC
@@ -141,10 +225,41 @@ class MlcTableManager {
             return;
         }
 
+        // Appliquer les filtres de recherche
+        let filteredData = data.filter(client => {
+            const clientName = client.client_name.toLowerCase();
+            const phoneNumber = client.phone_number.toLowerCase();
+            
+            const matchesClient = !this.currentSearch.client || clientName.includes(this.currentSearch.client);
+            const matchesPhone = !this.currentSearch.phone || phoneNumber.includes(this.currentSearch.phone);
+            
+            return matchesClient && matchesPhone;
+        });
+
+        // Appliquer le tri
+        if (this.currentSort.column) {
+            filteredData.sort((a, b) => {
+                let aValue = a[this.currentSort.column];
+                let bValue = b[this.currentSort.column];
+                
+                // Convertir en nombre pour le tri numérique
+                if (this.currentSort.column === 'total_orders') {
+                    aValue = parseInt(aValue) || 0;
+                    bValue = parseInt(bValue) || 0;
+                }
+                
+                if (this.currentSort.direction === 'asc') {
+                    return aValue > bValue ? 1 : -1;
+                } else {
+                    return aValue < bValue ? 1 : -1;
+                }
+            });
+        }
+
         const tableHTML = `
             <div class="mlc-table-info">
                 <p><strong>Période:</strong> ${Utils.formatDisplayDate(period.startDate)} - ${Utils.formatDisplayDate(period.endDate)}</p>
-                <p><strong>Nombre de clients:</strong> ${data.length}</p>
+                <p><strong>Nombre de clients:</strong> ${filteredData.length} ${filteredData.length !== data.length ? `(filtrés sur ${data.length})` : ''}</p>
             </div>
             
             <div class="table-responsive">
@@ -153,7 +268,10 @@ class MlcTableManager {
                         <tr>
                             <th>Nom du client</th>
                             <th>Numéro de téléphone</th>
-                            <th>Total des commandes</th>
+                            <th class="sortable" data-sort="total_orders">
+                                Total des commandes
+                                <span class="sort-indicator">${this.getSortIndicator('total_orders')}</span>
+                            </th>
                             <th>Date dernière commande</th>
                             <th>MLC abonnement</th>
                             <th>MLC simple</th>
@@ -163,7 +281,7 @@ class MlcTableManager {
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.map(client => this.createClientRow(client)).join('')}
+                        ${filteredData.map(client => this.createClientRow(client)).join('')}
                     </tbody>
                 </table>
             </div>
@@ -171,8 +289,14 @@ class MlcTableManager {
 
         container.innerHTML = tableHTML;
 
+        // Extraire les données d'autocomplétion
+        this.extractAutocompleteData(data);
+
         // Configurer les événements des boutons de détails
         this.setupDetailsButtons();
+        
+        // Configurer les événements de tri
+        this.setupSortEvents();
     }
 
     // Créer une ligne de client
@@ -608,11 +732,94 @@ class MlcTableManager {
         }
     }
 
+    // Obtenir l'indicateur de tri pour une colonne
+    static getSortIndicator(column) {
+        if (this.currentSort.column === column) {
+            return this.currentSort.direction === 'asc' ? '↑' : '↓';
+        }
+        return '↕️';
+    }
+
+    // Configurer les événements de tri
+    static setupSortEvents() {
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.sort;
+                
+                // Changer la direction du tri
+                if (this.currentSort.column === column) {
+                    this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.currentSort.column = column;
+                    this.currentSort.direction = 'asc';
+                }
+                
+                // Réafficher le tableau avec le nouveau tri
+                this.displayMlcTable(this.currentData, {
+                    startDate: this.currentFilters.startDate,
+                    endDate: this.currentFilters.endDate
+                });
+            });
+        });
+    }
+
+    // Extraire les données d'autocomplétion
+    static extractAutocompleteData(data) {
+        this.autocompleteData.clients = [...new Set(data.map(client => client.client_name))].sort();
+        this.autocompleteData.phones = [...new Set(data.map(client => client.phone_number))].sort();
+    }
+
+    // Afficher les suggestions d'autocomplétion
+    static showAutocompleteSuggestions(type, value) {
+        const suggestionsContainer = document.getElementById(`mlc-${type}-suggestions`);
+        if (!suggestionsContainer) return;
+
+        const data = type === 'client' ? this.autocompleteData.clients : this.autocompleteData.phones;
+        const filteredData = data.filter(item => 
+            item.toLowerCase().includes(value.toLowerCase())
+        );
+
+        if (filteredData.length === 0 || value === '') {
+            this.hideAutocompleteSuggestions(type);
+            return;
+        }
+
+        // Créer les suggestions
+        suggestionsContainer.innerHTML = filteredData.map(item => 
+            `<div class="autocomplete-suggestion" data-value="${Utils.escapeHtml(item)}">${Utils.escapeHtml(item)}</div>`
+        ).join('');
+
+        // Ajouter les événements de clic
+        suggestionsContainer.querySelectorAll('.autocomplete-suggestion').forEach(suggestion => {
+            suggestion.addEventListener('click', () => {
+                const input = document.getElementById(`mlc-search-${type}`);
+                if (input) {
+                    input.value = suggestion.dataset.value;
+                }
+                this.hideAutocompleteSuggestions(type);
+            });
+        });
+
+        suggestionsContainer.style.display = 'block';
+    }
+
+    // Masquer les suggestions d'autocomplétion
+    static hideAutocompleteSuggestions(type) {
+        const suggestionsContainer = document.getElementById(`mlc-${type}-suggestions`);
+        if (suggestionsContainer) {
+            suggestionsContainer.style.display = 'none';
+        }
+    }
+
     // Nettoyer les ressources
     static cleanup() {
         this.isLoaded = false;
         this.currentData = [];
         this.currentFilters = { startDate: '', endDate: '' };
+        this.currentSort = { column: null, direction: 'asc' };
+        this.currentSearch = { client: '', phone: '' };
+        this.autocompleteData = { clients: [], phones: [] };
     }
 }
 
