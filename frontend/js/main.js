@@ -3612,7 +3612,7 @@ class OrderManager {
   }
 
   // Validation en temps réel des champs de numéro de téléphone
-  static validatePhoneNumberField(input, phoneNumber) {
+  static validatePhoneNumberField(input, phoneNumber, isInternal = false) {
     // Supprimer les anciens messages d'erreur et de succès
     const existingError = input.parentNode.querySelector('.phone-validation-error');
     const existingSuccess = input.parentNode.querySelector('.phone-validation-success');
@@ -3624,6 +3624,11 @@ class OrderManager {
 
     if (!phoneNumber) {
       return; // Pas de validation si le champ est vide
+    }
+
+    // Pas de validation pour les commandes internes
+    if (isInternal) {
+      return;
     }
 
     if (!Utils.validatePhoneNumber(phoneNumber)) {
@@ -3758,7 +3763,8 @@ class OrderManager {
       if (editPhoneInput) {
         editPhoneInput.addEventListener('input', (e) => {
           const phoneNumber = e.target.value.trim();
-          OrderManager.validatePhoneNumberField(e.target, phoneNumber);
+          const isInternal = order.interne === true || order.interne === 'true';
+          OrderManager.validatePhoneNumberField(e.target, phoneNumber, isInternal);
         });
       }
 
@@ -3826,7 +3832,8 @@ class OrderManager {
         if (orderData.subscription_id === '') {
           delete orderData.subscription_id;
         }
-        if (!Utils.validatePhoneNumber(orderData.phone_number)) {
+        // Validation du numéro de téléphone (sauf pour les commandes internes)
+        if (!orderData.interne && !Utils.validatePhoneNumber(orderData.phone_number)) {
           ToastManager.error(Utils.getPhoneNumberErrorMessage(orderData.phone_number));
           return;
         }
@@ -5717,9 +5724,9 @@ class App {
         // Masquer les champs client et téléphone
         clientNameGroup.style.display = 'none';
         phoneNumberGroup.style.display = 'none';
-        // Vider les champs et les rendre non requis
-        clientNameInput.value = '';
-        phoneNumberInput.value = '';
+        // Définir les valeurs par défaut pour les commandes internes
+        clientNameInput.value = 'COMMANDE INTERNE';
+        phoneNumberInput.value = '0000000000';
         clientNameInput.required = false;
         phoneNumberInput.required = false;
       } else {
@@ -5828,7 +5835,8 @@ class App {
       // Validation en temps réel
       phoneNumberInput.addEventListener('input', (e) => {
         const phoneNumber = e.target.value.trim();
-        this.validatePhoneNumberField(e.target, phoneNumber);
+        const isInternal = document.getElementById('interne') && document.getElementById('interne').checked;
+        this.validatePhoneNumberField(e.target, phoneNumber, isInternal);
       });
 
       phoneNumberInput.addEventListener('blur', async (e) => {
@@ -5851,8 +5859,8 @@ class App {
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
       
-      // Validation du numéro de téléphone
-      if (!Utils.validatePhoneNumber(orderData.phone_number)) {
+      // Validation du numéro de téléphone (sauf pour les commandes internes)
+      if (!orderData.interne && !Utils.validatePhoneNumber(orderData.phone_number)) {
         ToastManager.error(Utils.getPhoneNumberErrorMessage(orderData.phone_number));
         return;
       }
