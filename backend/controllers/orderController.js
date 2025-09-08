@@ -1308,6 +1308,160 @@ class OrderController {
     }
   }
 
+  // Obtenir le tableau MLC
+  static async getMlcTable(req, res) {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      // Validation des dates
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Les dates de début et de fin sont requises' 
+        });
+      }
+
+      console.log('🔍 getMlcTable - startDate:', startDate, 'endDate:', endDate, 'user role:', req.user.role);
+
+      // Requête pour obtenir les statistiques des clients MLC
+      const query = `
+        WITH client_stats AS (
+          SELECT 
+            o.phone_number,
+            MIN(o.client_name) as client_name, -- Premier nom par ordre alphabétique
+            COUNT(*) as total_orders,
+            MAX(o.created_at) as last_order_date,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as mlc_abonnement_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as mlc_simple_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.course_price > (
+              CASE 
+                WHEN o.subscription_id IS NOT NULL THEN 
+                  (SELECT s.price / s.total_deliveries FROM subscriptions s WHERE s.id = o.subscription_id)
+                ELSE 0
+              END
+            ) THEN 1 ELSE 0 END) as supplement_count
+          FROM orders o
+          WHERE DATE(o.created_at) BETWEEN $1 AND $2
+            AND o.order_type = 'MLC'
+            AND o.client_name != 'COMMANDE INTERNE'
+            AND o.phone_number != '0000000000'
+          GROUP BY o.phone_number
+        )
+        SELECT 
+          phone_number,
+          client_name,
+          total_orders,
+          last_order_date,
+          mlc_abonnement_count,
+          mlc_simple_count,
+          supplement_count
+        FROM client_stats
+        ORDER BY client_name ASC
+      `;
+
+      const db = require('../models/database');
+      const result = await db.query(query, [startDate, endDate]);
+      
+      res.json({
+        success: true,
+        data: result.rows,
+        period: {
+          startDate,
+          endDate
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de la récupération du tableau MLC:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération des données',
+        error: error.message
+      });
+    }
+  }
+
+  // Obtenir les détails d'un client MLC
+  static async getMlcClientDetails(req, res) {
+    try {
+      const { phoneNumber, startDate, endDate } = req.query;
+      
+      if (!phoneNumber || !startDate || !endDate) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Le numéro de téléphone et les dates sont requis' 
+        });
+      }
+
+      // Requête pour obtenir tous les noms associés au numéro
+      const namesQuery = `
+        SELECT DISTINCT client_name
+        FROM orders
+        WHERE phone_number = $1
+          AND client_name != 'COMMANDE INTERNE'
+        ORDER BY client_name ASC
+      `;
+
+      // Requête pour obtenir les détails des commandes
+      const ordersQuery = `
+        SELECT 
+          o.id,
+          o.client_name,
+          o.phone_number,
+          o.address,
+          o.description,
+          o.amount,
+          o.course_price,
+          o.order_type,
+          o.subscription_id,
+          o.created_at,
+          u.username as livreur_name,
+          s.card_number,
+          s.price as subscription_price,
+          s.total_deliveries,
+          CASE 
+            WHEN o.subscription_id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN true
+            ELSE false
+          END as has_supplement
+        FROM orders o
+        LEFT JOIN users u ON o.created_by = u.id
+        LEFT JOIN subscriptions s ON o.subscription_id = s.id
+        WHERE o.phone_number = $1
+          AND DATE(o.created_at) BETWEEN $2 AND $3
+          AND o.order_type = 'MLC'
+          AND o.client_name != 'COMMANDE INTERNE'
+        ORDER BY o.created_at DESC
+      `;
+
+      const db = require('../models/database');
+      const [namesResult, ordersResult] = await Promise.all([
+        db.query(namesQuery, [phoneNumber]),
+        db.query(ordersQuery, [phoneNumber, startDate, endDate])
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          phoneNumber,
+          clientNames: namesResult.rows.map(row => row.client_name),
+          orders: ordersResult.rows,
+          period: {
+            startDate,
+            endDate
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de la récupération des détails du client:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération des détails',
+        error: error.message
+      });
+    }
+  }
+
   // Mettre à jour le commentaire d'une commande MATA
   static async updateMataOrderComment(req, res) {
     try {

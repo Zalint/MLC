@@ -103,4 +103,8 @@ build/
 *.backup
 
 # Excel export files (optionnel, selon les besoins)
-exports/*.xlsx 
+exports/*.xlsx
+
+# Database backups and documentation
+backups/
+GUIDE_SAUVEGARDE_DATABASE.md 

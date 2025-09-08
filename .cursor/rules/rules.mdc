@@ -1,0 +1,18 @@
+---
+description:
+1. Ne push rien automatiquement sans mon authorisation
+2. Tester tes changements
+3. Reformuler mes prompts pour montrer que tu comprends ce que je veux
+4. j'ai une base de donnees postgres
+5. J'utilise windows comme ordinateur
+6. Standardiser les dates le plus possible
+7. PROBLÈME TIMEZONE CRITIQUE: 
+   - new Date(year, month, 1) utilise le timezone local (GMT+4) et cause un décalage
+   - Exemple: new Date(2025, 8, 1) devient "2025-08-31T20:00:00.000Z" au lieu de "2025-09-01T00:00:00.000Z"
+   - SOLUTION: Utiliser des chaînes de dates explicites: new Date("2025-09-01T00:00:00")
+   - OU séparer la logique: dates UTC pour calculs SQL, chaînes fixes pour affichage frontend
+8. Avant ajout html id, verifie s'il existe pas avant
+
+globs:
+alwaysApply: true
+---
