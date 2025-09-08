@@ -38,13 +38,86 @@ class Utils {
     return parseFloat(amount).toFixed(2);
   }
 
-  // Valider un numéro de téléphone français
+  // Valider un numéro de téléphone selon les contraintes de la base de données
   static validatePhoneNumber(phone) {
-    // Accepter tous les formats numériques (avec ou sans espaces, tirets, parenthèses)
-    // Exemples: 773929671, 002211234678855411, +33123456789, 0033 1 23 45 67 89
+    if (!phone || phone.trim() === '') {
+      return false;
+    }
+
+    // Nettoyer le numéro (supprimer espaces, +, -, etc.)
     const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
-    const phoneRegex = /^\d{6,20}$/; // Entre 6 et 20 chiffres
-    return phoneRegex.test(cleanPhone);
+    
+    // Vérifier que ce ne sont que des chiffres
+    if (!/^\d+$/.test(cleanPhone)) {
+      return false;
+    }
+
+    // Formats acceptés selon les contraintes de la DB:
+    // 1. Numéros sénégalais: 9 chiffres (n'importe quelle combinaison)
+    // 2. Numéros français: 11 chiffres commençant par 33
+    // 3. Valeur par défaut: 0000000000
+    
+    if (cleanPhone === '0000000000') {
+      return true; // Valeur par défaut autorisée
+    }
+    
+    if (cleanPhone.length === 9 && /^[0-9]{9}$/.test(cleanPhone)) {
+      return true; // Numéro sénégalais valide (9 chiffres quelconques)
+    }
+    
+    if (cleanPhone.length === 11 && /^[0-9]{11}$/.test(cleanPhone)) {
+      return true; // Numéro international valide (11 chiffres quelconques)
+    }
+    
+    return false;
+  }
+
+  // Obtenir le message d'erreur spécifique pour un numéro de téléphone invalide
+  static getPhoneNumberErrorMessage(phone) {
+    if (!phone || phone.trim() === '') {
+      return 'Le numéro de téléphone est requis';
+    }
+
+    const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    
+    if (!/^\d+$/.test(cleanPhone)) {
+      return 'Le numéro ne doit contenir que des chiffres (pas d\'espaces, +, -, etc.)';
+    }
+    
+    if (cleanPhone.length === 9) {
+      // 9 chiffres acceptés pour le Sénégal (n'importe quelle combinaison)
+      return 'Format invalide';
+    } else if (cleanPhone.length === 11) {
+      // 11 chiffres acceptés pour l'international (n'importe quelle combinaison)
+      return 'Format invalide';
+    } else {
+      return 'Format invalide: 9 chiffres pour le Sénégal (ex: 775059793) ou 11 chiffres pour la France (ex: 33762051319) ou les USA (ex: 12125551234)';
+    }
+    
+    return 'Numéro de téléphone invalide';
+  }
+
+  // Nettoyer et formater un numéro de téléphone pour l'affichage
+  static formatPhoneNumber(phone) {
+    if (!phone) return '';
+    
+    const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    
+    if (cleanPhone === '0000000000') {
+      return 'Non renseigné';
+    }
+    
+    if (cleanPhone.length === 9 && /^[0-9]{9}$/.test(cleanPhone)) {
+      // Format sénégalais: 77 50 59 793
+      return cleanPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{3})/, '$1 $2 $3 $4');
+    }
+    
+    if (cleanPhone.length === 11 && /^[0-9]{11}$/.test(cleanPhone)) {
+      // Format international simple: 33762051319
+      return cleanPhone;
+    }
+    
+    return phone; // Retourner tel quel si format non reconnu
   }
 
   // Debounce function
@@ -449,6 +522,15 @@ class ApiClient {
     return this.request(`/orders/mata-monthly-dashboard?month=${month}`);
   }
 
+  // MLC Table endpoints
+  static async getMlcTable(startDate, endDate) {
+    return this.request(`/orders/mlc-table?startDate=${startDate}&endDate=${endDate}`);
+  }
+
+  static async getMlcClientDetails(phoneNumber, startDate, endDate) {
+    return this.request(`/orders/mlc-table/client-details?phoneNumber=${encodeURIComponent(phoneNumber)}&startDate=${startDate}&endDate=${endDate}`);
+  }
+
   static async updateMataOrderComment(orderId, commentaire) {
     return this.request(`/orders/${orderId}/comment`, {
       method: 'PUT',
@@ -808,6 +890,11 @@ class PageManager {
             await SubscriptionManager.loadSubscriptions();
           }
           break;
+        case 'mlc-table':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await MlcTableManager.init();
+          }
+          break;
         case 'livreurs':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await LivreurManager.loadLivreurs();
@@ -1080,6 +1167,13 @@ class AuthManager {
       if (navMataMonthlyDashboard) {
         navMataMonthlyDashboard.classList.remove('hidden');
         navMataMonthlyDashboard.style.display = 'flex';
+      }
+      
+      // Affichage du menu Tableau MLC pour managers/admins
+      const navMlcTable = document.getElementById('nav-mlc-table');
+      if (navMlcTable) {
+        navMlcTable.classList.remove('hidden');
+        navMlcTable.style.display = 'flex';
       }
       
       // Affichage des menus GPS pour managers/admins
@@ -3512,6 +3606,46 @@ class OrderManager {
     return false;
   }
 
+  // Validation en temps réel des champs de numéro de téléphone
+  static validatePhoneNumberField(input, phoneNumber) {
+    // Supprimer les anciens messages d'erreur et de succès
+    const existingError = input.parentNode.querySelector('.phone-validation-error');
+    const existingSuccess = input.parentNode.querySelector('.phone-validation-success');
+    if (existingError) existingError.remove();
+    if (existingSuccess) existingSuccess.remove();
+
+    // Supprimer les classes d'erreur et de succès
+    input.classList.remove('error', 'valid');
+
+    if (!phoneNumber) {
+      return; // Pas de validation si le champ est vide
+    }
+
+    if (!Utils.validatePhoneNumber(phoneNumber)) {
+      // Ajouter la classe d'erreur
+      input.classList.add('error');
+      
+      // Créer le message d'erreur
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'phone-validation-error';
+      errorDiv.textContent = Utils.getPhoneNumberErrorMessage(phoneNumber);
+      
+      // Insérer le message d'erreur après le champ
+      input.parentNode.insertBefore(errorDiv, input.nextSibling);
+    } else {
+      // Ajouter la classe de succès
+      input.classList.add('valid');
+      
+      // Créer le message de succès
+      const successDiv = document.createElement('div');
+      successDiv.className = 'phone-validation-success';
+      successDiv.textContent = 'Format valide';
+      
+      // Insérer le message de succès après le champ
+      input.parentNode.insertBefore(successDiv, input.nextSibling);
+    }
+  }
+
   static async createOrder(formData) {
     try {
       await ApiClient.createOrder(formData);
@@ -3614,6 +3748,15 @@ class OrderManager {
 
       ModalManager.show('Modifier la commande', content);
 
+      // Ajouter la validation en temps réel pour le numéro de téléphone
+      const editPhoneInput = document.getElementById('edit-phone-number');
+      if (editPhoneInput) {
+        editPhoneInput.addEventListener('input', (e) => {
+          const phoneNumber = e.target.value.trim();
+          OrderManager.validatePhoneNumberField(e.target, phoneNumber);
+        });
+      }
+
       // Hide old address field if present
       const oldAddressField = document.getElementById('edit-address');
       if (oldAddressField) oldAddressField.parentElement.style.display = 'none';
@@ -3679,7 +3822,7 @@ class OrderManager {
           delete orderData.subscription_id;
         }
         if (!Utils.validatePhoneNumber(orderData.phone_number)) {
-          ToastManager.error('Numéro de téléphone invalide (doit contenir entre 6 et 20 chiffres)');
+          ToastManager.error(Utils.getPhoneNumberErrorMessage(orderData.phone_number));
           return;
         }
         try {
@@ -4940,7 +5083,7 @@ class SubscriptionManager {
         <div class="form-group">
           <label for="subscription-phone-number">Numéro de téléphone *</label>
           <input type="tel" id="subscription-phone-number" name="phone_number" required 
-                 placeholder="Ex: 773920000">
+                 placeholder="Sénégal: 775059793 | France: 33762051319">
         </div>
         <div class="form-group">
           <label for="subscription-address">Adresse</label>
@@ -4974,6 +5117,15 @@ class SubscriptionManager {
 
     ModalManager.show('Nouvelle carte d\'abonnement MLC', content);
 
+    // Ajouter la validation en temps réel pour le numéro de téléphone
+    const subscriptionPhoneInput = document.getElementById('subscription-phone-number');
+    if (subscriptionPhoneInput) {
+      subscriptionPhoneInput.addEventListener('input', (e) => {
+        const phoneNumber = e.target.value.trim();
+        OrderManager.validatePhoneNumberField(e.target, phoneNumber);
+      });
+    }
+
     document.getElementById('create-subscription-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       await this.createSubscription(new FormData(e.target));
@@ -4990,6 +5142,12 @@ class SubscriptionManager {
         address: formData.get('address'),
         price: formData.get('price') ? parseFloat(formData.get('price')) : null
       };
+
+      // Validation du numéro de téléphone
+      if (!Utils.validatePhoneNumber(subscriptionData.phone_number)) {
+        ToastManager.error(Utils.getPhoneNumberErrorMessage(subscriptionData.phone_number));
+        return;
+      }
 
       const response = await ApiClient.createSubscription(subscriptionData);
       
@@ -5059,6 +5217,16 @@ class SubscriptionManager {
         </form>
       `;
       ModalManager.show('Modifier la carte d\'abonnement', content);
+
+      // Ajouter la validation en temps réel pour le numéro de téléphone
+      const editSubscriptionPhoneInput = document.getElementById('edit-subscription-phone-number');
+      if (editSubscriptionPhoneInput) {
+        editSubscriptionPhoneInput.addEventListener('input', (e) => {
+          const phoneNumber = e.target.value.trim();
+          OrderManager.validatePhoneNumberField(e.target, phoneNumber);
+        });
+      }
+
       document.getElementById('edit-subscription-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.updateSubscription(subscriptionId, new FormData(e.target));
@@ -5090,6 +5258,12 @@ class SubscriptionManager {
         address: formData.get('address'),
         price: formData.get('price') ? parseFloat(formData.get('price')) : null
       };
+
+      // Validation du numéro de téléphone
+      if (!Utils.validatePhoneNumber(subscriptionData.phone_number)) {
+        ToastManager.error(Utils.getPhoneNumberErrorMessage(subscriptionData.phone_number));
+        return;
+      }
       if (AppState.user && AppState.user.role === 'ADMIN') {
         subscriptionData.used_deliveries = used_deliveries;
         subscriptionData.remaining_deliveries = remaining_deliveries;
@@ -5646,6 +5820,12 @@ class App {
     // Recherche automatique de client lors de la saisie du numéro de téléphone
     const phoneNumberInput = document.getElementById('phone-number');
     if (phoneNumberInput) {
+      // Validation en temps réel
+      phoneNumberInput.addEventListener('input', (e) => {
+        const phoneNumber = e.target.value.trim();
+        this.validatePhoneNumberField(e.target, phoneNumber);
+      });
+
       phoneNumberInput.addEventListener('blur', async (e) => {
         const phoneNumber = e.target.value.trim();
         if (phoneNumber && Utils.validatePhoneNumber(phoneNumber)) {
@@ -5665,6 +5845,12 @@ class App {
       
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
+      
+      // Validation du numéro de téléphone
+      if (!Utils.validatePhoneNumber(orderData.phone_number)) {
+        ToastManager.error(Utils.getPhoneNumberErrorMessage(orderData.phone_number));
+        return;
+      }
       
       // Validation côté client : managers/admins doivent sélectionner un livreur
       if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {

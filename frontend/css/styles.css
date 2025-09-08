@@ -27,6 +27,7 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #3b82f6;
+  --error: #dc2626;
   
   /* Police */
   --font-family: -apple-system, 'Roboto', 'Arial', sans-serif;
@@ -2309,4 +2310,253 @@ h1, h2, h3, h4, h5, h6, p, span, div, .order-title, .user-title {
   color: var(--gray-900);
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+/* ===== STYLES POUR LE TABLEAU MLC ===== */
+.mlc-table-filters {
+  background-color: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.mlc-table-content {
+  background-color: var(--white);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.mlc-table-info {
+  padding: var(--spacing-md);
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.mlc-table-info p {
+  margin: 0;
+  margin-bottom: var(--spacing-xs);
+}
+
+.mlc-table-info p:last-child {
+  margin-bottom: 0;
+}
+
+.mlc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.mlc-table th {
+  background-color: var(--gray-100);
+  color: var(--gray-700);
+  font-weight: 600;
+  padding: var(--spacing-md) var(--spacing-sm);
+  text-align: left;
+  border-bottom: 2px solid var(--gray-200);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mlc-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--gray-200);
+  vertical-align: middle;
+}
+
+.mlc-table tbody tr:hover {
+  background-color: var(--gray-50);
+}
+
+.mlc-table .text-center {
+  text-align: center;
+}
+
+.mlc-table .text-right {
+  text-align: right;
+}
+
+/* Styles pour les détails des clients */
+.client-details {
+  max-width: 100%;
+}
+
+.client-details .details-header {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.client-details .details-header h4 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--gray-900);
+  font-size: 1.3rem;
+}
+
+.client-details .details-header p {
+  margin: var(--spacing-xs) 0;
+  color: var(--gray-700);
+}
+
+.client-names-section {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--gray-50);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-200);
+}
+
+.client-names-section h5 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--gray-800);
+  font-size: 1rem;
+}
+
+.client-names-list {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  color: var(--gray-700);
+}
+
+.client-names-list li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Styles pour les badges de type de commande */
+.order-type-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.order-type-badge.mlc-abonnement {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+
+.order-type-badge.mlc-simple {
+  background-color: var(--secondary-color);
+  color: var(--white);
+}
+
+/* Styles pour les indicateurs de supplément */
+.supplement-indicator {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.supplement-indicator.yes {
+  background-color: var(--success);
+  color: var(--white);
+}
+
+.supplement-indicator.no {
+  background-color: var(--gray-300);
+  color: var(--gray-600);
+}
+
+/* Styles pour les lignes avec supplément */
+.has-supplement {
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+.has-supplement:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+/* Responsive pour le tableau MLC */
+@media (max-width: 768px) {
+  .mlc-table-filters {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .mlc-table-filters label {
+    font-size: 0.9rem;
+  }
+  
+  .mlc-table-filters input {
+    width: 100%;
+  }
+  
+  .mlc-table {
+    font-size: 0.8rem;
+  }
+  
+  .mlc-table th,
+  .mlc-table td {
+    padding: var(--spacing-xs);
+  }
+  
+  .client-details .details-header h4 {
+    font-size: 1.1rem;
+  }
+  
+  .client-names-section {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* ===== VALIDATION DES NUMÉROS DE TÉLÉPHONE ===== */
+.form-group input.error {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.phone-validation-error {
+  color: var(--error);
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.phone-validation-error::before {
+  content: "⚠️";
+  font-size: 0.75rem;
+}
+
+/* Styles pour les champs de numéro de téléphone */
+input[type="tel"] {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+input[type="tel"]:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Indicateur visuel pour les numéros valides */
+.form-group input.valid {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+}
+
+.phone-validation-success {
+  color: var(--success);
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.phone-validation-success::before {
+  content: "✅";
+  font-size: 0.75rem;
 } 
