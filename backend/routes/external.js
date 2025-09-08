@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/database');
+const OpenAI = require('openai');
 
 // GET /api/external/mlc/livreurStats/daily - Statistiques journalières des livreurs
 router.get('/mlc/livreurStats/daily', async (req, res) => {
@@ -772,6 +773,334 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
     res.status(500).json({
       error: 'Erreur interne du serveur',
       message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/external/v1/orders/mlc-table - Tableau MLC avec statistiques temporelles
+router.get('/v1/orders/mlc-table', async (req, res) => {
+  try {
+    let { startDate, endDate, statDay, type } = req.query;
+
+    // Validation du paramètre type
+    if (type && !['statOnly', 'All'].includes(type)) {
+      return res.status(400).json({
+        error: 'Le paramètre type doit être "statOnly" ou "All"'
+      });
+    }
+
+    // Si type n'est pas fourni, utiliser "All" par défaut
+    if (!type) {
+      type = 'All';
+    }
+
+    // Validation du format de date
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    // Gestion des dates par défaut
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.slice(0, 7); // YYYY-MM
+    const firstDayOfMonth = `${currentMonth}-01`;
+
+    // Si seulement statDay est fourni
+    if (statDay && !startDate && !endDate) {
+      if (!dateRegex.test(statDay)) {
+        return res.status(400).json({
+          error: 'Format de date invalide pour statDay. Utilisez YYYY-MM-DD'
+        });
+      }
+      startDate = firstDayOfMonth;
+      endDate = today;
+    } else {
+      // Si pas de dates fournies, utiliser les valeurs par défaut
+      if (!startDate) startDate = firstDayOfMonth;
+      if (!endDate) endDate = today;
+      if (!statDay) statDay = today;
+    }
+
+    // Validation des formats de date
+    if (!dateRegex.test(startDate) || !dateRegex.test(endDate) || !dateRegex.test(statDay)) {
+      return res.status(400).json({
+        error: 'Format de date invalide. Utilisez YYYY-MM-DD'
+      });
+    }
+
+    // Validation des dates
+    if (new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({
+        error: 'La date de début ne peut pas être postérieure à la date de fin'
+      });
+    }
+
+    console.log(`📊 External MLC Table API - startDate: ${startDate}, endDate: ${endDate}, statDay: ${statDay}, type: ${type}`);
+
+    // Initialiser OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+
+    // Fonction pour générer une interprétation IA des données
+    const generateInterpretation = async (clients, periodType, dateRange, comparisonData = null) => {
+      try {
+        if (!clients || clients.length === 0) {
+          return `Aucune donnée disponible pour la période ${periodType} (${dateRange}).`;
+        }
+
+        // Préparer un résumé des données pour l'IA
+        const totalClients = clients.length;
+        const totalCommandes = clients.reduce((sum, client) => sum + client.total_commandes, 0);
+        const totalCourses = clients.reduce((sum, client) => sum + (client.total_courses || 0), 0);
+        const totalSupplements = clients.reduce((sum, client) => sum + (client.somme_supplements || 0), 0);
+        const mlcAbonnement = clients.reduce((sum, client) => sum + client.mlc_abonnement, 0);
+        const mlcSimple = clients.reduce((sum, client) => sum + client.mlc_simple, 0);
+        const clientsAvecPacks = clients.filter(client => client.pack_restant).length;
+
+        let prompt = `Analyse les données suivantes de livraison MLC pour la période ${periodType} (${dateRange}) et fournis une interprétation concise en 3 lignes maximum :
+
+- ${totalClients} clients actifs
+- ${totalCommandes} commandes totales
+- ${totalCourses.toLocaleString()} FCFA de chiffre d'affaires
+- ${totalSupplements.toLocaleString()} FCFA de suppléments
+- ${mlcAbonnement} commandes avec abonnement, ${mlcSimple} commandes simples
+- ${clientsAvecPacks} clients avec des packs actifs`;
+
+        // Ajouter la comparaison si c'est pour la semaine
+        if (periodType === 'semaine' && comparisonData) {
+          const monthCommandes = comparisonData.reduce((sum, client) => sum + client.total_commandes, 0);
+          const monthCourses = comparisonData.reduce((sum, client) => sum + (client.total_courses || 0), 0);
+          const monthClients = comparisonData.length;
+          
+          const commandesPercent = monthCommandes > 0 ? ((totalCommandes / monthCommandes) * 100).toFixed(1) : 0;
+          const coursesPercent = monthCourses > 0 ? ((totalCourses / monthCourses) * 100).toFixed(1) : 0;
+          const clientsPercent = monthClients > 0 ? ((totalClients / monthClients) * 100).toFixed(1) : 0;
+
+          prompt += `
+
+COMPARAISON AVEC LE MOIS :
+- Cette semaine représente ${commandesPercent}% des commandes mensuelles (${totalCommandes}/${monthCommandes})
+- Cette semaine représente ${coursesPercent}% du CA mensuel (${totalCourses.toLocaleString()}/${monthCourses.toLocaleString()} FCFA)
+- Cette semaine représente ${clientsPercent}% des clients mensuels (${totalClients}/${monthClients})`;
+        }
+
+        prompt += `
+
+Fournis une analyse concise des tendances et points clés, incluant la comparaison si disponible.`;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "Tu es un analyste de données spécialisé dans l'analyse de performance de livraison. Fournis des interprétations concises et pertinentes en français, en incluant des comparaisons quand disponibles."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 200,
+          temperature: 0.7
+        });
+
+        // Décoder les caractères Unicode (comme \u0027 pour l'apostrophe)
+        const decodedContent = completion.choices[0].message.content.trim()
+          .replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => String.fromCharCode(parseInt(code, 16)))
+          .replace(/\\'/g, "'")
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
+        
+        return decodedContent;
+      } catch (error) {
+        console.error('❌ Erreur génération interprétation IA:', error);
+        // Fallback avec analyse basique
+        const totalClients = clients.length;
+        const totalCommandes = clients.reduce((sum, client) => sum + client.total_commandes, 0);
+        const totalCourses = clients.reduce((sum, client) => sum + (client.total_courses || 0), 0);
+        const clientsAvecPacks = clients.filter(client => client.pack_restant).length;
+        
+        let fallback = `Période ${periodType}: ${totalClients} clients actifs, ${totalCommandes} commandes totales, ${totalCourses.toLocaleString()} FCFA de CA. ${clientsAvecPacks} clients avec packs actifs.`;
+        
+        // Ajouter comparaison pour la semaine
+        if (periodType === 'semaine' && comparisonData) {
+          const monthCommandes = comparisonData.reduce((sum, client) => sum + client.total_commandes, 0);
+          const monthCourses = comparisonData.reduce((sum, client) => sum + (client.total_courses || 0), 0);
+          const commandesPercent = monthCommandes > 0 ? ((totalCommandes / monthCommandes) * 100).toFixed(1) : 0;
+          const coursesPercent = monthCourses > 0 ? ((totalCourses / monthCourses) * 100).toFixed(1) : 0;
+          fallback += ` Cette semaine représente ${commandesPercent}% des commandes mensuelles et ${coursesPercent}% du CA mensuel.`;
+        }
+        
+        return fallback;
+      }
+    };
+
+    // Fonction pour calculer les données clients pour une période donnée
+    const getClientData = async (start, end, isStatPeriod = false) => {
+      const query = `
+        WITH client_stats AS (
+          SELECT 
+            o.phone_number,
+            MIN(o.client_name) as client_name,
+            COUNT(*) as total_orders,
+            MAX(o.created_at) as last_order_date,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 1 ELSE 0 END) as mlc_abonnement_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 1 ELSE 0 END) as mlc_simple_count,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.course_price > (
+              CASE 
+                WHEN o.subscription_id IS NOT NULL THEN 
+                  (SELECT s.price / s.total_deliveries FROM subscriptions s WHERE s.id = o.subscription_id)
+                ELSE 0
+              END
+            ) THEN 1 ELSE 0 END) as supplement_count,
+            SUM(COALESCE(o.course_price, 0)) as total_courses,
+            SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND o.course_price > (
+              SELECT s.price / s.total_deliveries FROM subscriptions s WHERE s.id = o.subscription_id
+            ) THEN o.course_price - (SELECT s.price / s.total_deliveries FROM subscriptions s WHERE s.id = o.subscription_id) ELSE 0 END) as total_supplements
+          FROM orders o
+          WHERE DATE(o.created_at) BETWEEN $1 AND $2
+            AND o.order_type = 'MLC'
+            AND o.client_name != 'COMMANDE INTERNE'
+            AND o.phone_number != '0000000000'
+          GROUP BY o.phone_number
+        ),
+        active_packs AS (
+          SELECT 
+            s.phone_number,
+            s.id as subscription_id,
+            s.total_deliveries,
+            s.used_deliveries,
+            (s.total_deliveries - s.used_deliveries) as remaining_deliveries,
+            s.is_active
+          FROM subscriptions s
+          WHERE s.is_active = true
+            AND s.used_deliveries < s.total_deliveries
+        ),
+        livreur_stats AS (
+          SELECT 
+            o.phone_number,
+            u.username as livreur_name,
+            COUNT(*) as commandes_count
+          FROM orders o
+          JOIN users u ON o.created_by = u.id
+          WHERE DATE(o.created_at) BETWEEN $1 AND $2
+            AND o.order_type = 'MLC'
+            AND o.client_name != 'COMMANDE INTERNE'
+            AND o.phone_number != '0000000000'
+          GROUP BY o.phone_number, u.username
+        )
+        SELECT 
+          cs.phone_number,
+          cs.client_name,
+          cs.total_orders,
+          cs.last_order_date,
+          cs.mlc_abonnement_count,
+          cs.mlc_simple_count,
+          cs.supplement_count,
+          cs.total_courses,
+          cs.total_supplements,
+          CASE 
+            WHEN ap.subscription_id IS NOT NULL THEN 
+              CONCAT(ap.remaining_deliveries, '/', ap.total_deliveries)
+            ELSE NULL
+          END as active_pack_info,
+          JSON_OBJECT_AGG(ls.livreur_name, ls.commandes_count) FILTER (WHERE ls.livreur_name IS NOT NULL) as repartition_livreur
+        FROM client_stats cs
+        LEFT JOIN active_packs ap ON cs.phone_number = ap.phone_number
+        LEFT JOIN livreur_stats ls ON cs.phone_number = ls.phone_number
+        GROUP BY cs.phone_number, cs.client_name, cs.total_orders, cs.last_order_date, 
+                 cs.mlc_abonnement_count, cs.mlc_simple_count, cs.supplement_count, 
+                 cs.total_courses, cs.total_supplements, ap.subscription_id, ap.remaining_deliveries, ap.total_deliveries
+        ORDER BY cs.client_name ASC
+      `;
+
+      const result = await db.query(query, [start, end]);
+      return result.rows.map(row => ({
+        nom: row.client_name,
+        telephone: row.phone_number,
+        total_commandes: parseInt(row.total_orders),
+        date_derniere_commande: row.last_order_date ? row.last_order_date.toString().split('T')[0] : null,
+        mlc_abonnement: parseInt(row.mlc_abonnement_count),
+        mlc_simple: parseInt(row.mlc_simple_count),
+        nombre_supplement: parseInt(row.supplement_count),
+        pack_restant: row.active_pack_info,
+        total_courses: row.total_courses ? parseFloat(row.total_courses) : null,
+        somme_supplements: row.total_supplements ? parseFloat(row.total_supplements) : null,
+        repartition_livreur: row.repartition_livreur || {}
+      }));
+    };
+
+    // Fonction pour calculer le lundi précédent d'une date
+    const getPreviousMonday = (date) => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajuster quand dimanche
+      const monday = new Date(d.setDate(diff));
+      return monday.toISOString().split('T')[0];
+    };
+
+    // Fonction pour calculer le premier jour du mois d'une date
+    const getFirstDayOfMonth = (date) => {
+      const d = new Date(date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    };
+
+    // Calculer les différentes périodes pour les stats
+    const statDayStart = statDay;
+    const statDayEnd = statDay;
+    const statWeekStart = getPreviousMonday(statDay);
+    const statWeekEnd = statDay;
+    const statMonthStart = getFirstDayOfMonth(statDay);
+    const statMonthEnd = statDay;
+
+    // Récupérer les données pour chaque période
+    const [mainClients, statDayClients, statWeekClients, statMonthClients] = await Promise.all([
+      type === 'All' ? getClientData(startDate, endDate) : Promise.resolve([]),
+      getClientData(statDayStart, statDayEnd, false), // statDay : données du jour uniquement
+      getClientData(statWeekStart, statWeekEnd, true), // statWeek : données de toute la semaine
+      getClientData(statMonthStart, statMonthEnd, true) // statMonth : données de tout le mois
+    ]);
+
+    // Générer les interprétations IA pour statWeek et statMonth
+    const [interpretationWeek, interpretationMonth] = await Promise.all([
+      generateInterpretation(statWeekClients, 'semaine', `${statWeekStart} à ${statWeekEnd}`, statMonthClients), // Passer les données mensuelles pour comparaison
+      generateInterpretation(statMonthClients, 'mois', `${statMonthStart} à ${statMonthEnd}`)
+    ]);
+
+    // Construire la réponse
+    const response = {};
+
+    if (type === 'All') {
+      response.dateDebut = startDate;
+      response.dateFin = endDate;
+      response.clients = mainClients;
+    }
+
+    response.stats = {
+      statDay: {
+        dateDebut: statDayStart,
+        dateFin: statDayEnd,
+        clients: statDayClients
+      },
+      statWeek: {
+        dateDebut: statWeekStart,
+        dateFin: statWeekEnd,
+        clients: statWeekClients,
+        interpretationWeek: interpretationWeek
+      },
+      statMonth: {
+        dateDebut: statMonthStart,
+        dateFin: statMonthEnd,
+        clients: statMonthClients,
+        interpretationMonth: interpretationMonth
+      }
+    };
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Erreur API externe MLC Table:', error);
+    res.status(500).json({
+      error: 'Erreur interne du serveur',
+      details: error.message
     });
   }
 });
