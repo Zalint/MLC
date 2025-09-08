@@ -1163,6 +1163,7 @@ class OrderController {
           o.service_rating,
           o.quality_rating,
           o.price_rating,
+          o.commercial_service_rating,
           u.username as livreur,
           o.interne,
           o.created_at
@@ -1350,10 +1351,10 @@ class OrderController {
       const { ratingType, ratingValue } = req.body;
 
       // Validation des types de notes acceptés
-      const validRatingTypes = ['service', 'quality', 'price'];
+      const validRatingTypes = ['service', 'quality', 'price', 'commercial'];
       if (!validRatingTypes.includes(ratingType)) {
         return res.status(400).json({
-          error: 'Type de note invalide. Types acceptés: service, quality, price'
+          error: 'Type de note invalide. Types acceptés: service, quality, price, commercial'
         });
       }
 
@@ -1382,7 +1383,8 @@ class OrderController {
       const ratingColumnMap = {
         'service': 'service_rating',
         'quality': 'quality_rating',
-        'price': 'price_rating'
+        'price': 'price_rating',
+        'commercial': 'commercial_service_rating'
       };
 
       const columnName = ratingColumnMap[ratingType];
@@ -1427,6 +1429,7 @@ class OrderController {
           o.service_rating,
           o.quality_rating,
           o.price_rating,
+          o.commercial_service_rating,
           u.username as livreur,
           o.interne,
           o.created_at
@@ -1488,6 +1491,7 @@ class OrderController {
         'Service livraison',
         'Qualité produits', 
         'Niveau prix',
+        'Service Commercial',
         'Note moyenne'
       ];
       
@@ -1516,6 +1520,7 @@ class OrderController {
         { width: 15 },  // Service livraison
         { width: 15 },  // Qualité produits
         { width: 15 },  // Niveau prix
+        { width: 15 },  // Service Commercial
         { width: 15 }   // Note moyenne
       ];
 
@@ -1525,11 +1530,20 @@ class OrderController {
         const serviceRating = (order.service_rating !== null && order.service_rating !== undefined && order.service_rating !== '') ? parseFloat(order.service_rating) : null;
         const qualityRating = (order.quality_rating !== null && order.quality_rating !== undefined && order.quality_rating !== '') ? parseFloat(order.quality_rating) : null;
         const priceRating = (order.price_rating !== null && order.price_rating !== undefined && order.price_rating !== '') ? parseFloat(order.price_rating) : null;
+        const commercialRating = (order.commercial_service_rating !== null && order.commercial_service_rating !== undefined && order.commercial_service_rating !== '') ? parseFloat(order.commercial_service_rating) : null;
         
         let averageRating = 'NA';
+        // Gestion de la transition : calcul sur 3 ou 4 colonnes selon les données disponibles
         if (serviceRating !== null && qualityRating !== null && priceRating !== null && 
             !isNaN(serviceRating) && !isNaN(qualityRating) && !isNaN(priceRating)) {
-          averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+          
+          if (commercialRating !== null && !isNaN(commercialRating)) {
+            // Calcul sur 4 colonnes (après migration)
+            averageRating = ((serviceRating + qualityRating + priceRating + commercialRating) / 4).toFixed(1);
+          } else {
+            // Calcul sur 3 colonnes (avant migration)
+            averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+          }
         }
         
         worksheet.addRow([
@@ -1546,6 +1560,7 @@ class OrderController {
           serviceRating !== null ? serviceRating + '/10' : 'NA',
           qualityRating !== null ? qualityRating + '/10' : 'NA',
           priceRating !== null ? priceRating + '/10' : 'NA',
+          commercialRating !== null ? commercialRating + '/10' : 'NA',
           averageRating !== 'NA' ? averageRating + '/10' : averageRating
         ]);
       });

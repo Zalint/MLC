@@ -2559,6 +2559,7 @@ class MataMonthlyDashboardManager {
               <th>Service livraison</th>
               <th>Qualité produits</th>
               <th>Niveau prix</th>
+              <th>Service Commercial</th>
               <th>Note moyenne</th>
               <th>Actions</th>
             </tr>
@@ -2569,21 +2570,32 @@ class MataMonthlyDashboardManager {
               const serviceRating = (order.service_rating !== null && order.service_rating !== undefined && order.service_rating !== '') ? parseFloat(order.service_rating) : null;
               const qualityRating = (order.quality_rating !== null && order.quality_rating !== undefined && order.quality_rating !== '') ? parseFloat(order.quality_rating) : null;
               const priceRating = (order.price_rating !== null && order.price_rating !== undefined && order.price_rating !== '') ? parseFloat(order.price_rating) : null;
+              const commercialRating = (order.commercial_service_rating !== null && order.commercial_service_rating !== undefined && order.commercial_service_rating !== '') ? parseFloat(order.commercial_service_rating) : null;
               
               // Debug spécifique pour cette commande
-              if (order.service_rating || order.quality_rating || order.price_rating) {
+              if (order.service_rating || order.quality_rating || order.price_rating || order.commercial_service_rating) {
                 console.log(`🔍 Order ${order.id} ratings:`, {
-                  raw: { service: order.service_rating, quality: order.quality_rating, price: order.price_rating },
-                  parsed: { service: serviceRating, quality: qualityRating, price: priceRating }
+                  raw: { service: order.service_rating, quality: order.quality_rating, price: order.price_rating, commercial: order.commercial_service_rating },
+                  parsed: { service: serviceRating, quality: qualityRating, price: priceRating, commercial: commercialRating }
                 });
               }
               
               let averageRating = 'NA';
+              // Gestion de la transition : calcul sur 3 ou 4 colonnes selon les données disponibles
               if (serviceRating !== null && qualityRating !== null && priceRating !== null && 
                   !isNaN(serviceRating) && !isNaN(qualityRating) && !isNaN(priceRating)) {
-                const calculated = ((serviceRating + qualityRating + priceRating) / 3);
-                averageRating = calculated.toFixed(1);
-                console.log(`🔍 Order ${order.id} average calculation: ${serviceRating} + ${qualityRating} + ${priceRating} / 3 = ${calculated} → ${averageRating}`);
+                
+                if (commercialRating !== null && !isNaN(commercialRating)) {
+                  // Calcul sur 4 colonnes (après migration)
+                  const calculated = ((serviceRating + qualityRating + priceRating + commercialRating) / 4);
+                  averageRating = calculated.toFixed(1);
+                  console.log(`🔍 Order ${order.id} average calculation (4 cols): ${serviceRating} + ${qualityRating} + ${priceRating} + ${commercialRating} / 4 = ${calculated} → ${averageRating}`);
+                } else {
+                  // Calcul sur 3 colonnes (avant migration)
+                  const calculated = ((serviceRating + qualityRating + priceRating) / 3);
+                  averageRating = calculated.toFixed(1);
+                  console.log(`🔍 Order ${order.id} average calculation (3 cols): ${serviceRating} + ${qualityRating} + ${priceRating} / 3 = ${calculated} → ${averageRating}`);
+                }
               }
               
               return `
@@ -2651,6 +2663,21 @@ class MataMonthlyDashboardManager {
                     <div class="rating-buttons">
                       <button class="btn btn-xs btn-success save-rating-btn" data-type="price" data-order-id="${order.id}">✓</button>
                       <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="price" data-order-id="${order.id}">✗</button>
+                    </div>
+                  </div>
+                </td>
+                <td class="rating-cell">
+                  <div class="rating-display">
+                    <span class="rating-value" ${commercialRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
+                      ${commercialRating !== null ? commercialRating + '/10' : 'NA'}
+                    </span>
+                    <button class="btn-edit-rating" data-type="commercial" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                  </div>
+                  <div class="rating-edit-group hidden">
+                    <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${commercialRating || ''}" data-type="commercial">
+                    <div class="rating-buttons">
+                      <button class="btn btn-xs btn-success save-rating-btn" data-type="commercial" data-order-id="${order.id}">✓</button>
+                      <button class="btn btn-xs btn-secondary cancel-rating-btn" data-type="commercial" data-order-id="${order.id}">✗</button>
                     </div>
                   </div>
                 </td>
@@ -3069,6 +3096,7 @@ class MataMonthlyDashboardManager {
     let serviceRating = null;
     let qualityRating = null;
     let priceRating = null;
+    let commercialRating = null;
 
     // Récupérer les valeurs actuelles avec traitement sécurisé
     ratingCells.forEach(cell => {
@@ -3082,15 +3110,22 @@ class MataMonthlyDashboardManager {
             if (type === 'service') serviceRating = numValue;
             else if (type === 'quality') qualityRating = numValue;
             else if (type === 'price') priceRating = numValue;
+            else if (type === 'commercial') commercialRating = numValue;
           }
         }
       }
     });
 
-    // Calculer la moyenne
+    // Calculer la moyenne avec gestion de la transition
     let averageRating = 'NA';
     if (serviceRating !== null && qualityRating !== null && priceRating !== null) {
-      averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+      if (commercialRating !== null) {
+        // Calcul sur 4 colonnes (après migration)
+        averageRating = ((serviceRating + qualityRating + priceRating + commercialRating) / 4).toFixed(1);
+      } else {
+        // Calcul sur 3 colonnes (avant migration)
+        averageRating = ((serviceRating + qualityRating + priceRating) / 3).toFixed(1);
+      }
     }
 
     // Mettre à jour l'affichage de la moyenne
