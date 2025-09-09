@@ -4870,39 +4870,6 @@ class SubscriptionManager {
       this.subscriptions = subscriptionsResponse.subscriptions || [];
       this.stats = statsResponse.stats || {};
 
-      // Derive trustworthy counts from the loaded list to enforce business rule:
-      // if a card is set to inactive by a user, don't count it in any stat.
-      if (Array.isArray(this.subscriptions) && this.subscriptions.length > 0) {
-        const now = new Date();
-        const activeCount = this.subscriptions.filter(s => (
-          s && s.is_active === true &&
-          typeof s.remaining_deliveries === 'number' &&
-          s.remaining_deliveries > 0 &&
-          (!s.expiry_date || new Date(s.expiry_date) > now)
-        )).length;
-
-        const completedCount = this.subscriptions.filter(s => (
-          s && s.is_active === true &&
-          typeof s.remaining_deliveries === 'number' &&
-          s.remaining_deliveries === 0
-        )).length;
-
-        // Keep API stats, but override the displayed values using derived stats
-        this._derivedStats = {
-          total_cards: activeCount + completedCount,
-          active_cards: activeCount,
-          completed_cards: completedCount,
-          expiring_soon: this.stats.expiring_soon || 0
-        };
-      } else {
-        this._derivedStats = {
-          total_cards: 0,
-          active_cards: 0,
-          completed_cards: 0,
-          expiring_soon: 0
-        };
-      }
-
       this.updateStats();
       this.applyFilter('all'); // Initialize with all subscriptions
       this.setupEventListeners();
@@ -4913,13 +4880,34 @@ class SubscriptionManager {
   }
 
   static updateStats() {
-    // Prefer derived stats that enforce the inactive-exclusion rule.
-    const source = this._derivedStats || this.stats || {};
+    // Calculate stats from the actual subscription data
+    const now = new Date();
+    let activeCount = 0;
+    let completedCount = 0;
+    let inactiveCount = 0;
+    let expiringCount = 0;
+
+    this.subscriptions.forEach(subscription => {
+      if (!subscription.is_active) {
+        inactiveCount++;
+      } else if (subscription.remaining_deliveries === 0) {
+        completedCount++;
+      } else if (subscription.remaining_deliveries > 0 && new Date(subscription.expiry_date) > now) {
+        activeCount++;
+        // Check if expiring soon (within 30 days)
+        const daysUntilExpiry = Math.ceil((new Date(subscription.expiry_date) - now) / (1000 * 60 * 60 * 24));
+        if (daysUntilExpiry <= 30) {
+          expiringCount++;
+        }
+      }
+    });
+
     const elements = {
-      'total-subscriptions': source.total_cards || 0,
-      'active-subscriptions': source.active_cards || 0,
-      'completed-subscriptions': source.completed_cards || 0,
-      'expiring-subscriptions': source.expiring_soon || 0
+      'total-subscriptions': this.subscriptions.length,
+      'active-subscriptions': activeCount,
+      'completed-subscriptions': completedCount,
+      'inactive-subscriptions': inactiveCount,
+      'expiring-subscriptions': expiringCount
     };
 
     Object.entries(elements).forEach(([id, value]) => {
