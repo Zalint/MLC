@@ -9,7 +9,7 @@ class Subscription {
     this.card_number = data.card_number;
     this.total_deliveries = data.total_deliveries || 10;
     this.used_deliveries = data.used_deliveries || 0;
-    this.remaining_deliveries = data.remaining_deliveries || 10;
+    this.remaining_deliveries = data.remaining_deliveries !== undefined ? data.remaining_deliveries : 10;
     this.purchase_date = data.purchase_date;
     this.expiry_date = data.expiry_date;
     this.is_active = data.is_active !== false;

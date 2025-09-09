@@ -750,7 +750,27 @@
                   </div>
                 
                 <div class="subscriptions-section">
-                    <h3>Cartes d'abonnement</h3>
+                    <div class="subscriptions-header">
+                        <h3>Cartes d'abonnement</h3>
+                        <div class="subscription-filters">
+                            <button id="filter-all" class="filter-btn active" data-filter="all">
+                                <span class="icon">🎫</span>
+                                Toutes (<span id="count-all">0</span>)
+                            </button>
+                            <button id="filter-active" class="filter-btn" data-filter="active">
+                                <span class="icon">✅</span>
+                                Actives (<span id="count-active">0</span>)
+                            </button>
+                            <button id="filter-completed" class="filter-btn" data-filter="completed">
+                                <span class="icon">🏁</span>
+                                Terminées (<span id="count-completed">0</span>)
+                            </button>
+                            <button id="filter-inactive" class="filter-btn" data-filter="inactive">
+                                <span class="icon">⏸️</span>
+                                Inactives (<span id="count-inactive">0</span>)
+                            </button>
+                        </div>
+                    </div>
                     <div id="subscriptions-list" class="subscriptions-list">
                         <!-- Les cartes d'abonnement seront chargées ici -->
                     </div>

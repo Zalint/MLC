@@ -4857,6 +4857,8 @@ class SubscriptionManager {
   static subscriptions = [];
   static stats = {};
   static searchTimeout = null;
+  static currentFilter = 'all';
+  static filteredSubscriptions = [];
 
   static async loadSubscriptions() {
     try {
@@ -4868,8 +4870,41 @@ class SubscriptionManager {
       this.subscriptions = subscriptionsResponse.subscriptions || [];
       this.stats = statsResponse.stats || {};
 
+      // Derive trustworthy counts from the loaded list to enforce business rule:
+      // if a card is set to inactive by a user, don't count it in any stat.
+      if (Array.isArray(this.subscriptions) && this.subscriptions.length > 0) {
+        const now = new Date();
+        const activeCount = this.subscriptions.filter(s => (
+          s && s.is_active === true &&
+          typeof s.remaining_deliveries === 'number' &&
+          s.remaining_deliveries > 0 &&
+          (!s.expiry_date || new Date(s.expiry_date) > now)
+        )).length;
+
+        const completedCount = this.subscriptions.filter(s => (
+          s && s.is_active === true &&
+          typeof s.remaining_deliveries === 'number' &&
+          s.remaining_deliveries === 0
+        )).length;
+
+        // Keep API stats, but override the displayed values using derived stats
+        this._derivedStats = {
+          total_cards: activeCount + completedCount,
+          active_cards: activeCount,
+          completed_cards: completedCount,
+          expiring_soon: this.stats.expiring_soon || 0
+        };
+      } else {
+        this._derivedStats = {
+          total_cards: 0,
+          active_cards: 0,
+          completed_cards: 0,
+          expiring_soon: 0
+        };
+      }
+
       this.updateStats();
-      this.displaySubscriptions();
+      this.applyFilter('all'); // Initialize with all subscriptions
       this.setupEventListeners();
     } catch (error) {
       console.error('Erreur lors du chargement des abonnements:', error);
@@ -4878,28 +4913,112 @@ class SubscriptionManager {
   }
 
   static updateStats() {
+    // Prefer derived stats that enforce the inactive-exclusion rule.
+    const source = this._derivedStats || this.stats || {};
     const elements = {
-      'total-subscriptions': this.stats.total_cards || 0,
-      'active-subscriptions': this.stats.active_cards || 0,
-      'completed-subscriptions': this.stats.completed_cards || 0,
-      'expiring-subscriptions': this.stats.expiring_soon || 0
+      'total-subscriptions': source.total_cards || 0,
+      'active-subscriptions': source.active_cards || 0,
+      'completed-subscriptions': source.completed_cards || 0,
+      'expiring-subscriptions': source.expiring_soon || 0
     };
 
     Object.entries(elements).forEach(([id, value]) => {
       const element = document.getElementById(id);
       if (element) element.textContent = value;
     });
+
+    // Update filter counts
+    this.updateFilterCounts();
+  }
+
+  static updateFilterCounts() {
+    if (!Array.isArray(this.subscriptions) || this.subscriptions.length === 0) {
+      document.getElementById('count-all').textContent = '0';
+      document.getElementById('count-active').textContent = '0';
+      document.getElementById('count-completed').textContent = '0';
+      document.getElementById('count-inactive').textContent = '0';
+      return;
+    }
+
+    const now = new Date();
+    let activeCount = 0;
+    let completedCount = 0;
+    let inactiveCount = 0;
+
+    this.subscriptions.forEach(subscription => {
+      if (!subscription.is_active) {
+        inactiveCount++;
+      } else if (subscription.remaining_deliveries === 0) {
+        completedCount++;
+      } else if (subscription.remaining_deliveries > 0 && new Date(subscription.expiry_date) > now) {
+        activeCount++;
+      }
+    });
+
+    document.getElementById('count-all').textContent = this.subscriptions.length;
+    document.getElementById('count-active').textContent = activeCount;
+    document.getElementById('count-completed').textContent = completedCount;
+    document.getElementById('count-inactive').textContent = inactiveCount;
+  }
+
+  static applyFilter(filter) {
+    this.currentFilter = filter;
+    
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+
+    // Filter subscriptions
+    if (filter === 'all') {
+      this.filteredSubscriptions = [...this.subscriptions];
+    } else {
+      const now = new Date();
+      this.filteredSubscriptions = this.subscriptions.filter(subscription => {
+        switch (filter) {
+          case 'active':
+            return subscription.is_active && 
+                   subscription.remaining_deliveries > 0 && 
+                   new Date(subscription.expiry_date) > now;
+          case 'completed':
+            return subscription.is_active && subscription.remaining_deliveries === 0;
+          case 'inactive':
+            return !subscription.is_active;
+          default:
+            return true;
+        }
+      });
+    }
+
+    this.displaySubscriptions();
+  }
+
+  static getFilterLabel(filter) {
+    const labels = {
+      'all': 'd\'abonnement',
+      'active': 'active',
+      'completed': 'terminée',
+      'inactive': 'inactive'
+    };
+    return labels[filter] || 'd\'abonnement';
   }
 
   static displaySubscriptions() {
     const container = document.getElementById('subscriptions-list');
     
-    if (this.subscriptions.length === 0) {
-      container.innerHTML = '<p class="text-center">Aucune carte d\'abonnement trouvée</p>';
+    // Use filtered subscriptions if available, otherwise use all subscriptions
+    const subscriptionsToDisplay = this.filteredSubscriptions.length > 0 ? this.filteredSubscriptions : this.subscriptions;
+    
+    if (subscriptionsToDisplay.length === 0) {
+      const filterMessage = this.currentFilter === 'all' ? 
+        'Aucune carte d\'abonnement trouvée' : 
+        `Aucune carte ${this.getFilterLabel(this.currentFilter)} trouvée`;
+      container.innerHTML = `<p class="text-center">${filterMessage}</p>`;
       return;
     }
 
-    container.innerHTML = this.subscriptions.map(subscription => {
+    container.innerHTML = subscriptionsToDisplay.map(subscription => {
       const progressPercentage = (subscription.used_deliveries / subscription.total_deliveries) * 100;
       const progressClass = progressPercentage >= 80 ? 'low' : progressPercentage >= 50 ? 'medium' : 'high';
       const statusClass = this.getStatusClass(subscription);
@@ -5033,6 +5152,14 @@ class SubscriptionManager {
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => this.loadSubscriptions());
     }
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const filter = e.currentTarget.getAttribute('data-filter');
+        this.applyFilter(filter);
+      });
+    });
   }
 
   static setupSubscriptionEventListeners() {
@@ -5078,6 +5205,9 @@ class SubscriptionManager {
     try {
       const response = await ApiClient.searchSubscriptions(query);
       this.subscriptions = response.subscriptions || [];
+      this.filteredSubscriptions = []; // Clear filters when searching
+      this.currentFilter = 'all';
+      this.updateFilterCounts();
       this.displaySubscriptions();
     } catch (error) {
       console.error('Erreur lors de la recherche:', error);
