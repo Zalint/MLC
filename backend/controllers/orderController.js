@@ -2024,6 +2024,7 @@ class OrderController {
         { header: 'Type', key: 'type', width: 18 },
         { header: 'Commandes', key: 'commandes', width: 12 },
         { header: 'Courses (FCFA)', key: 'courses', width: 15 },
+        { header: 'Supplément inclus', key: 'supplement', width: 25 },
         { header: 'Carburant (FCFA)', key: 'carburant', width: 15 },
         { header: 'Réparations (FCFA)', key: 'reparations', width: 15 },
         { header: 'Police (FCFA)', key: 'police', width: 15 },
@@ -2063,27 +2064,18 @@ class OrderController {
         expensesMap[key] = item;
       });
 
-      // Construire la map (date, livreur) -> type dominant du jour
-      const orderTypePriority = ['MLC avec abonnement','MLC simple','MATA client','MATA interne','AUTRES','AUTRE'];
-      const agg = {};
+      // Construire la map (date, livreur, type) -> count, total_amount et supplement
       dailyTypeStats.forEach(row => {
         const dateKey = row.date instanceof Date ? row.date.toISOString().split('T')[0] : row.date;
-        const key = `${dateKey}_${row.livreur}`;
-        if (!agg[key]) agg[key] = {};
         const label = row.order_type === 'AUTRE' ? 'AUTRES' : row.order_type;
-        agg[key][label] = (agg[key][label] || 0) + (parseInt(row.count) || 0);
-      });
-      Object.keys(agg).forEach(key => {
-        let best = null; let bestCount = -1;
-        Object.entries(agg[key]).forEach(([label, count]) => {
-          if (count > bestCount) { best = label; bestCount = count; }
-          else if (count === bestCount) {
-            const prevIdx = orderTypePriority.indexOf(best);
-            const curIdx = orderTypePriority.indexOf(label);
-            if (curIdx !== -1 && (prevIdx === -1 || curIdx < prevIdx)) best = label;
-          }
-        });
-        typeMap[key] = best || '';
+        const key = `${dateKey}_${row.livreur}_${label}`;
+        typeMap[key] = {
+          type: label,
+          count: parseInt(row.count) || 0,
+          total_amount: parseFloat(row.total_amount) || 0,
+          total_supplements: parseFloat(row.total_supplements) || 0,
+          supplement_types: row.supplement_types || null
+        };
       });
 
       dailyGpsData.forEach(item => {
@@ -2096,7 +2088,9 @@ class OrderController {
         gpsMap[key] = item;
       });
 
-      // Ajouter les données ligne par ligne
+      // Ajouter les données ligne par ligne (une ligne par type de course)
+      const allTypes = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne', 'AUTRES', 'AUTRE'];
+      
       dates.forEach(date => {
         const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
           day: '2-digit', 
@@ -2104,50 +2098,81 @@ class OrderController {
         });
         
         livreurs.forEach(livreur => {
-          const orderKey = `${date}_${livreur}`;
           const expenseKey = `${date}_${livreur}`;
           const gpsKey = `${date}_${livreur}`;
           
-          const orderData = ordersMap[orderKey] || { nombre_commandes: 0, total_montant: 0 };
           const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
           const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
           
-          const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
-          const benefice = (orderData.total_montant || 0) - totalDepenses;
-          
-          const typeLabel = (orderData.nombre_commandes || 0) > 0 ? (typeMap[orderKey] || '') : '';
-          const row = worksheet.addRow({
-            date: formattedDate,
-            livreur: livreur,
-            type: typeLabel,
-            commandes: orderData.nombre_commandes || 0,
-            courses: orderData.total_montant || 0,
-            carburant: expenseData.carburant || 0,
-            reparations: expenseData.reparations || 0,
-            police: expenseData.police || 0,
-            autres: expenseData.autres || 0,
-            total_depenses: totalDepenses,
-            km_parcourus: expenseData.km_parcourus || 0,
-            gps_km: gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : 0,
-            benefice: benefice
+          // Trouver tous les types pour ce livreur/date qui ont des données
+          const typesForThisLivreurDate = allTypes.filter(type => {
+            const typeKey = `${date}_${livreur}_${type}`;
+            const typeData = typeMap[typeKey];
+            return typeData && typeData.count > 0;
           });
 
-          // Colorer les bénéfices
-          if (benefice >= 0) {
-            row.getCell('benefice').fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFD4EDDA' }
-            };
-            row.getCell('benefice').font = { color: { argb: 'FF155724' }, bold: true };
-          } else {
-            row.getCell('benefice').fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFF8D7DA' }
-            };
-            row.getCell('benefice').font = { color: { argb: 'FF721C24' }, bold: true };
-          }
+          typesForThisLivreurDate.forEach((type, index) => {
+            const typeKey = `${date}_${livreur}_${type}`;
+            const typeData = typeMap[typeKey];
+            
+            // Afficher les dépenses seulement sur la première ligne de ce livreur/date
+            const isFirstLineForLivreurDate = index === 0;
+            const displayCarburant = isFirstLineForLivreurDate ? (expenseData.carburant || 0) : 0;
+            const displayReparations = isFirstLineForLivreurDate ? (expenseData.reparations || 0) : 0;
+            const displayPolice = isFirstLineForLivreurDate ? (expenseData.police || 0) : 0;
+            const displayAutres = isFirstLineForLivreurDate ? (expenseData.autres || 0) : 0;
+            const displayTotalDepenses = isFirstLineForLivreurDate ? ((expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0)) : 0;
+            const displayKmParcourus = isFirstLineForLivreurDate ? (expenseData.km_parcourus || 0) : 0;
+            const displayGpsKm = isFirstLineForLivreurDate ? (gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : 0) : 0;
+            
+            // Pour le bénéfice, on utilise le montant EXACT du type depuis l'API
+            const courses = typeData.total_amount || 0;
+            const benefice = courses - displayTotalDepenses;
+            
+            // Formater l'affichage du supplément
+            let supplementDisplay = '';
+            if (typeData.total_supplements > 0 && typeData.supplement_types) {
+              supplementDisplay = typeData.supplement_types;
+            } else if (typeData.total_supplements > 0) {
+              supplementDisplay = `+${Math.round(typeData.total_supplements)}`;
+            } else {
+              supplementDisplay = '-';
+            }
+            
+            const row = worksheet.addRow({
+              date: formattedDate,
+              livreur: livreur,
+              type: typeData.type,
+              commandes: typeData.count,
+              courses: courses,
+              supplement: supplementDisplay,
+              carburant: displayCarburant,
+              reparations: displayReparations,
+              police: displayPolice,
+              autres: displayAutres,
+              total_depenses: displayTotalDepenses,
+              km_parcourus: displayKmParcourus,
+              gps_km: displayGpsKm,
+              benefice: benefice
+            });
+
+            // Colorer les bénéfices
+            if (benefice >= 0) {
+              row.getCell('benefice').fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD4EDDA' }
+              };
+              row.getCell('benefice').font = { color: { argb: 'FF155724' }, bold: true };
+            } else {
+              row.getCell('benefice').fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFF8D7DA' }
+              };
+              row.getCell('benefice').font = { color: { argb: 'FF721C24' }, bold: true };
+            }
+          });
         });
       });
 
@@ -2169,11 +2194,23 @@ class OrderController {
           .reduce((sum, item) => sum + parseFloat(item.total_distance_km || 0), 0);
         const totalBenefice = totalMontant - totalDepensesLivreur;
         
+        // Calculer la somme totale des suppléments pour ce livreur
+        let totalSupplements = 0;
+        Object.keys(typeMap).forEach(key => {
+          if (key.includes(`_${livreur}_`)) {
+            const typeData = typeMap[key];
+            totalSupplements += typeData.total_supplements || 0;
+          }
+        });
+        
+        const supplementTotalDisplay = totalSupplements > 0 ? `+${Math.round(totalSupplements)}` : '-';
+        
         const totalRow = worksheet.addRow({
           date: 'TOTAL',
           livreur: livreur,
           commandes: totalCommandes,
           courses: totalMontant,
+          supplement: supplementTotalDisplay,
           carburant: totalCarburant,
           reparations: totalReparations,
           police: totalPolice,

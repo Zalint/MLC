@@ -212,20 +212,63 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       GROUP BY u.id
     `;
 
-    const [summaryResult, detailsResult, extrasResult] = await Promise.all([
+    // Requête pour récupérer les statistiques par type par livreur
+    const typeStatsQuery = `
+      SELECT 
+        u.username as livreur_nom,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END as order_type,
+        COUNT(*) as count,
+        SUM(o.course_price) as total_amount
+      FROM orders o
+      JOIN users u ON o.created_by = u.id
+      WHERE DATE(o.created_at) = $1
+        AND u.role = 'LIVREUR' AND u.is_active = true
+      GROUP BY u.username,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END
+      ORDER BY u.username
+    `;
+
+    const [summaryResult, detailsResult, extrasResult, typeStatsResult] = await Promise.all([
       db.query(summaryQuery, [date, seuilMata, seuilMlc, seuilMataPanier]),
       db.query(detailsQuery, [date, seuilMata, seuilMlc, seuilMataPanier]),
-      db.query(extrasQuery, [date])
+      db.query(extrasQuery, [date]),
+      db.query(typeStatsQuery, [date])
     ]);
 
     const summary = summaryResult.rows[0] || {};
     const details = detailsResult.rows || [];
     const extrasData = extrasResult.rows || [];
+    const typeStatsData = typeStatsResult.rows || [];
 
     // Créer un map des extras par livreur
     const extrasMap = new Map();
     extrasData.forEach(item => {
       extrasMap.set(item.livreur_id, parseInt(item.nombre_extras));
+    });
+
+    // Créer un map des statistiques par type par livreur
+    const typeStatsMap = new Map();
+    typeStatsData.forEach(item => {
+      if (!typeStatsMap.has(item.livreur_nom)) {
+        typeStatsMap.set(item.livreur_nom, {});
+      }
+      const typeLabel = item.order_type === 'AUTRE' ? 'Autres' : item.order_type;
+      typeStatsMap.get(item.livreur_nom)[typeLabel] = {
+        count: parseInt(item.count) || 0,
+        total_amount: parseFloat(item.total_amount) || 0
+      };
     });
 
     // Traitement des détails par livreur
@@ -299,7 +342,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         },
         km_parcourus: parseFloat(livreur.km_parcourus) || 0,
         revenus: parseFloat(livreur.total_revenus) || 0,
-        benefice: parseFloat(livreur.benefice) || 0
+        benefice: parseFloat(livreur.benefice) || 0,
+        statsByType: typeStatsMap.get(livreur.livreur_nom) || {}
       };
     });
 
@@ -610,20 +654,63 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
       GROUP BY u.id
     `;
 
-    const [summaryResult, detailsResult, extrasResult] = await Promise.all([
+    // Requête pour récupérer les statistiques par type par livreur (mensuel)
+    const typeStatsQuery = `
+      SELECT 
+        u.username as livreur_nom,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END as order_type,
+        COUNT(*) as count,
+        SUM(o.course_price) as total_amount
+      FROM orders o
+      JOIN users u ON o.created_by = u.id
+      WHERE DATE(o.created_at) BETWEEN $1 AND $2
+        AND u.role = 'LIVREUR' AND u.is_active = true
+      GROUP BY u.username,
+        CASE 
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL THEN 'MLC avec abonnement'
+          WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL THEN 'MLC simple'
+          WHEN o.order_type = 'MATA' AND o.interne = true THEN 'MATA interne'
+          WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
+          ELSE o.order_type
+        END
+      ORDER BY u.username
+    `;
+
+    const [summaryResult, detailsResult, extrasResult, typeStatsResult] = await Promise.all([
       db.query(summaryQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier]),
       db.query(detailsQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier]),
-      db.query(extrasQuery, [startDate, endDate])
+      db.query(extrasQuery, [startDate, endDate]),
+      db.query(typeStatsQuery, [startDate, endDate])
     ]);
 
     const summary = summaryResult.rows[0] || {};
     const details = detailsResult.rows || [];
     const extrasData = extrasResult.rows || [];
+    const typeStatsData = typeStatsResult.rows || [];
 
     // Créer un map des extras par livreur
     const extrasMap = new Map();
     extrasData.forEach(item => {
       extrasMap.set(item.livreur_id, parseInt(item.nombre_extras));
+    });
+
+    // Créer un map des statistiques par type par livreur
+    const typeStatsMap = new Map();
+    typeStatsData.forEach(item => {
+      if (!typeStatsMap.has(item.livreur_nom)) {
+        typeStatsMap.set(item.livreur_nom, {});
+      }
+      const typeLabel = item.order_type === 'AUTRE' ? 'Autres' : item.order_type;
+      typeStatsMap.get(item.livreur_nom)[typeLabel] = {
+        count: parseInt(item.count) || 0,
+        total_amount: parseFloat(item.total_amount) || 0
+      };
     });
 
     // Traitement des détails par livreur (même logique que l'endpoint daily)
@@ -688,7 +775,8 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         },
         km_parcourus: parseFloat(livreur.km_parcourus) || 0,
         revenus: parseFloat(livreur.total_revenus) || 0,
-        benefice: parseFloat(livreur.benefice) || 0
+        benefice: parseFloat(livreur.benefice) || 0,
+        statsByType: typeStatsMap.get(livreur.livreur_nom) || {}
       };
     });
 

@@ -487,9 +487,37 @@ class Order {
           WHEN o.order_type = 'MATA' AND (o.interne = false OR o.interne IS NULL) THEN 'MATA client'
           ELSE o.order_type
         END as order_type,
-        COUNT(*) as count
+        COUNT(*) as count,
+        SUM(COALESCE(o.course_price, 0)) as total_amount,
+        SUM(
+          CASE 
+            -- MATA hors zone : supplément au-dessus du prix de base (1500 FCFA)
+            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN o.course_price - 1500
+            -- MLC avec abonnement : supplément au-dessus du prix unitaire de l'abonnement
+            WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL THEN 
+              GREATEST(0, o.course_price - (s.price / s.total_deliveries))
+            ELSE 0
+          END
+        ) as total_supplements,
+        STRING_AGG(
+          DISTINCT CASE 
+            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN 
+              CONCAT('MATA Hors zone (+', ROUND(o.course_price - 1500), ')')
+            WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 
+              CONCAT('MLC Extra (+', ROUND(o.course_price - (s.price / s.total_deliveries)), ')')
+            ELSE NULL
+          END, ', '
+        ) as supplement_types,
+        COUNT(
+          CASE 
+            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN 1
+            WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 1
+            ELSE NULL
+          END
+        ) as count_with_supplements
       FROM orders o
       JOIN users u ON o.created_by = u.id
+      LEFT JOIN subscriptions s ON o.subscription_id = s.id
       WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
         AND u.role = 'LIVREUR' AND u.is_active = true
       GROUP BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.username,

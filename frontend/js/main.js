@@ -1920,6 +1920,7 @@ class MonthlyDashboardManager {
       <th class="sub-header">Type</th>
       <th class="sub-header">Cmd</th>
       <th class="sub-header">Courses</th>
+      <th class="sub-header">Supplément inclus</th>
       <th class="sub-header">Carburant</th>
       <th class="sub-header">Réparations</th>
       <th class="sub-header">Police</th>
@@ -1949,44 +1950,27 @@ class MonthlyDashboardManager {
       }
     });
 
-    // Créer les lignes de données (une ligne par date/livreur existants)
+    // Créer les lignes de données (plusieurs lignes par date/livreur/type)
     const rowParts = [];
-    // Construire map (date, livreur) -> type dominant du jour
-    const typeByDateLivreur = {};
-    const orderTypePriority = [
-      'MLC avec abonnement',
-      'MLC simple',
-      'MATA client',
-      'MATA interne',
-      'AUTRES',
-      'AUTRE'
-    ];
-    // Agréger les counts par (date, livreur)
-    const agg = {};
+    // Construire map (date, livreur, type) -> count
+    const typeDataMap = {};
 
     (dailyTypeStats || []).forEach(row => {
       const dateKey = (row.date instanceof Date) ? row.date.toISOString().split('T')[0] : (row.date || '').toString().slice(0,10);
-      const key = `${dateKey}_${(row.livreur || '').trim()}`;
-      if (!agg[key]) agg[key] = {};
+      const livreurKey = (row.livreur || '').trim();
       const label = row.order_type === 'AUTRE' ? 'AUTRES' : row.order_type;
-      agg[key][label] = (agg[key][label] || 0) + (parseInt(row.count) || 0);
-
+      const key = `${dateKey}_${livreurKey}_${label}`;
+      typeDataMap[key] = {
+        type: label,
+        count: parseInt(row.count) || 0,
+        total_amount: parseFloat(row.total_amount) || 0,
+        total_supplements: parseFloat(row.total_supplements) || 0,
+        supplement_types: row.supplement_types || null,
+        count_with_supplements: parseInt(row.count_with_supplements) || 0
+      };
     });
 
-    Object.keys(agg).forEach(key => {
-      // choisir le type avec count max; en cas d'égalité, appliquer la priorité
-      let best = null; let bestCount = -1;
-      Object.entries(agg[key]).forEach(([label, count]) => {
-        if (count > bestCount) { best = label; bestCount = count; }
-        else if (count === bestCount) {
-          const prevIdx = orderTypePriority.indexOf(best);
-          const curIdx = orderTypePriority.indexOf(label);
-          if (curIdx !== -1 && (prevIdx === -1 || curIdx < prevIdx)) best = label;
-        }
-      });
-      typeByDateLivreur[key] = best || '-';
-
-    });
+    // Pour chaque date, livreur et type avec des données
     Array.from(rowDates).sort().forEach(date => {
       const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
         day: '2-digit', 
@@ -1995,48 +1979,68 @@ class MonthlyDashboardManager {
       
       const livreursForDate = dateToLivreurs[date] ? Array.from(dateToLivreurs[date]).sort() : [];
       livreursForDate.forEach(livreur => {
-        const orderKey = `${date}_${(livreur || '').trim()}`;
         const expenseKey = `${date}_${livreur}`;
         const gpsKey = `${date}_${livreur}`;
-        
-        const orderData = ordersMap[orderKey] || { nombre_commandes: 0, total_montant: 0 };
-        const typeLabel = (orderData.nombre_commandes || 0) > 0
-          ? (typeByDateLivreur[orderKey] || '-')
-          : '';
-        // Debug temporaire
-        if (orderData.nombre_commandes > 0) {
-          console.log('🔍 DEBUG TYPE pour commandes:', { 
-            date, livreur, orderKey, 
-            cmd: orderData.nombre_commandes, 
-            typeLabel,
-            inMap: typeByDateLivreur[orderKey],
-            mapKeys: Object.keys(typeByDateLivreur),
-            allDailyTypeStats: dailyTypeStats
-          });
-        }
         const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
         const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
         
-        const totalDepenses = (expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0);
-        const benefice = (orderData.total_montant || 0) - totalDepenses;
-        
-        rowParts.push(`
-          <tr>
-            <td class="date-cell">${formattedDate}</td>
-            <td class="livreur-cell">${Utils.escapeHtml(livreur)}</td>
-            <td class="data-cell">${typeLabel}</td>
-            <td class="data-cell">${orderData.nombre_commandes || 0}</td>
-            <td class="data-cell">${orderData.total_montant ? Utils.formatAmount(orderData.total_montant).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell">${expenseData.carburant ? Utils.formatAmount(expenseData.carburant).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell">${expenseData.reparations ? Utils.formatAmount(expenseData.reparations).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell">${expenseData.police ? Utils.formatAmount(expenseData.police).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell">${expenseData.autres ? Utils.formatAmount(expenseData.autres).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell total-depenses">${totalDepenses ? Utils.formatAmount(totalDepenses).replace(' FCFA', '') : '0'}</td>
-            <td class="data-cell">${expenseData.km_parcourus || 0}</td>
-            <td class="data-cell gps-km-cell">${gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : '0'}</td>
-            <td class="data-cell benefice ${benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(benefice).replace(' FCFA', '')}</td>
-          </tr>
-        `);
+        // Trouver tous les types pour ce livreur/date
+        const allTypes = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne', 'AUTRES', 'AUTRE'];
+        const typesForThisLivreurDate = allTypes.filter(type => {
+          const typeKey = `${date}_${livreur}_${type}`;
+          const typeInfo = typeDataMap[typeKey];
+          return typeInfo && typeInfo.count > 0;
+        });
+
+        typesForThisLivreurDate.forEach((type, index) => {
+          const typeKey = `${date}_${livreur}_${type}`;
+          const typeInfo = typeDataMap[typeKey];
+          
+          // Afficher les dépenses seulement sur la première ligne de ce livreur/date
+          const isFirstLineForLivreurDate = index === 0;
+          const displayCarburant = isFirstLineForLivreurDate ? (expenseData.carburant || 0) : 0;
+          const displayReparations = isFirstLineForLivreurDate ? (expenseData.reparations || 0) : 0;
+          const displayPolice = isFirstLineForLivreurDate ? (expenseData.police || 0) : 0;
+          const displayAutres = isFirstLineForLivreurDate ? (expenseData.autres || 0) : 0;
+          const displayTotalDepenses = isFirstLineForLivreurDate ? ((expenseData.carburant || 0) + (expenseData.reparations || 0) + (expenseData.police || 0) + (expenseData.autres || 0)) : 0;
+          const displayKmParcourus = isFirstLineForLivreurDate ? (expenseData.km_parcourus || 0) : 0;
+          const displayGpsKm = isFirstLineForLivreurDate ? (gpsData.total_distance_km ? Math.round(gpsData.total_distance_km * 100) / 100 : 0) : 0;
+          
+          // Pour le montant, utiliser UNIQUEMENT les données exactes de l'API
+          const typeAmount = typeInfo.total_amount || 0;
+          
+          // Pour le bénéfice, on utilise le montant du type moins les dépenses totales (seulement sur la première ligne)
+          const benefice = typeAmount - displayTotalDepenses;
+          
+          // Formater l'affichage des suppléments avec type et montant
+          let supplementDisplay = '';
+          if (typeInfo.total_supplements > 0 && typeInfo.supplement_types) {
+            supplementDisplay = typeInfo.supplement_types;
+          } else if (typeInfo.total_supplements > 0) {
+            supplementDisplay = `+${Utils.formatAmount(typeInfo.total_supplements).replace(' FCFA', '')}`;
+          } else {
+            supplementDisplay = '-';
+          }
+          
+          rowParts.push(`
+            <tr>
+              <td class="date-cell">${formattedDate}</td>
+              <td class="livreur-cell">${Utils.escapeHtml(livreur)}</td>
+              <td class="data-cell">${typeInfo.type}</td>
+              <td class="data-cell">${typeInfo.count}</td>
+              <td class="data-cell">${typeAmount ? Utils.formatAmount(typeAmount).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell supplement-cell">${supplementDisplay}</td>
+              <td class="data-cell">${displayCarburant ? Utils.formatAmount(displayCarburant).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell">${displayReparations ? Utils.formatAmount(displayReparations).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell">${displayPolice ? Utils.formatAmount(displayPolice).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell">${displayAutres ? Utils.formatAmount(displayAutres).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell total-depenses">${displayTotalDepenses ? Utils.formatAmount(displayTotalDepenses).replace(' FCFA', '') : '0'}</td>
+              <td class="data-cell">${displayKmParcourus}</td>
+              <td class="data-cell gps-km-cell">${displayGpsKm}</td>
+              <td class="data-cell benefice ${benefice >= 0 ? 'benefice-positif' : 'benefice-negatif'}">${Utils.formatAmount(benefice).replace(' FCFA', '')}</td>
+            </tr>
+          `);
+        });
       });
     });
 
@@ -2063,6 +2067,17 @@ class MonthlyDashboardManager {
         .reduce((sum, item) => sum + parseFloat(item.total_distance_km || 0), 0);
       const totalBenefice = totalMontant - totalDepensesLivreur;
       
+      // Calculer la somme totale des suppléments pour ce livreur
+      let totalSupplements = 0;
+      Object.keys(typeDataMap).forEach(key => {
+        if (key.includes(`_${livreur}_`)) {
+          const typeInfo = typeDataMap[key];
+          totalSupplements += typeInfo.total_supplements || 0;
+        }
+      });
+      
+      const supplementTotalDisplay = totalSupplements > 0 ? `+${Utils.formatAmount(totalSupplements).replace(' FCFA', '')}` : '-';
+      
       totalRows += `
         <tr class="total-row">
           <td class="total-cell"><strong>TOTAL</strong></td>
@@ -2070,6 +2085,7 @@ class MonthlyDashboardManager {
           <td class="total-cell"><strong>-</strong></td>
           <td class="total-cell"><strong>${totalCommandes}</strong></td>
           <td class="total-cell"><strong>${totalMontant ? Utils.formatAmount(totalMontant).replace(' FCFA', '') : '0'}</strong></td>
+          <td class="total-cell supplement-total"><strong>${supplementTotalDisplay}</strong></td>
           <td class="total-cell"><strong>${totalCarburant ? Utils.formatAmount(totalCarburant).replace(' FCFA', '') : '0'}</strong></td>
           <td class="total-cell"><strong>${totalReparations ? Utils.formatAmount(totalReparations).replace(' FCFA', '') : '0'}</strong></td>
           <td class="total-cell"><strong>${totalPolice ? Utils.formatAmount(totalPolice).replace(' FCFA', '') : '0'}</strong></td>
@@ -2082,18 +2098,27 @@ class MonthlyDashboardManager {
       `;
     });
 
-    // Filtre Type (client-side)
+    // Filtre Type et Livreur (client-side)
     const filterHtml = `
-      <div class="table-filters" style="padding:8px;display:flex;gap:8px;align-items:center;">
-        <label for="type-filter" style="font-weight:600;">Type:</label>
-        <select id="type-filter" class="form-control" style="max-width:220px;">
-          <option value="">Tous</option>
-          <option value="MLC simple">MLC simple</option>
-          <option value="MLC avec abonnement">MLC abonnement</option>
-          <option value="MATA client">MATA client</option>
-          <option value="MATA interne">MATA interne</option>
-          <option value="AUTRES">Autres</option>
-        </select>
+      <div class="table-filters" style="padding:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label for="type-filter" style="font-weight:600;">Type:</label>
+          <select id="type-filter" class="form-control" style="max-width:220px;">
+            <option value="">Tous</option>
+            <option value="MLC simple">MLC simple</option>
+            <option value="MLC avec abonnement">MLC abonnement</option>
+            <option value="MATA client">MATA client</option>
+            <option value="MATA interne">MATA interne</option>
+            <option value="AUTRES">Autres</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label for="livreur-filter" style="font-weight:600;">Livreur:</label>
+          <select id="livreur-filter" class="form-control" style="max-width:200px;">
+            <option value="">Tous</option>
+            ${livreurs.map(livreur => `<option value="${Utils.escapeHtml(livreur)}">${Utils.escapeHtml(livreur)}</option>`).join('')}
+          </select>
+        </div>
       </div>`;
 
     const table = `
@@ -2247,22 +2272,40 @@ class MonthlyDashboardManager {
       });
     }
 
-    // Filtrage par type
+    // Configuration des filtres (type et livreur)
     const typeFilter = document.getElementById('type-filter');
+    const livreurFilter = document.getElementById('livreur-filter');
+    
+    const applyFilters = () => {
+      const typeValue = typeFilter ? typeFilter.value : '';
+      const livreurValue = livreurFilter ? livreurFilter.value : '';
+      const tbody = container.querySelector('.monthly-detailed-table tbody');
+      if (!tbody) return;
+      
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.forEach(tr => {
+        const typeCell = tr.children[2]; // Colonne Type
+        const livreurCell = tr.children[1]; // Colonne Livreur
+        
+        if (!typeCell || !livreurCell) return;
+        
+        const typeText = (typeCell.textContent || '').trim();
+        const livreurText = (livreurCell.textContent || '').trim();
+        
+        // Vérifier les deux filtres
+        const typeMatch = !typeValue || typeValue === '' || typeText === typeValue;
+        const livreurMatch = !livreurValue || livreurValue === '' || livreurText === livreurValue;
+        
+        // Afficher seulement si les deux critères sont respectés
+        tr.style.display = typeMatch && livreurMatch ? '' : 'none';
+      });
+    };
+    
     if (typeFilter) {
-      const applyTypeFilter = () => {
-        const value = typeFilter.value;
-        const tbody = container.querySelector('.monthly-detailed-table tbody');
-        if (!tbody) return;
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        rows.forEach(tr => {
-          const typeCell = tr.children[2];
-          if (!typeCell) return;
-          const cellText = (typeCell.textContent || '').trim();
-          tr.style.display = !value || value === '' || cellText === value ? '' : 'none';
-        });
-      };
-      typeFilter.addEventListener('change', applyTypeFilter);
+      typeFilter.addEventListener('change', applyFilters);
+    }
+    if (livreurFilter) {
+      livreurFilter.addEventListener('change', applyFilters);
     }
   }
 
@@ -2399,6 +2442,21 @@ class MonthlyDashboardManager {
         .no-gps-data {
           color: #999;
           font-style: italic;
+        }
+        .table-filters {
+          background-color: #f8f9fa;
+          border-radius: 6px;
+          margin-bottom: 1rem;
+        }
+        .table-filters select {
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          padding: 6px 12px;
+          font-size: 14px;
+        }
+        .table-filters label {
+          margin-bottom: 0;
+          color: #495057;
         }
       </style>
     `;
