@@ -602,9 +602,9 @@ class MataSentimentManager {
                     <div class="source-item">
                       <div class="source-name">${src.source}</div>
                       <div class="source-count">${src.count} client${src.count > 1 ? 's' : ''}</div>
-                      <div class="source-percentage">${src.source === 'Non renseigné' 
-                        ? ((src.count / statistics.total_orders) * 100).toFixed(1) 
-                        : total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0'}%</div>
+                      ${src.source !== 'Non renseigné' ? `
+                        <div class="source-percentage">${total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0'}%</div>
+                      ` : ''}
                     </div>
                   `).join('');
                 })()}
@@ -853,10 +853,12 @@ ${ai_analysis.sentiment_description}
         .reduce((sum, src) => sum + src.count, 0);
       
       by_source_connaissance.forEach(src => {
-        const percentage = src.source === 'Non renseigné'
-          ? ((src.count / statistics.total_orders) * 100).toFixed(1)
-          : total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0';
-        textContent += `• ${src.source} : ${src.count} client${src.count > 1 ? 's' : ''} (${percentage}%)\n`;
+        if (src.source === 'Non renseigné') {
+          textContent += `• ${src.source} : ${src.count} client${src.count > 1 ? 's' : ''}\n`;
+        } else {
+          const percentage = total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0';
+          textContent += `• ${src.source} : ${src.count} client${src.count > 1 ? 's' : ''} (${percentage}%)\n`;
+        }
       });
     }
 
