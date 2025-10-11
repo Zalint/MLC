@@ -592,13 +592,22 @@ class MataSentimentManager {
             <div class="sentiment-section">
               <h3>🎯 Canaux d'Acquisition des Clients (Comment nous ont-ils connus ?)</h3>
               <div class="source-list">
-                ${by_source_connaissance.map(src => `
-                  <div class="source-item">
-                    <div class="source-name">${src.source}</div>
-                    <div class="source-count">${src.count} client${src.count > 1 ? 's' : ''}</div>
-                    <div class="source-percentage">${((src.count / statistics.total_orders) * 100).toFixed(1)}%</div>
-                  </div>
-                `).join('')}
+                ${(() => {
+                  // Calculer le total SANS "Non renseigné"
+                  const total_with_source = by_source_connaissance
+                    .filter(src => src.source !== 'Non renseigné')
+                    .reduce((sum, src) => sum + src.count, 0);
+                  
+                  return by_source_connaissance.map(src => `
+                    <div class="source-item">
+                      <div class="source-name">${src.source}</div>
+                      <div class="source-count">${src.count} client${src.count > 1 ? 's' : ''}</div>
+                      <div class="source-percentage">${src.source === 'Non renseigné' 
+                        ? ((src.count / statistics.total_orders) * 100).toFixed(1) 
+                        : total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0'}%</div>
+                    </div>
+                  `).join('');
+                })()}
               </div>
             </div>
             ` : ''}
@@ -838,8 +847,15 @@ ${ai_analysis.sentiment_description}
       textContent += `\n🎯 CANAUX D'ACQUISITION DES CLIENTS
 ──────────────────────────────────────────────────────────────────────
 `;
+      // Calculer le total SANS "Non renseigné"
+      const total_with_source = by_source_connaissance
+        .filter(src => src.source !== 'Non renseigné')
+        .reduce((sum, src) => sum + src.count, 0);
+      
       by_source_connaissance.forEach(src => {
-        const percentage = ((src.count / statistics.total_orders) * 100).toFixed(1);
+        const percentage = src.source === 'Non renseigné'
+          ? ((src.count / statistics.total_orders) * 100).toFixed(1)
+          : total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0';
         textContent += `• ${src.source} : ${src.count} client${src.count > 1 ? 's' : ''} (${percentage}%)\n`;
       });
     }
