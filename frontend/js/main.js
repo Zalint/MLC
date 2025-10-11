@@ -2804,9 +2804,10 @@ class MataMonthlyDashboardManager {
                       <option value="Site web" ${order.source_connaissance === 'Site web' ? 'selected' : ''}>Site web</option>
                       <option value="Client régulier" ${order.source_connaissance === 'Client régulier' ? 'selected' : ''}>Client régulier</option>
                       <option value="Recommandation" ${order.source_connaissance === 'Recommandation' ? 'selected' : ''}>Recommandation</option>
-                      <option value="Autre" ${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation'].includes(order.source_connaissance) ? 'selected' : ''}>Autre</option>
+                      <option value="Enseigne mata" ${order.source_connaissance === 'Enseigne mata' ? 'selected' : ''}>Enseigne mata</option>
+                      <option value="Autre" ${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation', 'Enseigne mata'].includes(order.source_connaissance) ? 'selected' : ''}>Autre</option>
                     </select>
-                    <input type="text" class="source-autre-input hidden" placeholder="Préciser..." value="${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation'].includes(order.source_connaissance) ? order.source_connaissance : ''}" />
+                    <input type="text" class="source-autre-input hidden" placeholder="Préciser..." value="${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation', 'Enseigne mata'].includes(order.source_connaissance) ? order.source_connaissance : ''}" />
                   </div>
                 </td>
                 <td>
