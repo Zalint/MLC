@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matix Livreur - Système de Commandes</title>
-    <meta name="description" content="Système de prise de commandes et livraisons pour Matix Livreur">
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Matix Livreur - Gestion des Commandes et Livraisons</title>
+    <meta name="description" content="Plateforme de gestion des commandes, livraisons et analyse de satisfaction client pour Matix Livreur">
+    <link rel="stylesheet" href="css/styles.css?v=1.2">
     <!-- Leaflet for interactive maps (local) -->
     <link rel="stylesheet" href="assets/leaflet/leaflet.css" />
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
@@ -357,6 +357,15 @@
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-interne-filter" style="font-weight: bold;">Commande interne:</label>
+                    <select id="mata-interne-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Toutes</option>
+                        <option value="non">Externes uniquement</option>
+                        <option value="oui">Internes uniquement</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
                     <button id="mata-clear-filters" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem;">
                         <span class="icon">🔄</span>
                         Effacer filtres
@@ -394,10 +403,16 @@
                 <div class="mata-orders-section">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Détail des commandes MATA</h3>
-                        <button id="export-mata-monthly-excel-table" class="btn btn-primary btn-sm">
-                            <span class="icon">📊</span>
-                            Export Excel
-                        </button>
+                        <div class="mata-actions-buttons" style="display: flex; gap: 0.5rem;">
+                            <button id="mata-sentiment-analysis-btn" class="btn btn-secondary btn-sm">
+                                <span class="icon">🔍</span>
+                                Analyse de Satisfaction Client IA
+                            </button>
+                            <button id="export-mata-monthly-excel-table" class="btn btn-primary btn-sm">
+                                <span class="icon">📊</span>
+                                Exporter en Excel
+                            </button>
+                        </div>
                     </div>
                     <div id="mata-orders-table-container">
                         <!-- Le tableau des commandes MATA sera chargé ici -->
@@ -1486,6 +1501,7 @@
     <script src="js/gps-livreur.js"></script>
     <script src="js/gps-manager.js"></script>
     <script src="js/gps-tracking-manager.js"></script>
+    <script src="js/mata-sentiment.js"></script>
     <script src="js/gps-analytics.js"></script>
     <script src="js/mlc-table.js"></script>
 </body>

@@ -49,6 +49,9 @@ router.get('/mata-monthly-dashboard', requireManagerOrAdmin, OrderController.get
 // Route pour l'export Excel du tableau de bord MATA mensuel (managers et admins seulement)
 router.get('/mata-monthly-export', requireManagerOrAdmin, OrderController.exportMataMonthlyToExcel);
 
+// Route pour l'analyse de sentiment IA des commandes MATA (managers et admins seulement)
+router.get('/mata-sentiment-analysis', requireManagerOrAdmin, OrderController.getMatasentimentAnalysis);
+
 // Route pour l'export Excel du récapitulatif par livreur (managers et admins seulement)
 router.get('/monthly-summary-export', requireManagerOrAdmin, OrderController.exportMonthlySummaryToExcel);
 
@@ -102,6 +105,14 @@ router.put('/:id/rating',
   requireManagerOrAdmin,
   sanitizeInput, 
   OrderController.updateMataOrderRating
+);
+
+// Route spéciale pour mettre à jour la source de connaissance d'une commande MATA (managers et admins seulement)
+router.put('/:id/source-connaissance', 
+  validateUUID, 
+  requireManagerOrAdmin,
+  sanitizeInput, 
+  OrderController.updateMataOrderSourceConnaissance
 );
 
 router.delete('/:id', 

@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Expense = require('../models/Expense');
 const ExcelJS = require('exceljs');
+const OpenAI = require('openai');
 
 class OrderController {
   // Créer une nouvelle commande
@@ -1166,6 +1167,7 @@ class OrderController {
           o.commercial_service_rating,
           u.username as livreur,
           o.interne,
+          o.source_connaissance,
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
@@ -1193,15 +1195,16 @@ class OrderController {
       // Debug: Log what we're getting from the database
       console.log('🔍 Debug - First MATA order from DB:', mataOrders[0]);
 
-      // Calculate statistics
-      const totalOrders = mataOrders.length;
-      const totalAmount = mataOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
-      const uniqueLivreurs = [...new Set(mataOrders.map(order => order.livreur))];
+      // Calculate statistics (excluding internal orders)
+      const externalOrders = mataOrders.filter(order => !order.interne);
+      const totalOrders = externalOrders.length;
+      const totalAmount = externalOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
+      const uniqueLivreurs = [...new Set(externalOrders.map(order => order.livreur))];
       const livreursActifs = uniqueLivreurs.length;
 
-      // Group by point de vente
+      // Group by point de vente (excluding internal orders)
       const ordersByPointVente = {};
-      mataOrders.forEach(order => {
+      externalOrders.forEach(order => {
         const pointVente = order.point_de_vente || 'Non spécifié';
         if (!ordersByPointVente[pointVente]) {
           ordersByPointVente[pointVente] = {
@@ -1604,6 +1607,426 @@ class OrderController {
     }
   }
 
+  // Mettre à jour la source de connaissance d'une commande MATA
+  static async updateMataOrderSourceConnaissance(req, res) {
+    try {
+      const { id } = req.params;
+      const { source_connaissance } = req.body;
+
+      // Validation de la source de connaissance (optionnel, max 100 caractères)
+      if (source_connaissance !== null && source_connaissance !== undefined && typeof source_connaissance !== 'string') {
+        return res.status(400).json({
+          error: 'La source de connaissance doit être une chaîne de caractères'
+        });
+      }
+
+      if (source_connaissance && source_connaissance.length > 100) {
+        return res.status(400).json({
+          error: 'La source de connaissance ne peut pas dépasser 100 caractères'
+        });
+      }
+
+      // Vérifier que la commande existe et est de type MATA
+      const existingOrder = await Order.findById(id);
+      if (!existingOrder) {
+        return res.status(404).json({
+          error: 'Commande non trouvée'
+        });
+      }
+
+      if (existingOrder.order_type !== 'MATA') {
+        return res.status(400).json({
+          error: 'Cette fonction est réservée aux commandes MATA'
+        });
+      }
+
+      // Mettre à jour uniquement la source de connaissance
+      const updatedOrder = await Order.update(id, { source_connaissance: source_connaissance || null });
+
+      res.json({
+        message: 'Source de connaissance mise à jour avec succès',
+        order: updatedOrder
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de la source de connaissance:', error);
+      console.error('Stack:', error.stack);
+      res.status(500).json({
+        error: 'Erreur interne du serveur',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  // Obtenir l'analyse de sentiment IA pour les commandes MATA d'un mois
+  static async getMatasentimentAnalysis(req, res) {
+    try {
+      const month = req.query.month || new Date().toISOString().slice(0, 7); // Format YYYY-MM
+      
+      console.log('🤖 getMatasentimentAnalysis - month:', month, 'user role:', req.user.role);
+
+      // Récupérer toutes les commandes MATA du mois
+      const db = require('../models/database');
+      const query = `
+        SELECT 
+          o.id,
+          o.commentaire,
+          o.service_rating,
+          o.quality_rating,
+          o.price_rating,
+          o.commercial_service_rating,
+          o.point_de_vente,
+          o.source_connaissance,
+          o.amount as montant_commande
+        FROM orders o
+        WHERE o.order_type = 'MATA'
+          AND TO_CHAR(o.created_at, 'YYYY-MM') = $1
+          AND (o.interne = FALSE OR o.interne IS NULL)
+        ORDER BY o.created_at ASC
+      `;
+      
+      const result = await db.query(query, [month]);
+      const orders = result.rows;
+
+      if (orders.length === 0) {
+        return res.json({
+          success: true,
+          month,
+          statistics: {
+            total_orders: 0,
+            orders_with_comments: 0,
+            orders_with_ratings: 0,
+            comment_percentage: 0,
+            rating_percentage: 0
+          },
+          average_ratings: null,
+          ai_analysis: {
+            sentiment_global: 'NEUTRE',
+            sentiment_score: 50,
+            points_forts: [],
+            points_amelioration: [],
+            recommandations: ['Aucune donnée disponible pour ce mois']
+          },
+          by_point_vente: [],
+          by_source_connaissance: []
+        });
+      }
+
+      // Calculer les statistiques
+      const totalOrders = orders.length;
+      const ordersWithComments = orders.filter(o => o.commentaire && o.commentaire.trim()).length;
+      const ordersWithRatings = orders.filter(o => 
+        o.service_rating !== null || o.quality_rating !== null || 
+        o.price_rating !== null || o.commercial_service_rating !== null
+      ).length;
+
+      // Calculer les moyennes des notes
+      const ratings = {
+        service: [],
+        quality: [],
+        price: [],
+        commercial: []
+      };
+
+      orders.forEach(order => {
+        if (order.service_rating !== null) ratings.service.push(parseFloat(order.service_rating));
+        if (order.quality_rating !== null) ratings.quality.push(parseFloat(order.quality_rating));
+        if (order.price_rating !== null) ratings.price.push(parseFloat(order.price_rating));
+        if (order.commercial_service_rating !== null) ratings.commercial.push(parseFloat(order.commercial_service_rating));
+      });
+
+      const avgRatings = {
+        service_rating: ratings.service.length > 0 ? 
+          (ratings.service.reduce((a, b) => a + b, 0) / ratings.service.length).toFixed(1) : null,
+        quality_rating: ratings.quality.length > 0 ? 
+          (ratings.quality.reduce((a, b) => a + b, 0) / ratings.quality.length).toFixed(1) : null,
+        price_rating: ratings.price.length > 0 ? 
+          (ratings.price.reduce((a, b) => a + b, 0) / ratings.price.length).toFixed(1) : null,
+        commercial_service_rating: ratings.commercial.length > 0 ? 
+          (ratings.commercial.reduce((a, b) => a + b, 0) / ratings.commercial.length).toFixed(1) : null,
+        global_average: null
+      };
+
+      // Calculer la moyenne globale
+      const allRatings = [...ratings.service, ...ratings.quality, ...ratings.price, ...ratings.commercial];
+      if (allRatings.length > 0) {
+        avgRatings.global_average = (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1);
+      }
+
+      // Statistiques par point de vente (calculer la moyenne par commande d'abord)
+      const byPointVente = {};
+      orders.forEach(order => {
+        const pv = order.point_de_vente || 'Non spécifié';
+        if (!byPointVente[pv]) {
+          byPointVente[pv] = {
+            count: 0,
+            orderRatings: []
+          };
+        }
+        byPointVente[pv].count++;
+        
+        // Calculer la moyenne pour cette commande seulement si elle a des notes
+        const orderRatings = [];
+        if (order.service_rating) orderRatings.push(parseFloat(order.service_rating));
+        if (order.quality_rating) orderRatings.push(parseFloat(order.quality_rating));
+        if (order.price_rating) orderRatings.push(parseFloat(order.price_rating));
+        if (order.commercial_service_rating) orderRatings.push(parseFloat(order.commercial_service_rating));
+        
+        // Si cette commande a des notes, ajouter la moyenne de la commande
+        if (orderRatings.length > 0) {
+          const orderAvg = orderRatings.reduce((a, b) => a + b, 0) / orderRatings.length;
+          byPointVente[pv].orderRatings.push(orderAvg);
+        }
+      });
+
+      const byPointVenteArray = Object.entries(byPointVente).map(([name, data]) => ({
+        point_vente: name,
+        count: data.count,
+        average_rating: data.orderRatings.length > 0 ? 
+          (data.orderRatings.reduce((a, b) => a + b, 0) / data.orderRatings.length).toFixed(1) : null
+      })).sort((a, b) => b.count - a.count);
+
+      // Statistiques par source de connaissance
+      const bySourceConnaissance = {};
+      orders.forEach(order => {
+        const source = order.source_connaissance || 'Non renseigné';
+        if (!bySourceConnaissance[source]) {
+          bySourceConnaissance[source] = 0;
+        }
+        bySourceConnaissance[source]++;
+      });
+
+      const bySourceConnaissanceArray = Object.entries(bySourceConnaissance).map(([name, count]) => ({
+        source: name,
+        count
+      })).sort((a, b) => b.count - a.count);
+
+      // Analyse IA avec OpenAI
+      let aiAnalysis = {
+        sentiment_global: 'NEUTRE',
+        sentiment_score: 50,
+        points_forts: [],
+        points_amelioration: [],
+        recommandations: []
+      };
+
+      // Appeler OpenAI seulement si on a des commentaires ou des notes
+      if (ordersWithComments > 0 || ordersWithRatings > 0) {
+        try {
+          // Vérifier que la clé API est disponible
+          if (!process.env.OPENAI_API_KEY) {
+            console.warn('⚠️ OPENAI_API_KEY non configurée, utilisation de l\'analyse basique');
+            aiAnalysis = OrderController._generateBasicAnalysis(orders, avgRatings);
+          } else {
+            const openai = new OpenAI({
+              apiKey: process.env.OPENAI_API_KEY
+            });
+
+            // Préparer les données pour l'IA
+            const comments = orders
+              .filter(o => o.commentaire && o.commentaire.trim())
+              .map(o => o.commentaire.trim())
+              .slice(0, 50); // Limiter à 50 commentaires max pour réduire les coûts
+
+            const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+            const maxTokens = parseInt(process.env.OPENAI_MAX_TOKENS) || 1500;
+            const temperature = parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7; // Plus créatif
+
+            const prompt = `Tu es un analyste expert en satisfaction client pour un service de livraison de viande (MATA). Analyse les retours clients suivants (mois: ${month}):
+
+STATISTIQUES:
+- ${totalOrders} commandes au total
+- ${ordersWithComments} commentaires (${((ordersWithComments/totalOrders)*100).toFixed(1)}%)
+- Notes moyennes: 
+  ${avgRatings.service_rating ? `Service livraison: ${avgRatings.service_rating}/10` : ''}
+  ${avgRatings.quality_rating ? `Qualité produits: ${avgRatings.quality_rating}/10` : ''}
+  ${avgRatings.price_rating ? `Niveau prix: ${avgRatings.price_rating}/10` : ''}
+  ${avgRatings.commercial_service_rating ? `Service commercial: ${avgRatings.commercial_service_rating}/10` : ''}
+
+ABRÉVIATIONS COURANTES À COMPRENDRE:
+- "Nrp" ou "NRP" = Ne répond pas au téléphone / On n'arrive pas à le/la joindre (problème de joignabilité)
+- "RAS" = Rien à signaler
+- "Impec" = Impeccable
+- "Nickel" = Parfait
+- "Pb" = Problème
+- "Tjs" = Toujours
+- "Bcp" = Beaucoup
+
+${comments.length > 0 ? `COMMENTAIRES CLIENTS:\n${comments.map((c, i) => `${i+1}. "${c}"`).join('\n')}` : 'Aucun commentaire disponible.'}
+
+INSTRUCTIONS IMPORTANTES:
+1. Analyse chaque commentaire en détail avec un œil d'expert
+2. Identifie EXACTEMENT les problèmes mentionnés (exemples: os dans la viande, problème de nettoyage de la viande (mal nettoyée, avec résidus), prix élevé, retard de livraison, viande pas fraîche, quantité insuffisante, client/livreur injoignable au téléphone (Nrp), etc.)
+3. Sois SPÉCIFIQUE et CONCRET - cite des exemples réels des commentaires
+4. ÉVITE les phrases génériques et stéréotypées - sois inventif et contextuel
+5. Adapte ton analyse au contexte spécifique de ce mois
+6. Si un problème revient souvent, explique son IMPACT potentiel sur le business
+7. Propose des recommandations INNOVANTES et ACTIONNABLES, pas juste "améliorer la qualité"
+8. Utilise un ton d'analyste consultant qui comprend le business de la livraison de viande
+
+Fournis une analyse structurée en français au format JSON strict (sans markdown):
+{
+  "sentiment_global": "POSITIF|NEUTRE|NEGATIF",
+  "sentiment_score": <nombre entre 0 et 100>,
+  "sentiment_description": "<3-5 phrases PERSONNALISÉES et CONTEXTUELLES. Raconte l'histoire de ce mois : le sentiment global, les problèmes SPÉCIFIQUES avec des détails (os, nettoyage, prix, Nrp, etc.), et l'impact potentiel. Cite des faits précis des commentaires. ÉVITE les formulations génériques.>",
+  "points_forts": [<3-5 points SPÉCIFIQUES tirés des vrais commentaires. Explique POURQUOI c'est un point fort et quel impact positif ça a. Exemple: "Rapidité de livraison saluée par X clients, avec des délais respectés même aux heures de pointe, renforçant la confiance client">],
+  "points_amelioration": [<3-5 points ULTRA-SPÉCIFIQUES avec le problème EXACT, le nombre de clients concernés, et l'impact business potentiel. Exemple: "Os présents dans 3-4 commandes ce mois (2% des commandes) - risque de perte de clients fidèles si non corrigé" au lieu de "qualité à améliorer">],
+  "recommandations": [<3-4 recommandations INNOVANTES et ACTIONNABLES avec des actions CONCRÈTES. Évite "améliorer", "renforcer". Préfère "Mettre en place un double contrôle qualité avant emballage", "Former l'équipe au nettoyage minutieux avec checklist visuelle", "Créer un système d'alerte SMS 30min avant livraison pour éviter les Nrp">]
+}
+
+❌ ÉVITE LES PHRASES STÉRÉOTYPÉES comme:
+- "Améliorer la qualité globale"
+- "Renforcer la communication"  
+- "Travailler sur les points d'amélioration"
+
+✅ PRÉFÈRE LES ANALYSES INVENTIVES comme:
+- "Corrélation observée entre les commandes du vendredi et les plaintes sur le nettoyage - possiblement lié à la charge de travail en fin de semaine"
+- "Le taux de Nrp de 15% impacte directement la note du service commercial - investir dans un système de rappel automatique pourrait réduire ce taux de moitié"
+
+Réponds UNIQUEMENT en JSON valide, sans markdown.`;
+
+            console.log(`🤖 Appel OpenAI - modèle: ${model}, tokens max: ${maxTokens}`);
+
+            const completion = await openai.chat.completions.create({
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content: "Tu es un analyste de données spécialisé dans l'analyse de satisfaction client pour services de livraison. Fournis des analyses précises, constructives et actionnables en français. Réponds UNIQUEMENT en JSON valide, sans markdown ni formatting."
+                },
+                {
+                  role: "user",
+                  content: prompt
+                }
+              ],
+              max_tokens: maxTokens,
+              temperature,
+              response_format: { type: "json_object" }
+            });
+
+            const aiResponse = completion.choices[0].message.content.trim();
+            console.log('🤖 Réponse OpenAI reçue:', aiResponse.substring(0, 200) + '...');
+            
+            // Parser la réponse JSON
+            const parsedResponse = JSON.parse(aiResponse);
+            aiAnalysis = {
+              sentiment_global: parsedResponse.sentiment_global || 'NEUTRE',
+              sentiment_score: parsedResponse.sentiment_score || 50,
+              sentiment_description: parsedResponse.sentiment_description || 'Analyse en cours...',
+              points_forts: parsedResponse.points_forts || [],
+              points_amelioration: parsedResponse.points_amelioration || [],
+              recommandations: parsedResponse.recommandations || []
+            };
+          }
+        } catch (error) {
+          console.error('❌ Erreur lors de l\'analyse IA:', error.message);
+          // Fallback vers analyse basique
+          aiAnalysis = OrderController._generateBasicAnalysis(orders, avgRatings);
+        }
+      } else {
+        // Pas de données à analyser
+        aiAnalysis.recommandations = ['Encourager les clients à laisser des commentaires et des notes pour améliorer le service'];
+      }
+
+      res.json({
+        success: true,
+        month,
+        statistics: {
+          total_orders: totalOrders,
+          orders_with_comments: ordersWithComments,
+          orders_with_ratings: ordersWithRatings,
+          comment_percentage: ((ordersWithComments / totalOrders) * 100).toFixed(1),
+          rating_percentage: ((ordersWithRatings / totalOrders) * 100).toFixed(1)
+        },
+        average_ratings: avgRatings,
+        ai_analysis: aiAnalysis,
+        by_point_vente: byPointVenteArray,
+        by_source_connaissance: bySourceConnaissanceArray
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de l\'analyse de sentiment MATA:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur interne du serveur',
+        message: error.message
+      });
+    }
+  }
+
+  // Méthode helper pour générer une analyse basique sans IA
+  static _generateBasicAnalysis(orders, avgRatings) {
+    const globalAvg = parseFloat(avgRatings.global_average) || 5;
+    
+    let sentiment = 'NEUTRE';
+    let score = 50;
+    
+    if (globalAvg >= 8) {
+      sentiment = 'POSITIF';
+      score = Math.min(95, 50 + (globalAvg - 5) * 10);
+    } else if (globalAvg < 6) {
+      sentiment = 'NEGATIF';
+      score = Math.max(20, 50 - (6 - globalAvg) * 10);
+    } else {
+      score = 50 + (globalAvg - 5) * 5;
+    }
+
+    const pointsForts = [];
+    const pointsAmelioration = [];
+    
+    if (avgRatings.service_rating && parseFloat(avgRatings.service_rating) >= 8) {
+      pointsForts.push(`Service de livraison très apprécié (${avgRatings.service_rating}/10)`);
+    }
+    if (avgRatings.quality_rating && parseFloat(avgRatings.quality_rating) >= 8) {
+      pointsForts.push(`Excellente qualité des produits (${avgRatings.quality_rating}/10)`);
+    }
+    if (avgRatings.commercial_service_rating && parseFloat(avgRatings.commercial_service_rating) >= 8) {
+      pointsForts.push(`Service commercial de qualité (${avgRatings.commercial_service_rating}/10)`);
+    }
+
+    if (avgRatings.price_rating && parseFloat(avgRatings.price_rating) < 7) {
+      pointsAmelioration.push(`Améliorer la perception du rapport qualité-prix (${avgRatings.price_rating}/10)`);
+    }
+    if (avgRatings.service_rating && parseFloat(avgRatings.service_rating) < 7) {
+      pointsAmelioration.push(`Renforcer la qualité du service de livraison (${avgRatings.service_rating}/10)`);
+    }
+
+    if (pointsForts.length === 0) {
+      pointsForts.push('Maintenir la qualité actuelle du service');
+    }
+    if (pointsAmelioration.length === 0) {
+      pointsAmelioration.push('Continuer à améliorer tous les aspects du service');
+    }
+
+    // Générer une description basée sur les notes
+    let description = '';
+    if (sentiment === 'POSITIF') {
+      description = `Les clients sont globalement satisfaits avec une note moyenne de ${globalAvg}/10. La majorité des retours sont positifs et reflètent une bonne qualité de service.`;
+    } else if (sentiment === 'NEGATIF') {
+      description = `Attention : Les clients expriment leur insatisfaction avec une note moyenne de ${globalAvg}/10. Des clients mécontents ont été identifiés et nécessitent une attention immédiate pour améliorer leur expérience.`;
+    } else {
+      description = `Les retours clients sont mitigés avec une note moyenne de ${globalAvg}/10. Le service satisfait certains clients mais présente des marges d'amélioration pour d'autres.`;
+    }
+    
+    // Ajouter mention des notes basses si nécessaire
+    if (globalAvg < 6.5) {
+      description += ` Des notes particulièrement basses ont été détectées, indiquant des clients insatisfaits.`;
+    }
+
+    return {
+      sentiment_global: sentiment,
+      sentiment_score: Math.round(score),
+      sentiment_description: description,
+      points_forts: pointsForts,
+      points_amelioration: pointsAmelioration,
+      recommandations: [
+        'Maintenir les points forts identifiés',
+        'Travailler sur les points d\'amélioration',
+        'Encourager les retours clients pour mieux comprendre leurs besoins'
+      ]
+    };
+  }
+
   // Exporter le tableau de bord MATA mensuel en Excel
   static async exportMataMonthlyToExcel(req, res) {
     try {
@@ -1628,6 +2051,7 @@ class OrderController {
           o.commercial_service_rating,
           u.username as livreur,
           o.interne,
+          o.source_connaissance,
           o.created_at
         FROM orders o
         JOIN users u ON o.created_by = u.id
@@ -1657,7 +2081,7 @@ class OrderController {
       const worksheet = workbook.addWorksheet('Commandes MATA Mensuel');
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:N1');
+      worksheet.mergeCells('A1:P1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -1676,19 +2100,20 @@ class OrderController {
       const mataHeaders = [
         'Date',
         'Numéro de téléphone', 
-        'Nom',
-        'Adresse source',
-        'Adresse destination',
+        'Nom du client',
+        'Adresse de départ',
+        'Adresse de destination',
         'Point de vente',
         'Montant commande (FCFA)',
-        'Livreur',
-        'Interne',
-        'Commentaire',
-        'Service livraison',
-        'Qualité produits', 
-        'Niveau prix',
-        'Service Commercial',
-        'Note moyenne'
+        'Livreur assigné',
+        'Commande interne',
+        'Comment nous avez-vous connu ?',
+        'Commentaire client',
+        'Note Service de livraison',
+        'Note Qualité des produits', 
+        'Note Niveau de prix',
+        'Note Service Commercial',
+        'Note globale moyenne'
       ];
       
       const headerRow = worksheet.addRow(mataHeaders);
@@ -1712,6 +2137,7 @@ class OrderController {
         { width: 20 },  // Montant commande (FCFA)
         { width: 15 },  // Livreur
         { width: 10 },  // Interne
+        { width: 25 },  // Source connaissance
         { width: 50 },  // Commentaire
         { width: 15 },  // Service livraison
         { width: 15 },  // Qualité produits
@@ -1752,6 +2178,7 @@ class OrderController {
           order.montant_commande || 0,
           order.livreur,
           order.interne ? 'Oui' : 'Non',
+          order.source_connaissance || 'Non renseigné',
           order.commentaire || '',
           serviceRating !== null ? serviceRating + '/10' : 'NA',
           qualityRating !== null ? qualityRating + '/10' : 'NA',

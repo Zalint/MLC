@@ -536,7 +536,7 @@ class Order {
 
   // Mettre à jour une commande
   static async update(id, updates) {
-    const allowedFields = ['client_name', 'phone_number', 'adresse_source', 'adresse_destination', 'point_de_vente', 'address', 'description', 'amount', 'course_price', 'order_type', 'commentaire', 'service_rating', 'quality_rating', 'price_rating', 'commercial_service_rating', 'average_rating'];
+    const allowedFields = ['client_name', 'phone_number', 'adresse_source', 'adresse_destination', 'point_de_vente', 'address', 'description', 'amount', 'course_price', 'order_type', 'commentaire', 'service_rating', 'quality_rating', 'price_rating', 'commercial_service_rating', 'average_rating', 'source_connaissance'];
     const setClause = [];
     const values = [];
     let paramIndex = 1;

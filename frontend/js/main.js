@@ -2583,6 +2583,8 @@ class MataMonthlyDashboardManager {
     const selectedPointVente = pointVenteFilter.value;
     const livreurFilter = document.getElementById('mata-livreur-filter');
     const selectedLivreur = livreurFilter.value;
+    const interneFilter = document.getElementById('mata-interne-filter');
+    const selectedInterne = interneFilter ? interneFilter.value : '';
     const dateFilter = document.getElementById('mata-date-range-filter');
     const selectedDate = dateFilter.value;
     const phoneFilter = document.getElementById('mata-phone-filter');
@@ -2603,6 +2605,13 @@ class MataMonthlyDashboardManager {
       filteredOrders = filteredOrders.filter(order => 
         order.livreur === selectedLivreur
       );
+    }
+    
+    // Filtrer par commande interne
+    if (selectedInterne === 'oui') {
+      filteredOrders = filteredOrders.filter(order => order.interne === true);
+    } else if (selectedInterne === 'non') {
+      filteredOrders = filteredOrders.filter(order => !order.interne);
     }
     
     // Filtrer par date
@@ -2633,11 +2642,12 @@ class MataMonthlyDashboardManager {
       );
     }
     
-    // Calculer les statistiques filtrées
+    // Calculer les statistiques filtrées (en excluant les commandes internes)
+    const externalFilteredOrders = filteredOrders.filter(order => !order.interne);
     const filteredStats = {
-      total_commandes: filteredOrders.length,
-      total_montant: filteredOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0),
-      livreurs_actifs: [...new Set(filteredOrders.map(order => order.livreur))].length
+      total_commandes: externalFilteredOrders.length,
+      total_montant: externalFilteredOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0),
+      livreurs_actifs: [...new Set(externalFilteredOrders.map(order => order.livreur))].length
     };
     
     // Mettre à jour l'affichage
@@ -2705,19 +2715,20 @@ class MataMonthlyDashboardManager {
             <tr>
               <th>Date</th>
               <th>Numéro de téléphone</th>
-              <th>Nom</th>
-              <th>Adresse source</th>
-              <th>Adresse destination</th>
+              <th>Nom du client</th>
+              <th>Adresse de départ</th>
+              <th>Adresse de destination</th>
               <th>Point de vente</th>
               <th>Montant commande (FCFA)</th>
-              <th>Livreur</th>
-              <th>Interne</th>
-              <th>Commentaire</th>
-              <th>Service livraison</th>
-              <th>Qualité produits</th>
-              <th>Niveau prix</th>
-              <th>Service Commercial</th>
-              <th>Note moyenne</th>
+              <th>Livreur assigné</th>
+              <th>Commande interne</th>
+              <th>Comment nous avez-vous connu ?</th>
+              <th>Commentaire client</th>
+              <th>Note Service de livraison</th>
+              <th>Note Qualité des produits</th>
+              <th>Note Niveau de prix</th>
+              <th>Note Service Commercial</th>
+              <th>Note globale moyenne</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -2756,7 +2767,7 @@ class MataMonthlyDashboardManager {
               }
               
               return `
-              <tr data-order-id="${order.id}">
+              <tr data-order-id="${order.id}" class="${order.interne ? 'internal-order' : ''}">
                 <td>${new Date(order.date).toLocaleDateString('fr-FR')}</td>
                 <td>${Utils.escapeHtml(order.phone_number)}</td>
                 <td>${Utils.escapeHtml(order.client_name)}</td>
@@ -2771,6 +2782,28 @@ class MataMonthlyDashboardManager {
                   </span>
                 </td>
                 <td>
+                  <div class="source-connaissance-cell">
+                    <span class="source-display" ${!order.source_connaissance ? 'style="color: #999; font-style: italic;"' : ''}>
+                      ${order.source_connaissance ? Utils.escapeHtml(order.source_connaissance) : 'Non renseigné'}
+                    </span>
+                    <select class="source-edit hidden" data-order-id="${order.id}">
+                      <option value="">-- Sélectionner --</option>
+                      <option value="Bouche-à-oreille" ${order.source_connaissance === 'Bouche-à-oreille' ? 'selected' : ''}>Bouche-à-oreille</option>
+                      <option value="Réseaux sociaux (Facebook)" ${order.source_connaissance === 'Réseaux sociaux (Facebook)' ? 'selected' : ''}>Réseaux sociaux (Facebook)</option>
+                      <option value="Réseaux sociaux (Instagram)" ${order.source_connaissance === 'Réseaux sociaux (Instagram)' ? 'selected' : ''}>Réseaux sociaux (Instagram)</option>
+                      <option value="Réseaux sociaux (TikTok)" ${order.source_connaissance === 'Réseaux sociaux (TikTok)' ? 'selected' : ''}>Réseaux sociaux (TikTok)</option>
+                      <option value="Réseaux sociaux (WhatsApp)" ${order.source_connaissance === 'Réseaux sociaux (WhatsApp)' ? 'selected' : ''}>Réseaux sociaux (WhatsApp)</option>
+                      <option value="Publicité en ligne" ${order.source_connaissance === 'Publicité en ligne' ? 'selected' : ''}>Publicité en ligne</option>
+                      <option value="Publicité physique" ${order.source_connaissance === 'Publicité physique' ? 'selected' : ''}>Publicité physique</option>
+                      <option value="Site web" ${order.source_connaissance === 'Site web' ? 'selected' : ''}>Site web</option>
+                      <option value="Client régulier" ${order.source_connaissance === 'Client régulier' ? 'selected' : ''}>Client régulier</option>
+                      <option value="Recommandation" ${order.source_connaissance === 'Recommandation' ? 'selected' : ''}>Recommandation</option>
+                      <option value="Autre" ${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation'].includes(order.source_connaissance) ? 'selected' : ''}>Autre</option>
+                    </select>
+                    <input type="text" class="source-autre-input hidden" placeholder="Préciser..." value="${order.source_connaissance && !['Bouche-à-oreille', 'Réseaux sociaux (Facebook)', 'Réseaux sociaux (Instagram)', 'Réseaux sociaux (TikTok)', 'Réseaux sociaux (WhatsApp)', 'Publicité en ligne', 'Publicité physique', 'Site web', 'Client régulier', 'Recommandation'].includes(order.source_connaissance) ? order.source_connaissance : ''}" />
+                  </div>
+                </td>
+                <td>
                   <div class="comment-cell">
                     <span class="comment-display" ${!order.commentaire ? 'style="color: #999; font-style: italic;"' : ''}>
                       ${order.commentaire ? Utils.escapeHtml(order.commentaire) : 'Aucun commentaire'}
@@ -2783,7 +2816,7 @@ class MataMonthlyDashboardManager {
                     <span class="rating-value" ${serviceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
                       ${serviceRating !== null ? serviceRating + '/10' : 'NA'}
                     </span>
-                    <button class="btn-edit-rating" data-type="service" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                    ${!order.interne ? `<button class="btn-edit-rating" data-type="service" data-order-id="${order.id}" title="Modifier la note">✏️</button>` : ''}
                   </div>
                   <div class="rating-edit-group hidden">
                     <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${serviceRating || ''}" data-type="service">
@@ -2798,7 +2831,7 @@ class MataMonthlyDashboardManager {
                     <span class="rating-value" ${qualityRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
                       ${qualityRating !== null ? qualityRating + '/10' : 'NA'}
                     </span>
-                    <button class="btn-edit-rating" data-type="quality" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                    ${!order.interne ? `<button class="btn-edit-rating" data-type="quality" data-order-id="${order.id}" title="Modifier la note">✏️</button>` : ''}
                   </div>
                   <div class="rating-edit-group hidden">
                     <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${qualityRating || ''}" data-type="quality">
@@ -2813,7 +2846,7 @@ class MataMonthlyDashboardManager {
                     <span class="rating-value" ${priceRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
                       ${priceRating !== null ? priceRating + '/10' : 'NA'}
                     </span>
-                    <button class="btn-edit-rating" data-type="price" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                    ${!order.interne ? `<button class="btn-edit-rating" data-type="price" data-order-id="${order.id}" title="Modifier la note">✏️</button>` : ''}
                   </div>
                   <div class="rating-edit-group hidden">
                     <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${priceRating || ''}" data-type="price">
@@ -2828,7 +2861,7 @@ class MataMonthlyDashboardManager {
                     <span class="rating-value" ${commercialRating === null ? 'style="color: #999; font-style: italic;"' : ''}>
                       ${commercialRating !== null ? commercialRating + '/10' : 'NA'}
                     </span>
-                    <button class="btn-edit-rating" data-type="commercial" data-order-id="${order.id}" title="Modifier la note">✏️</button>
+                    ${!order.interne ? `<button class="btn-edit-rating" data-type="commercial" data-order-id="${order.id}" title="Modifier la note">✏️</button>` : ''}
                   </div>
                   <div class="rating-edit-group hidden">
                     <input type="number" class="rating-edit" min="0" max="10" step="0.1" value="${commercialRating || ''}" data-type="commercial">
@@ -2843,20 +2876,24 @@ class MataMonthlyDashboardManager {
                     ${averageRating}${averageRating !== 'NA' ? '/10' : ''}
                   </span>
                 </td>
-                <td>
+                <td class="mata-actions">
                   <div class="action-buttons">
-                  <button class="btn btn-sm btn-secondary edit-comment-btn" data-order-id="${order.id}">
-                    <span class="icon">✏️</span>
-                    Modifier
-                  </button>
-                  <button class="btn btn-sm btn-success save-comment-btn hidden" data-order-id="${order.id}">
-                    <span class="icon">💾</span>
-                    Sauver
-                  </button>
-                  <button class="btn btn-sm btn-secondary cancel-comment-btn hidden" data-order-id="${order.id}">
-                    <span class="icon">❌</span>
-                    Annuler
-                  </button>
+                  ${order.interne ? `
+                    <span class="internal-notice" style="color: #999; font-style: italic; font-size: 0.85rem;">Commande interne</span>
+                  ` : `
+                    <button class="btn btn-sm btn-primary btn-edit-order" data-order-id="${order.id}">
+                      <span class="icon">✏️</span>
+                      Modifier
+                    </button>
+                    <button class="btn btn-sm btn-success btn-save-order hidden" data-order-id="${order.id}">
+                      <span class="icon">💾</span>
+                      Sauvegarder
+                    </button>
+                    <button class="btn btn-sm btn-secondary btn-cancel-order hidden" data-order-id="${order.id}">
+                      <span class="icon">❌</span>
+                      Annuler
+                    </button>
+                  `}
                   </div>
                 </td>
               </tr>
@@ -3325,6 +3362,14 @@ class MataMonthlyDashboardManager {
       });
     }
 
+    // Gestionnaire pour le filtre par commande interne
+    const interneFilter = document.getElementById('mata-interne-filter');
+    if (interneFilter) {
+      interneFilter.addEventListener('change', () => {
+        this.applyFilters();
+      });
+    }
+
     // Gestionnaire pour le bouton d'actualisation
     const refreshBtn = document.getElementById('refresh-mata-monthly-dashboard');
     if (refreshBtn) {
@@ -3378,11 +3423,13 @@ class MataMonthlyDashboardManager {
         // Réinitialiser tous les filtres
         const pointVenteFilter = document.getElementById('mata-point-vente-filter');
         const livreurFilter = document.getElementById('mata-livreur-filter');
+        const interneFilter = document.getElementById('mata-interne-filter');
         const dateFilter = document.getElementById('mata-date-range-filter');
         const phoneFilter = document.getElementById('mata-phone-filter');
         
         if (pointVenteFilter) pointVenteFilter.value = '';
         if (livreurFilter) livreurFilter.value = '';
+        if (interneFilter) interneFilter.value = '';
         if (dateFilter) dateFilter.value = '';
         if (phoneFilter) phoneFilter.value = '';
         
