@@ -7,45 +7,98 @@ class ClientHistoryManager {
 
   // Initialiser les événements
   static init() {
-    console.log('📋 Initialisation du gestionnaire d'historique client');
+    console.log('📋 ==========================================');
+    console.log('📋 INITIALISATION CLIENT HISTORY MANAGER');
+    console.log('📋 ==========================================');
     
-    // Event delegation pour les boutons "Détails" (car ils sont créés dynamiquement)
+    // Vérifier que la page est bien chargée
+    console.log('📋 Document ready state:', document.readyState);
+    console.log('📋 API_BASE_URL:', window.API_BASE_URL);
+    
+    // Délégation d'événements pour les boutons dynamiques
     document.addEventListener('click', (e) => {
+      // Log seulement pour les clics sur les boutons pertinents
+      const target = e.target;
+      const closest = target.closest('.btn-client-history');
+      
+      if (closest) {
+        console.log('📋 ==========================================');
+        console.log('📋 CLICK DÉTECTÉ SUR BOUTON DÉTAILS!');
+        console.log('📋 Target:', target);
+        console.log('📋 Closest button:', closest);
+        console.log('📋 ==========================================');
+      }
+      
+      // Bouton Détails client
       if (e.target.closest('.btn-client-history')) {
+        console.log('📋 ✅ ✅ ✅ BOUTON DÉTAILS CLIENT DÉTECTÉ!');
+        e.preventDefault();
+        e.stopPropagation();
+        
         const btn = e.target.closest('.btn-client-history');
         const phone = btn.dataset.phone;
         const clientName = btn.dataset.clientName;
+        
+        console.log('📋 Données récupérées:', {
+          phone: phone,
+          clientName: clientName,
+          btn: btn
+        });
+        
+        if (!phone) {
+          console.error('📋 ❌ ERREUR: Pas de numéro de téléphone!');
+          alert('Erreur: Numéro de téléphone manquant');
+          return;
+        }
+        
+        console.log('📋 🚀 Appel de showClientHistory...');
         this.showClientHistory(phone, clientName);
       }
 
       // Fermer le modal
       if (e.target.id === 'close-history-modal' || e.target.id === 'history-modal-overlay') {
+        console.log('📋 Fermeture du modal');
         this.closeHistoryModal();
       }
 
       // Appliquer les filtres de date
       if (e.target.id === 'apply-history-filters') {
+        console.log('📋 Application des filtres');
         this.applyDateFilters();
       }
 
       // Réinitialiser les filtres
       if (e.target.id === 'reset-history-filters') {
+        console.log('📋 Réinitialisation des filtres');
         this.resetDateFilters();
       }
     });
+    
+    console.log('📋 ✅ Event listeners installés');
   }
 
   // Afficher l'historique d'un client
   static async showClientHistory(phone, clientName) {
+    console.log('📋 ==========================================');
+    console.log('📋 showClientHistory APPELÉ');
+    console.log('📋 Phone:', phone);
+    console.log('📋 Client Name:', clientName);
+    console.log('📋 ==========================================');
+    
     this.currentPhone = phone;
     this.currentClientName = clientName;
 
     try {
+      console.log('📋 Étape 1: Affichage du modal de chargement...');
       // Afficher un modal de chargement
       this.showLoadingModal(clientName);
+      console.log('📋 ✅ Modal de chargement affiché');
 
       // Récupérer l'historique du backend
       const url = `${window.API_BASE_URL}/orders/client-history?phone_number=${encodeURIComponent(phone)}`;
+      console.log('📋 Étape 2: Appel API...');
+      console.log('📋 URL:', url);
+      console.log('📋 Token:', localStorage.getItem('token') ? 'Présent' : 'MANQUANT');
       
       const response = await fetch(url, {
         method: 'GET',
@@ -55,24 +108,35 @@ class ClientHistoryManager {
         }
       });
 
+      console.log('📋 Étape 3: Réponse reçue');
+      console.log('📋 Response status:', response.status);
+      console.log('📋 Response OK:', response.ok);
+
       if (!response.ok) {
-        throw new Error('Erreur lors du chargement de l\'historique');
+        const errorText = await response.text();
+        console.error('📋 ❌ Erreur réponse:', errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('📋 Historique reçu:', data);
+      console.log('📋 Étape 4: Données reçues');
+      console.log('📋 Data:', data);
+      console.log('📋 Nombre de commandes:', data.orders?.length || 0);
 
       // Afficher le modal avec les données
+      console.log('📋 Étape 5: Affichage du modal avec données...');
       this.displayHistoryModal(data);
+      console.log('📋 ✅ Modal affiché avec succès');
 
     } catch (error) {
-      console.error('❌ Erreur lors du chargement de l\'historique:', error);
+      console.error('📋 ❌❌❌ ERREUR DANS showClientHistory:', error);
+      console.error('📋 Error stack:', error.stack);
       this.closeHistoryModal();
       
       if (typeof ToastManager !== 'undefined') {
-        ToastManager.error('Erreur lors du chargement de l\'historique');
+        ToastManager.error('Erreur lors du chargement de l\'historique: ' + error.message);
       } else {
-        alert('Erreur lors du chargement de l\'historique');
+        alert('Erreur lors du chargement de l\'historique: ' + error.message);
       }
     }
   }

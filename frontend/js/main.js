@@ -2778,8 +2778,8 @@ class MataMonthlyDashboardManager {
                 <td>${Utils.formatAmount(order.montant_commande || 0)}</td>
                 <td>${Utils.escapeHtml(order.livreur)}</td>
                 <td>
-                  <span class="client-type-badge ${order.is_new_client ? 'new-client' : 'recurring-client'}" title="${order.is_new_client ? 'Premier commande' : `${order.previous_orders_count} commande(s) précédente(s)`}">
-                    ${order.is_new_client ? '🆕 Nouveau' : `🔄 Récurrent (${order.previous_orders_count})`}
+                  <span class="client-type-badge ${order.is_new_client ? 'new-client' : 'recurring-client'}" title="${order.is_new_client ? 'Première commande' : `${order.orders_this_month_count} commande(s) ce mois, ${order.total_orders_count} commande(s) au total`}">
+                    ${order.is_new_client ? '🆕 Nouveau' : `🔄 Récurrent (${order.orders_this_month_count}/${order.total_orders_count})`}
                   </span>
                 </td>
                 <td>

@@ -403,10 +403,14 @@
                 <div class="mata-orders-section">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Détail des commandes MATA</h3>
-                        <div class="mata-actions-buttons" style="display: flex; gap: 0.5rem;">
+                        <div class="mata-actions-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <button id="mata-sentiment-analysis-btn" class="btn btn-secondary btn-sm">
                                 <span class="icon">🔍</span>
                                 Analyse de Satisfaction Client IA
+                            </button>
+                            <button id="btn-mata-deep-analysis" class="btn btn-info btn-sm">
+                                <span class="icon">🔬</span>
+                                Analyse Approfondie
                             </button>
                             <button id="export-mata-monthly-excel-table" class="btn btn-primary btn-sm">
                                 <span class="icon">📊</span>
@@ -1503,6 +1507,7 @@
     <script src="js/gps-tracking-manager.js"></script>
     <script src="js/mata-sentiment.js"></script>
     <script src="js/client-history.js"></script>
+    <script src="js/deep-analysis.js"></script>
     <script src="js/gps-analytics.js"></script>
     <script src="js/mlc-table.js"></script>
 </body>

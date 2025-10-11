@@ -52,6 +52,10 @@ router.get('/mata-monthly-export', requireManagerOrAdmin, OrderController.export
 // Route pour l'analyse de sentiment IA des commandes MATA (managers et admins seulement)
 router.get('/mata-sentiment-analysis', requireManagerOrAdmin, OrderController.getMatasentimentAnalysis);
 
+// Route pour l'analyse approfondie avec IA (managers et admins seulement)
+const DeepAnalysisController = require('../controllers/deepAnalysisController');
+router.post('/mata-deep-analysis', requireManagerOrAdmin, DeepAnalysisController.performDeepAnalysis);
+
 // Route pour l'historique des commandes d'un client (par numéro de téléphone)
 router.get('/client-history', requireManagerOrAdmin, OrderController.getClientOrderHistory);
 

@@ -1196,21 +1196,47 @@ class OrderController {
       console.log('🔍 Debug - First MATA order from DB:', mataOrders[0]);
 
       // Enrichir chaque commande avec les informations client (nouveau/récurrent)
+      const clientStats = {}; // Cache pour éviter les requêtes multiples par client
+      
       for (let order of mataOrders) {
         if (order.phone_number) {
-          // Compter les commandes PRÉCÉDENTES pour ce numéro de téléphone
-          const previousOrdersQuery = `
-            SELECT COUNT(*) as count
-            FROM orders
-            WHERE phone_number = $1
-              AND order_type = 'MATA'
-              AND created_at < $2
-          `;
-          const previousResult = await db.query(previousOrdersQuery, [order.phone_number, order.created_at]);
-          order.previous_orders_count = parseInt(previousResult.rows[0].count);
-          order.is_new_client = order.previous_orders_count === 0;
+          // Utiliser le cache si déjà calculé pour ce numéro
+          if (!clientStats[order.phone_number]) {
+            // Compter le TOTAL de commandes pour ce numéro (tous les mois)
+            const totalOrdersQuery = `
+              SELECT COUNT(*) as count
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+            `;
+            const totalResult = await db.query(totalOrdersQuery, [order.phone_number]);
+            const totalOrders = parseInt(totalResult.rows[0].count);
+            
+            // Compter les commandes de ce client DANS LE MOIS ACTUEL
+            const thisMonthOrdersQuery = `
+              SELECT COUNT(*) as count
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+                AND TO_CHAR(created_at, 'YYYY-MM') = $2
+            `;
+            const thisMonthResult = await db.query(thisMonthOrdersQuery, [order.phone_number, month]);
+            const thisMonthOrders = parseInt(thisMonthResult.rows[0].count);
+            
+            clientStats[order.phone_number] = {
+              total_orders: totalOrders,
+              this_month_orders: thisMonthOrders,
+              is_new: totalOrders === 1 && thisMonthOrders === 1 // Nouveau si c'est sa première commande
+            };
+          }
+          
+          const stats = clientStats[order.phone_number];
+          order.total_orders_count = stats.total_orders;
+          order.orders_this_month_count = stats.this_month_orders;
+          order.is_new_client = stats.is_new;
         } else {
-          order.previous_orders_count = 0;
+          order.total_orders_count = 0;
+          order.orders_this_month_count = 0;
           order.is_new_client = true;
         }
       }
@@ -2186,12 +2212,58 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       const result = await db.query(query, queryParams);
       const mataOrders = result.rows;
 
+      // Enrichir chaque commande avec les informations client (même logique que getMataMonthlyDashboard)
+      const clientStats = {}; // Cache pour éviter les requêtes multiples par client
+      
+      for (let order of mataOrders) {
+        if (order.phone_number) {
+          // Utiliser le cache si déjà calculé pour ce numéro
+          if (!clientStats[order.phone_number]) {
+            // Compter le TOTAL de commandes pour ce numéro (tous les mois)
+            const totalOrdersQuery = `
+              SELECT COUNT(*) as count
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+            `;
+            const totalResult = await db.query(totalOrdersQuery, [order.phone_number]);
+            const totalOrders = parseInt(totalResult.rows[0].count);
+            
+            // Compter les commandes de ce client DANS LE MOIS ACTUEL
+            const thisMonthOrdersQuery = `
+              SELECT COUNT(*) as count
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+                AND TO_CHAR(created_at, 'YYYY-MM') = $2
+            `;
+            const thisMonthResult = await db.query(thisMonthOrdersQuery, [order.phone_number, month]);
+            const thisMonthOrders = parseInt(thisMonthResult.rows[0].count);
+            
+            clientStats[order.phone_number] = {
+              total_orders: totalOrders,
+              this_month_orders: thisMonthOrders,
+              is_new: totalOrders === 1 && thisMonthOrders === 1
+            };
+          }
+          
+          const stats = clientStats[order.phone_number];
+          order.total_orders_count = stats.total_orders;
+          order.orders_this_month_count = stats.this_month_orders;
+          order.is_new_client = stats.is_new;
+        } else {
+          order.total_orders_count = 0;
+          order.orders_this_month_count = 0;
+          order.is_new_client = true;
+        }
+      }
+
       // Créer un nouveau classeur Excel
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Commandes MATA Mensuel');
 
       // Ajouter le titre
-      worksheet.mergeCells('A1:P1');
+      worksheet.mergeCells('A1:S1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
@@ -2216,6 +2288,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
         'Point de vente',
         'Montant commande (FCFA)',
         'Livreur assigné',
+        'Type client',
+        'Commandes ce mois',
+        'Commandes total',
         'Commande interne',
         'Comment nous avez-vous connu ?',
         'Commentaire client',
@@ -2246,6 +2321,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
         { width: 20 },  // Point de vente
         { width: 20 },  // Montant commande (FCFA)
         { width: 15 },  // Livreur
+        { width: 15 },  // Type client
+        { width: 12 },  // Commandes ce mois
+        { width: 12 },  // Commandes total
         { width: 10 },  // Interne
         { width: 25 },  // Source connaissance
         { width: 50 },  // Commentaire
@@ -2287,6 +2365,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
           order.point_de_vente || '',
           order.montant_commande || 0,
           order.livreur,
+          order.is_new_client ? 'Nouveau' : 'Récurrent',
+          order.orders_this_month_count || 0,
+          order.total_orders_count || 0,
           order.interne ? 'Oui' : 'Non',
           order.source_connaissance || 'Non renseigné',
           order.commentaire || '',
