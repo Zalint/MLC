@@ -108,3 +108,7 @@ exports/*.xlsx
 # Database backups and documentation
 backups/
 GUIDE_SAUVEGARDE_DATABASE.md 
+# Fichiers de test avec données sensibles
+sample*.json
+*.env
+.env.local
