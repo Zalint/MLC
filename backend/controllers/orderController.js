@@ -1844,7 +1844,7 @@ STATISTIQUES:
   ${avgRatings.commercial_service_rating ? `Service commercial: ${avgRatings.commercial_service_rating}/10` : ''}
 
 ABRÉVIATIONS COURANTES À COMPRENDRE:
-- "Nrp" ou "NRP" = Ne répond pas au téléphone / On n'arrive pas à le/la joindre (problème de joignabilité)
+- "Nrp" ou "NRP" = Le client ne décroche pas / ne répond pas quand notre commercial l'appelle (problème de joignabilité du CLIENT)
 - "RAS" = Rien à signaler
 - "Impec" = Impeccable
 - "Nickel" = Parfait
@@ -1856,7 +1856,7 @@ ${comments.length > 0 ? `COMMENTAIRES CLIENTS:\n${comments.map((c, i) => `${i+1}
 
 INSTRUCTIONS IMPORTANTES:
 1. Analyse chaque commentaire en détail avec un œil d'expert
-2. Identifie EXACTEMENT les problèmes mentionnés (exemples: os dans la viande, problème de nettoyage de la viande (mal nettoyée, avec résidus), prix élevé, retard de livraison, viande pas fraîche, quantité insuffisante, client/livreur injoignable au téléphone (Nrp), etc.)
+2. Identifie EXACTEMENT les problèmes mentionnés (exemples: os dans la viande, problème de nettoyage de la viande (mal nettoyée, avec résidus), prix élevé, retard de livraison, viande pas fraîche, quantité insuffisante, client injoignable par téléphone quand on l'appelle (Nrp), etc.)
 3. Sois SPÉCIFIQUE et CONCRET - cite des exemples réels des commentaires
 4. ÉVITE les phrases génériques et stéréotypées - sois inventif et contextuel
 5. Adapte ton analyse au contexte spécifique de ce mois
@@ -1871,7 +1871,7 @@ Fournis une analyse structurée en français au format JSON strict (sans markdow
   "sentiment_description": "<3-5 phrases PERSONNALISÉES et CONTEXTUELLES. Raconte l'histoire de ce mois : le sentiment global, les problèmes SPÉCIFIQUES avec des détails (os, nettoyage, prix, Nrp, etc.), et l'impact potentiel. Cite des faits précis des commentaires. ÉVITE les formulations génériques.>",
   "points_forts": [<3-5 points SPÉCIFIQUES tirés des vrais commentaires. Explique POURQUOI c'est un point fort et quel impact positif ça a. Exemple: "Rapidité de livraison saluée par X clients, avec des délais respectés même aux heures de pointe, renforçant la confiance client">],
   "points_amelioration": [<3-5 points ULTRA-SPÉCIFIQUES avec le problème EXACT, le nombre de clients concernés, et l'impact business potentiel. Exemple: "Os présents dans 3-4 commandes ce mois (2% des commandes) - risque de perte de clients fidèles si non corrigé" au lieu de "qualité à améliorer">],
-  "recommandations": [<3-4 recommandations INNOVANTES et ACTIONNABLES avec des actions CONCRÈTES. Évite "améliorer", "renforcer". Préfère "Mettre en place un double contrôle qualité avant emballage", "Former l'équipe au nettoyage minutieux avec checklist visuelle", "Créer un système d'alerte SMS 30min avant livraison pour éviter les Nrp">]
+  "recommandations": [<3-4 recommandations INNOVANTES et ACTIONNABLES avec des actions CONCRÈTES. Évite "améliorer", "renforcer". Préfère "Mettre en place un double contrôle qualité avant emballage", "Former l'équipe au nettoyage minutieux avec checklist visuelle", "Mettre en place un système de rappel automatique du client 1h avant livraison pour réduire les Nrp (clients non joignables)">]
 }
 
 ❌ ÉVITE LES PHRASES STÉRÉOTYPÉES comme:
