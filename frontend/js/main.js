@@ -2721,6 +2721,7 @@ class MataMonthlyDashboardManager {
               <th>Point de vente</th>
               <th>Montant commande (FCFA)</th>
               <th>Livreur assigné</th>
+              <th>Type client</th>
               <th>Commande interne</th>
               <th>Comment nous avez-vous connu ?</th>
               <th>Commentaire client</th>
@@ -2776,6 +2777,11 @@ class MataMonthlyDashboardManager {
                 <td>${order.point_de_vente ? Utils.escapeHtml(order.point_de_vente) : '-'}</td>
                 <td>${Utils.formatAmount(order.montant_commande || 0)}</td>
                 <td>${Utils.escapeHtml(order.livreur)}</td>
+                <td>
+                  <span class="client-type-badge ${order.is_new_client ? 'new-client' : 'recurring-client'}" title="${order.is_new_client ? 'Premier commande' : `${order.previous_orders_count} commande(s) précédente(s)`}">
+                    ${order.is_new_client ? '🆕 Nouveau' : `🔄 Récurrent (${order.previous_orders_count})`}
+                  </span>
+                </td>
                 <td>
                   <span class="interne-badge ${order.interne ? 'interne-yes' : 'interne-no'}">
                     ${order.interne ? 'Oui' : 'Non'}
@@ -2878,6 +2884,10 @@ class MataMonthlyDashboardManager {
                 </td>
                 <td class="mata-actions">
                   <div class="action-buttons">
+                    <button class="btn btn-sm btn-info btn-client-history" data-phone="${order.phone_number}" data-client-name="${Utils.escapeHtml(order.client_name)}" title="Voir l'historique des commandes">
+                      <span class="icon">📋</span>
+                      Détails
+                    </button>
                   ${order.interne ? `
                     <span class="internal-notice" style="color: #999; font-style: italic; font-size: 0.85rem;">Commande interne</span>
                   ` : `

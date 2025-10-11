@@ -52,6 +52,9 @@ router.get('/mata-monthly-export', requireManagerOrAdmin, OrderController.export
 // Route pour l'analyse de sentiment IA des commandes MATA (managers et admins seulement)
 router.get('/mata-sentiment-analysis', requireManagerOrAdmin, OrderController.getMatasentimentAnalysis);
 
+// Route pour l'historique des commandes d'un client (par numéro de téléphone)
+router.get('/client-history', requireManagerOrAdmin, OrderController.getClientOrderHistory);
+
 // Route pour l'export Excel du récapitulatif par livreur (managers et admins seulement)
 router.get('/monthly-summary-export', requireManagerOrAdmin, OrderController.exportMonthlySummaryToExcel);
 

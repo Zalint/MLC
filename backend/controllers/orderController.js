@@ -1195,6 +1195,26 @@ class OrderController {
       // Debug: Log what we're getting from the database
       console.log('🔍 Debug - First MATA order from DB:', mataOrders[0]);
 
+      // Enrichir chaque commande avec les informations client (nouveau/récurrent)
+      for (let order of mataOrders) {
+        if (order.phone_number) {
+          // Compter les commandes PRÉCÉDENTES pour ce numéro de téléphone
+          const previousOrdersQuery = `
+            SELECT COUNT(*) as count
+            FROM orders
+            WHERE phone_number = $1
+              AND order_type = 'MATA'
+              AND created_at < $2
+          `;
+          const previousResult = await db.query(previousOrdersQuery, [order.phone_number, order.created_at]);
+          order.previous_orders_count = parseInt(previousResult.rows[0].count);
+          order.is_new_client = order.previous_orders_count === 0;
+        } else {
+          order.previous_orders_count = 0;
+          order.is_new_client = true;
+        }
+      }
+
       // Calculate statistics (excluding internal orders)
       const externalOrders = mataOrders.filter(order => !order.interne);
       const totalOrders = externalOrders.length;
@@ -1651,6 +1671,96 @@ class OrderController {
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour de la source de connaissance:', error);
       console.error('Stack:', error.stack);
+      res.status(500).json({
+        error: 'Erreur interne du serveur',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  // Obtenir l'historique des commandes d'un client par numéro de téléphone
+  static async getClientOrderHistory(req, res) {
+    try {
+      const { phone_number } = req.query;
+      const startDate = req.query.start_date;
+      const endDate = req.query.end_date;
+
+      if (!phone_number) {
+        return res.status(400).json({
+          error: 'Le numéro de téléphone est requis'
+        });
+      }
+
+      console.log('📞 getClientOrderHistory - phone:', phone_number, 'dates:', startDate, endDate);
+
+      const db = require('../models/database');
+      
+      // Construire la requête avec filtres de date optionnels
+      let query = `
+        SELECT 
+          o.id,
+          TO_CHAR(DATE(o.created_at), 'YYYY-MM-DD') as date,
+          o.phone_number,
+          o.client_name,
+          o.adresse_source,
+          COALESCE(NULLIF(o.adresse_destination, ''), o.address) as adresse_destination,
+          o.point_de_vente,
+          o.amount as montant_commande,
+          o.order_type,
+          o.commentaire,
+          o.service_rating,
+          o.quality_rating,
+          o.price_rating,
+          o.commercial_service_rating,
+          o.interne,
+          o.source_connaissance,
+          u.username as livreur,
+          o.created_at
+        FROM orders o
+        LEFT JOIN users u ON o.created_by = u.id
+        WHERE o.phone_number = $1
+          AND o.order_type = 'MATA'
+      `;
+
+      const queryParams = [phone_number];
+      let paramIndex = 2;
+
+      if (startDate) {
+        query += ` AND DATE(o.created_at) >= $${paramIndex}`;
+        queryParams.push(startDate);
+        paramIndex++;
+      }
+
+      if (endDate) {
+        query += ` AND DATE(o.created_at) <= $${paramIndex}`;
+        queryParams.push(endDate);
+        paramIndex++;
+      }
+
+      query += ' ORDER BY o.created_at DESC';
+
+      const result = await db.query(query, queryParams);
+      const orders = result.rows;
+
+      // Calculer des statistiques
+      const stats = {
+        total_orders: orders.length,
+        total_amount: orders.reduce((sum, o) => sum + (parseFloat(o.montant_commande) || 0), 0),
+        avg_amount: orders.length > 0 ? orders.reduce((sum, o) => sum + (parseFloat(o.montant_commande) || 0), 0) / orders.length : 0,
+        first_order_date: orders.length > 0 ? orders[orders.length - 1].date : null,
+        last_order_date: orders.length > 0 ? orders[0].date : null
+      };
+
+      res.json({
+        success: true,
+        phone_number,
+        client_name: orders.length > 0 ? orders[0].client_name : null,
+        statistics: stats,
+        orders
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération de l\'historique client:', error);
       res.status(500).json({
         error: 'Erreur interne du serveur',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
