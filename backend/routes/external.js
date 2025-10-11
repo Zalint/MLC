@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/database');
 const OpenAI = require('openai');
+const DailySentimentAnalyzer = require('../utils/sentimentAnalyzer');
 
 // GET /api/external/mlc/livreurStats/daily - Statistiques journalières des livreurs
 router.get('/mlc/livreurStats/daily', async (req, res) => {
@@ -372,6 +373,40 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
 
     const correctedSummaryKm = processedDetails.reduce((sum, d) => sum + d.km_parcourus, 0);
 
+    // Analyse de sentiment MATA (date la plus récente)
+    console.log('🤖 Démarrage de l\'analyse de sentiment...');
+    const sentimentAnalysis = await DailySentimentAnalyzer.analyzeDailySentiment(date);
+    console.log('✅ Analyse de sentiment terminée:', sentimentAnalysis ? 'Données disponibles' : 'Aucune donnée');
+
+    // Enrichir les par_point_vente avec les données de sentiment
+    let enrichedParPointVente = summary.mata_par_point_vente || [];
+    if (sentimentAnalysis && sentimentAnalysis._parPointVenteData) {
+      enrichedParPointVente = enrichedParPointVente.map(pv => {
+        const sentimentData = sentimentAnalysis._parPointVenteData.find(
+          s => s.point_de_vente === pv.point_de_vente
+        );
+        if (sentimentData && sentimentData.sentimentAnalysis) {
+          return {
+            ...pv,
+            sentimentAnalysis: sentimentData.sentimentAnalysis
+          };
+        }
+        return pv;
+      });
+    }
+
+    // Préparer sentimentAnalysis global (SANS par_point_vente pour éviter duplication)
+    let sentimentAnalysisGlobal = null;
+    if (sentimentAnalysis) {
+      sentimentAnalysisGlobal = {
+        date_analyse: sentimentAnalysis.date_analyse,
+        sentiment_global: sentimentAnalysis.sentiment_global,
+        sentiment_score: sentimentAnalysis.sentiment_score,
+        sentiment_description: sentimentAnalysis.sentiment_description,
+        statistiques: sentimentAnalysis.statistiques
+      };
+    }
+
     // Construction de la réponse finale
     const response = {
       date: date,
@@ -385,7 +420,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           total: parseInt(summary.courses_mata) || 0,
           panier_moyen: (parseInt(summary.courses_mata_clients) > 0) ? (parseFloat(summary.total_amount_mata_clients) / parseInt(summary.courses_mata_clients)) : 0,
           panier_total_jour: parseFloat(summary.total_amount_mata_clients) || 0,
-          par_point_vente: summary.mata_par_point_vente || [],
+          ...(sentimentAnalysisGlobal && { sentimentAnalysis: sentimentAnalysisGlobal }),
+          par_point_vente: enrichedParPointVente,
           courses_sup: parseInt(summary.courses_mata_sup) || 0,
           panier_inf_seuil: parseInt(summary.courses_mata_panier_inf_seuil) || 0
         },
