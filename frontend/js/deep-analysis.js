@@ -154,10 +154,13 @@ class DeepAnalysisManager {
             <div class="deep-analysis-model-selector">
               <label for="ai-model-select">🤖 Modèle IA:</label>
               <select id="ai-model-select" class="model-select">
-                <option value="gpt-4o-mini" selected>GPT-4o Mini (Rapide)</option>
-                <option value="gpt-4o">GPT-4o (Équilibré)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo (Puissant)</option>
-                <option value="gpt-4">GPT-4 (Maximum)</option>
+                <option value="gpt-4o-mini" selected>GPT-4o Mini (Rapide ⚡)</option>
+                <option value="gpt-4o">GPT-4o (Équilibré ⚖️)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo (Puissant 💪)</option>
+                <option value="gpt-4">GPT-4 (Maximum 🚀)</option>
+                <option value="o1-mini">o1 Mini (Raisonnement Rapide 🧠)</option>
+                <option value="o1-preview">o1 Preview (Raisonnement Avancé 🎯)</option>
+                <option value="gpt-5">GPT-5 (Future 🌟)</option>
               </select>
             </div>
             
