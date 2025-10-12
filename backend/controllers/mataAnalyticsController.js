@@ -791,7 +791,8 @@ class MataAnalyticsController {
       const { 
         start_date, 
         end_date, 
-        limit = 1000 
+        limit = 1000,
+        phone_number
       } = req.query;
       
       // Validation
@@ -805,6 +806,26 @@ class MataAnalyticsController {
       
       const startDate = start_date || defaultStartDate.toISOString().split('T')[0];
       const endDate = end_date || defaultEndDate.toISOString().split('T')[0];
+      
+      // Construire la clause WHERE dynamiquement
+      const whereConditions = [
+        "o.order_type = 'MATA'",
+        "(o.interne = false OR o.interne IS NULL)",
+        "o.created_at::date >= $1::date",
+        "o.created_at::date <= $2::date"
+      ];
+      
+      const queryParams = [startDate, endDate];
+      
+      // Ajouter le filtre par numéro de téléphone si fourni
+      if (phone_number) {
+        queryParams.push(phone_number);
+        whereConditions.push(`o.phone_number = $${queryParams.length}`);
+      }
+      
+      // Ajouter le limit en dernier
+      queryParams.push(finalLimit);
+      const limitParamIndex = queryParams.length;
       
       // SQL PRÉDÉFINI avec TOUS les détails
       const query = `
@@ -863,15 +884,12 @@ class MataAnalyticsController {
           
         FROM orders o
         JOIN order_stats os ON o.phone_number = os.phone_number
-        WHERE o.order_type = 'MATA'
-          AND (o.interne = false OR o.interne IS NULL)
-          AND o.created_at::date >= $1::date
-          AND o.created_at::date <= $2::date
+        WHERE ${whereConditions.join('\n          AND ')}
         ORDER BY o.created_at DESC
-        LIMIT $3
+        LIMIT $${limitParamIndex}
       `;
       
-      const result = await db.query(query, [startDate, endDate, finalLimit]);
+      const result = await db.query(query, queryParams);
       
       res.json({
         success: true,

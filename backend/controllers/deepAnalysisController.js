@@ -183,8 +183,9 @@ ENDPOINTS DISPONIBLES (GET uniquement):
 
 13. /mata-analytics/orders-detailed (⭐ FALLBACK)
     Usage: Détails complets des commandes sur une période
-    Params: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (max: 5000)
-    Utilisé pour: questions générales nécessitant tous les détails
+    Params: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (max: 5000), phone_number (optionnel)
+    Exemples: "toutes les commandes du 773929671" → utilise phone_number='773929671'
+    Utilisé pour: questions générales nécessitant tous les détails OU historique d'un client spécifique
 
 STRATÉGIE:
 1. Si la question correspond à un endpoint spécifique (1-12), utilise-le
@@ -280,10 +281,10 @@ Q: "Toutes les commandes du numéro 773929671" (historique complet d'un client)
     "params": {
       "start_date": "${twoYearsAgo}",
       "end_date": "${currentDate}",
-      "limit": 5000
+      "limit": 5000,
+      "phone_number": "773929671"
     },
-    "explanation": "Historique complet d'un client spécifique sur 2 ans",
-    "post_processing": "Filtrer: phone_number='773929671'"
+    "explanation": "Historique complet du client 773929671 sur les 2 dernières années"
   }
 
 Si aucun endpoint ne correspond ou question incompréhensible:
