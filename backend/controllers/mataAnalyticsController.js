@@ -845,7 +845,6 @@ class MataAnalyticsController {
           o.price_rating,
           o.commercial_service_rating,
           o.average_rating,
-          o.delivery_status,
           
           -- Stats client
           os.total_orders_count,
