@@ -20,7 +20,9 @@ class DeepAnalysisController {
     const startTime = Date.now(); // Début du chronomètre
     
     try {
-      const { question } = req.body;
+      const { question, model } = req.body;
+      const selectedModel = model || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+      console.log('🤖 Modèle IA sélectionné:', selectedModel);
       
       // Validation
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -48,7 +50,7 @@ class DeepAnalysisController {
       }
       
       // ÉTAPE 1: Demander à OpenAI quel endpoint utiliser
-      const endpointMapping = await DeepAnalysisController._mapQuestionToEndpoint(question);
+      const endpointMapping = await DeepAnalysisController._mapQuestionToEndpoint(question, selectedModel);
       
       if (!endpointMapping.success) {
         return res.status(400).json({
@@ -80,7 +82,8 @@ class DeepAnalysisController {
       const interpretation = await DeepAnalysisController._interpretResults(
         question,
         endpointMapping,
-        analyticsData
+        analyticsData,
+        selectedModel
       );
       
       // ÉTAPE 4: Retourner la réponse enrichie
@@ -111,7 +114,7 @@ class DeepAnalysisController {
    * Mapper une question en langage naturel vers un endpoint
    * Utilise OpenAI pour déterminer l'endpoint le plus approprié
    */
-  static async _mapQuestionToEndpoint(question) {
+  static async _mapQuestionToEndpoint(question, model = 'gpt-4o-mini') {
     try {
       const currentYear = new Date().getFullYear();
       const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -301,7 +304,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de \`\`\`json).`;
       const openaiResponse = await axios.post(
         'https://api.openai.com/v1/chat/completions',
         {
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          model: model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -478,7 +481,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de \`\`\`json).`;
   /**
    * Interpréter les résultats avec OpenAI
    */
-  static async _interpretResults(question, endpointMapping, analyticsData) {
+  static async _interpretResults(question, endpointMapping, analyticsData, model = 'gpt-4o-mini') {
     try {
       // Si pas de données, retourner un message simple
       if (!analyticsData.data || analyticsData.data.length === 0) {
@@ -527,7 +530,7 @@ Analyse ces résultats et fournis une interprétation.`;
       const openaiResponse = await axios.post(
         'https://api.openai.com/v1/chat/completions',
         {
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          model: model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }

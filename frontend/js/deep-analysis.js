@@ -52,8 +52,9 @@ class DeepAnalysisManager {
         e.preventDefault();
         e.stopPropagation();
         const question = document.getElementById('deep-analysis-question-input').value.trim();
+        const model = document.getElementById('ai-model-select').value;
         if (question) {
-          this.performAnalysis(question);
+          this.performAnalysis(question, model);
         } else {
           this._showToast('Veuillez saisir une question', 'warning');
         }
@@ -148,6 +149,16 @@ class DeepAnalysisManager {
               <div class="char-counter">
                 <span id="question-char-count">0</span>/500 caractères
               </div>
+            </div>
+            
+            <div class="deep-analysis-model-selector">
+              <label for="ai-model-select">🤖 Modèle IA:</label>
+              <select id="ai-model-select" class="model-select">
+                <option value="gpt-4o-mini" selected>GPT-4o Mini (Rapide)</option>
+                <option value="gpt-4o">GPT-4o (Équilibré)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo (Puissant)</option>
+                <option value="gpt-4">GPT-4 (Maximum)</option>
+              </select>
             </div>
             
             <div class="deep-analysis-actions">
@@ -254,8 +265,9 @@ class DeepAnalysisManager {
   /**
    * Effectuer l'analyse approfondie
    */
-  static async performAnalysis(question) {
+  static async performAnalysis(question, model = 'gpt-4o-mini') {
     console.log('🔬 performAnalysis - Question:', question);
+    console.log('🤖 Model selected:', model);
     
     // Fermer le modal de saisie
     this.closeAnalysisModal();
@@ -267,7 +279,7 @@ class DeepAnalysisManager {
       // Utiliser ApiClient pour gérer automatiquement l'authentification
       const data = await ApiClient.request('/orders/mata-deep-analysis', {
         method: 'POST',
-        body: { question }
+        body: { question, model }
       });
       
       console.log('🔬 Analysis data:', data);
