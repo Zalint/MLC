@@ -1,0 +1,92 @@
+{
+  "attachments": {
+    "file_limits": {
+      "max_file_size_mb": 10,
+      "max_file_size_bytes": 10485760,
+      "max_files_per_order": 2,
+      "comment": "Taille maximale et nombre de fichiers autorisés par commande"
+    },
+    "allowed_formats": {
+      "images": [".jpg", ".jpeg", ".png"],
+      "documents": [".pdf"],
+      "mime_types": [
+        "image/jpeg",
+        "image/png",
+        "application/pdf"
+      ],
+      "comment": "Formats de fichiers acceptés pour l'upload"
+    },
+    "permissions": {
+      "roles": {
+        "admin": {
+          "can_view": true,
+          "can_upload": true,
+          "can_delete": true,
+          "time_restriction_hours": null,
+          "comment": "Admin a tous les droits sans restriction de temps"
+        },
+        "manager": {
+          "can_view": true,
+          "can_upload": true,
+          "can_delete": true,
+          "time_restriction_hours": null,
+          "comment": "Manager a tous les droits sans restriction de temps"
+        },
+        "livreur": {
+          "can_view": true,
+          "can_upload": true,
+          "can_delete": true,
+          "time_restriction_hours": 24,
+          "comment": "Livreur peut gérer les pièces jointes dans les 24h après création de la commande"
+        }
+      },
+      "comment": "time_restriction_hours: null = pas de restriction, nombre = restriction en heures après création de la commande"
+    },
+    "storage": {
+      "base_path": "backend/documents",
+      "folder_structure": {
+        "Mata": {
+          "subfolders": ["externe", "interne"],
+          "date_format": "YYYYMMDD",
+          "routing_rule": "Utilise le champ 'interne' pour déterminer externe/interne"
+        },
+        "MLC": {
+          "subfolders": ["Simple", "Abonnement"],
+          "date_format": "YYYYMMDD",
+          "routing_rule": "Simple si type_abonnement est null, sinon Abonnement"
+        },
+        "Autres": {
+          "subfolders": [],
+          "date_format": "YYYYMMDD",
+          "routing_rule": "Directement dans le dossier daté"
+        }
+      },
+      "file_naming": {
+        "pattern": "{order_id}_{timestamp}_{index}.{extension}",
+        "example": "123_20251012143025_1.pdf",
+        "comment": "timestamp au format YYYYMMDDHHmmss"
+      }
+    },
+    "ui_settings": {
+      "drag_and_drop": true,
+      "preview_thumbnails": true,
+      "show_file_size": true,
+      "upload_button_text": "Ajouter des pièces jointes",
+      "dropzone_text": "Cliquez ou glissez vos fichiers ici (max 2 fichiers)",
+      "accepted_formats_display": "JPEG, PNG, PDF uniquement (max 10 Mo par fichier)"
+    },
+    "security": {
+      "scan_for_viruses": false,
+      "sanitize_filenames": true,
+      "block_executable_extensions": true,
+      "require_authentication": true,
+      "comment": "Options de sécurité pour les uploads"
+    },
+    "cleanup": {
+      "auto_delete_orphaned_files": false,
+      "retention_days": null,
+      "comment": "Gestion automatique des fichiers (null = conservation illimitée)"
+    }
+  }
+}
+

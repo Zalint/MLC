@@ -599,6 +599,25 @@
                     <input type="number" id="amount" name="amount" step="0.01" min="0" 
                            placeholder="0.00">
                 </div>
+                
+                <!-- Groupe pour les pièces jointes -->
+                <div class="form-group">
+                    <label for="attachments">📎 Pièces jointes (optionnel)</label>
+                    <div class="attachments-container">
+                        <div id="dropzone" class="dropzone">
+                            <div class="dropzone-content">
+                                <span class="icon">📁</span>
+                                <p>Cliquez ou glissez vos fichiers ici</p>
+                                <p class="dropzone-info">Maximum 2 fichiers • JPEG, PNG, PDF uniquement • Max 10 Mo par fichier</p>
+                            </div>
+                            <input type="file" id="attachments-input" accept=".jpg,.jpeg,.png,.pdf" multiple style="display: none;">
+                        </div>
+                        <div id="files-preview" class="files-preview" style="display: none;">
+                            <!-- Les fichiers sélectionnés apparaîtront ici -->
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
                         <span class="icon">✅</span>
@@ -1501,6 +1520,7 @@
     <script src="assets/leaflet/leaflet.js"></script>
     
     <script src="js/main.js"></script>
+    <script src="js/attachments.js"></script>
     <script src="js/my-performance.js"></script>
     <script src="js/gps-livreur.js"></script>
     <script src="js/gps-manager.js"></script>

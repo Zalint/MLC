@@ -462,6 +462,10 @@ class ApiClient {
   static async getOrdersByDate(date) {
     return this.request(`/orders/by-date?date=${date}`);
   }
+  
+  static async getOrder(orderId) {
+    return this.request(`/orders/${orderId}`);
+  }
 
   static async getLastUserOrders(limit = 5) {
     return this.request(`/orders/last?limit=${limit}`);
@@ -2889,6 +2893,10 @@ class MataMonthlyDashboardManager {
                       <span class="icon">📋</span>
                       Détails
                     </button>
+                    <button class="btn btn-sm btn-success btn-view-attachments hidden" data-order-id="${order.id}" title="Voir les pièces jointes">
+                      <span class="icon">📎</span>
+                      Pièces jointes
+                    </button>
                   ${order.interne ? `
                     <span class="internal-notice" style="color: #999; font-style: italic; font-size: 0.85rem;">Commande interne</span>
                   ` : `
@@ -3088,6 +3096,30 @@ class MataMonthlyDashboardManager {
     // Ajouter les event listeners pour l'édition des commentaires et des notes
     this.setupCommentEditListeners();
     this.setupRatingEditListeners();
+    
+    // Charger les boutons de pièces jointes
+    this.loadMataAttachmentsButtons();
+  }
+  
+  static async loadMataAttachmentsButtons() {
+    const buttons = document.querySelectorAll('.btn-view-attachments');
+    
+    for (const button of buttons) {
+      const orderId = button.dataset.orderId;
+      if (typeof AttachmentsManager !== 'undefined') {
+        const count = await AttachmentsManager.getAttachmentsCount(orderId);
+        if (count > 0) {
+          button.classList.remove('hidden');
+          button.innerHTML = `<span class="icon">📎</span> Pièces jointes (${count})`;
+          
+          // Ajouter l'événement de clic
+          button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            OrderManager.viewOrderDetails(orderId);
+          });
+        }
+      }
+    }
   }
 
   static setupCommentEditListeners() {
@@ -3515,7 +3547,7 @@ class OrderManager {
     }
 
     container.innerHTML = infoMessage + AppState.orders.map(order => `
-      <div class="order-card">
+      <div class="order-card" data-order-id="${order.id}">
         <div class="order-header">
           <div>
             <div class="order-title">${Utils.escapeHtml(order.client_name)}</div>
@@ -3523,9 +3555,14 @@ class OrderManager {
               ${Utils.formatDate(order.created_at)}
               ${order.creator_username ? ` • Par ${Utils.escapeHtml(order.creator_username)}` : ''}
               ${(order.order_type === 'MLC' && order.is_subscription) ? '<span class="badge badge-subscription">🎫 Abonnement</span>' : ''}
+              <span class="attachments-badge" data-order-id="${order.id}"></span>
             </div>
           </div>
           <div class="order-actions">
+            <button class="btn btn-sm btn-info order-view-btn" data-order-id="${order.id}">
+              <span class="icon">👁️</span>
+              Détails
+            </button>
             ${this.canEditOrder(order) ? `
               <button class="btn btn-sm btn-secondary order-edit-btn" data-order-id="${order.id}">
                 <span class="icon">✏️</span>
@@ -3555,6 +3592,9 @@ class OrderManager {
         </div>
       </div>
     `).join('');
+    
+    // Charger les badges de pièces jointes
+    this.loadAttachmentsBadges();
   }
 
   static displayUserRecentOrders(orders) {
@@ -3602,7 +3642,133 @@ class OrderManager {
     nextBtn.disabled = AppState.currentOrdersPage >= AppState.totalOrdersPages;
   }
 
+  static async loadAttachmentsBadges() {
+    const badges = document.querySelectorAll('.attachments-badge');
+    
+    for (const badge of badges) {
+      const orderId = badge.dataset.orderId;
+      if (typeof AttachmentsManager !== 'undefined') {
+        const count = await AttachmentsManager.getAttachmentsCount(orderId);
+        if (count > 0) {
+          badge.innerHTML = AttachmentsManager.getAttachmentBadge(count);
+        }
+      }
+    }
+  }
+
+  static async viewOrderDetails(orderId) {
+    // Chercher d'abord dans AppState.orders
+    // Note: orderId peut être un UUID (string) ou un integer selon le contexte
+    let order = AppState.orders.find(o => o.id === orderId || o.id === parseInt(orderId));
+    
+    // Si pas trouvé, récupérer depuis l'API
+    if (!order) {
+      try {
+        const response = await ApiClient.getOrder(orderId);
+        console.log('🔍 viewOrderDetails - Réponse API:', response);
+        
+        // La réponse du backend est { order: {...} }
+        order = response.order || response.data || response;
+        
+        if (!order || !order.id) {
+          console.error('❌ viewOrderDetails - Structure invalide:', response);
+          throw new Error('Commande non trouvée');
+        }
+        
+        console.log('✅ viewOrderDetails - Commande récupérée:', order.id, '-', order.client_name);
+      } catch (error) {
+        console.error('❌ viewOrderDetails - Erreur:', error);
+        ToastManager.error('Commande introuvable');
+        return;
+      }
+    }
+
+    // Créer la modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+          <h3>📦 Commande de ${Utils.escapeHtml(order.client_name)}</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+          <div class="order-details-full">
+            <div class="detail-group">
+              <h3>📋 Informations générales</h3>
+              <p><strong>Client:</strong> ${Utils.escapeHtml(order.client_name)}</p>
+              <p><strong>Téléphone:</strong> ${Utils.escapeHtml(order.phone_number)}</p>
+              <p><strong>Type:</strong> ${Utils.escapeHtml(order.order_type)} 
+                ${order.interne ? '<span class="badge-internal" style="background:#dc2626;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.8em;">🏢 Interne</span>' : ''}
+              </p>
+              <p><strong>Date:</strong> ${Utils.formatDate(order.created_at)}</p>
+              ${order.creator_username ? `<p><strong>Créé par:</strong> ${Utils.escapeHtml(order.creator_username)}</p>` : ''}
+            </div>
+
+            <div class="detail-group">
+              <h3>💰 Montants</h3>
+              <p><strong>Prix de la course:</strong> ${Utils.formatAmount(order.course_price)}</p>
+              ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> ${Utils.formatAmount(order.amount)}</p>` : ''}
+            </div>
+
+            ${order.address ? `
+              <div class="detail-group">
+                <h3>📍 Adresse</h3>
+                <p>${Utils.escapeHtml(order.address)}</p>
+              </div>
+            ` : ''}
+
+            ${order.description ? `
+              <div class="detail-group">
+                <h3>📝 Description</h3>
+                <p>${Utils.escapeHtml(order.description)}</p>
+              </div>
+            ` : ''}
+
+            <div id="order-attachments-container" class="detail-group">
+              <h3>📎 Pièces jointes</h3>
+              <div style="text-align: center; padding: 20px;">
+                <div class="spinner"></div>
+                <p>Chargement...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Fermer la modal
+    const closeBtn = modal.querySelector('.modal-close');
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    // Charger les pièces jointes
+    const attachmentsContainer = modal.querySelector('#order-attachments-container');
+    if (typeof AttachmentsManager !== 'undefined') {
+      await AttachmentsManager.renderOrderAttachments(orderId, attachmentsContainer);
+    } else {
+      attachmentsContainer.innerHTML = '<h3>📎 Pièces jointes</h3><p>Module de pièces jointes non disponible</p>';
+    }
+  }
+
   static setupOrderEventListeners() {
+    // Boutons de visualisation des détails
+    document.querySelectorAll('.order-view-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const orderId = e.currentTarget.dataset.orderId;
+        this.viewOrderDetails(orderId);
+      });
+    });
+
     // Boutons d'édition des commandes
     document.querySelectorAll('.order-edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -3774,11 +3940,43 @@ class OrderManager {
 
   static async createOrder(formData) {
     try {
-      await ApiClient.createOrder(formData);
+      const response = await ApiClient.createOrder(formData);
+      console.log('📦 createOrder - Réponse API:', response);
+      
+      const newOrderId = response.data?.id || response.order?.id || response.id;
+      console.log('📦 createOrder - Order ID:', newOrderId);
+      
+      // Uploader les pièces jointes si présentes
+      if (typeof AttachmentsManager !== 'undefined') {
+        const selectedFiles = AttachmentsManager.getSelectedFiles();
+        console.log('📦 createOrder - Fichiers sélectionnés:', selectedFiles.length);
+        
+        if (newOrderId && selectedFiles.length > 0) {
+          console.log('📎 Lancement de l\'upload des pièces jointes...');
+          const uploadResult = await AttachmentsManager.uploadFiles(newOrderId);
+          console.log('📎 Résultat upload:', uploadResult);
+          
+          if (!uploadResult.success && uploadResult.error) {
+            ToastManager.warning(`Commande créée, mais erreur lors de l'upload des fichiers: ${uploadResult.error}`);
+          } else if (uploadResult.success) {
+            console.log('✅ Pièces jointes uploadées avec succès');
+          }
+        } else {
+          console.log('ℹ️ Pas d\'upload:', { newOrderId, filesCount: selectedFiles.length });
+        }
+      } else {
+        console.log('⚠️ AttachmentsManager non disponible');
+      }
+      
       ToastManager.success('Commande créée avec succès');
       
       // Réinitialiser le formulaire
       document.getElementById('new-order-form').reset();
+      
+      // Réinitialiser les pièces jointes
+      if (typeof AttachmentsManager !== 'undefined') {
+        AttachmentsManager.reset();
+      }
       
       // Réinitialiser les groupes de supplément et hors zone MATA  
       const supplementToggleGroup = document.getElementById('supplement-toggle-group');
@@ -6162,8 +6360,38 @@ class App {
         try {
           const response = await ApiClient.createMLCOrderWithSubscription(orderData);
           if (response.success) {
+            console.log('📦 createMLCOrder - Réponse API:', response);
+            
+            const newOrderId = response.data?.id || response.order?.id || response.id;
+            console.log('📦 createMLCOrder - Order ID:', newOrderId);
+            
+            // Uploader les pièces jointes si présentes
+            if (typeof AttachmentsManager !== 'undefined') {
+              const selectedFiles = AttachmentsManager.getSelectedFiles();
+              console.log('📦 createMLCOrder - Fichiers sélectionnés:', selectedFiles.length);
+              
+              if (newOrderId && selectedFiles.length > 0) {
+                console.log('📎 Lancement de l\'upload des pièces jointes...');
+                const uploadResult = await AttachmentsManager.uploadFiles(newOrderId);
+                console.log('📎 Résultat upload:', uploadResult);
+                
+                if (!uploadResult.success && uploadResult.error) {
+                  ToastManager.warning(`Commande créée, mais erreur lors de l'upload des fichiers: ${uploadResult.error}`);
+                } else if (uploadResult.success) {
+                  console.log('✅ Pièces jointes uploadées avec succès');
+                }
+              } else {
+                console.log('ℹ️ Pas d\'upload:', { newOrderId, filesCount: selectedFiles.length });
+              }
+            }
+            
             ToastManager.success('Commande créée avec succès');
             document.getElementById('new-order-form').reset();
+            
+            // Réinitialiser les pièces jointes
+            if (typeof AttachmentsManager !== 'undefined') {
+              AttachmentsManager.reset();
+            }
             // Réinitialiser les groupes de supplément
             if (document.getElementById('supplement-toggle-group')) {
               document.getElementById('supplement-toggle-group').style.display = 'none';

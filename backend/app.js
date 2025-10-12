@@ -22,6 +22,7 @@ const gpsAnalyticsRoutes = require('./routes/gpsAnalytics');
 const salariesRoutes = require('./routes/salaries');
 const externalRoutes = require('./routes/external');
 const gpsRoutes = require('./routes/gps');
+const attachmentRoutes = require('./routes/attachments');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -81,8 +82,10 @@ const limiter = rateLimit({
   legacyHeaders: false,
   // Exclure certaines routes du rate limiting pour l'usage interne
   skip: (req) => {
-    // Ne pas limiter les requêtes de santé et d'authentification
-    return req.path.includes('/health') || req.path.includes('/auth/check');
+    // Ne pas limiter les requêtes de santé, d'authentification et d'attachments
+    return req.path.includes('/health') || 
+           req.path.includes('/auth/check') ||
+           req.path.includes('/attachments');
   }
 });
 
@@ -103,6 +106,7 @@ app.use('/api/v1/mata-analytics', mataAnalyticsRoutes);
 app.use('/api/v1/analytics/gps', gpsAnalyticsRoutes);
 app.use('/api/v1/salaries', salariesRoutes);
 app.use('/api/v1/gps', gpsRoutes);
+app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 
 // Route de santé
