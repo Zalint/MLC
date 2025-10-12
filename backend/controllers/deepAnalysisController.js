@@ -113,7 +113,19 @@ class DeepAnalysisController {
    */
   static async _mapQuestionToEndpoint(question) {
     try {
+      const currentYear = new Date().getFullYear();
+      const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+      const currentDate = new Date().toISOString().split('T')[0];
+      const twoYearsAgo = `${currentYear - 2}-01-01`;
+      
       const systemPrompt = `Tu es un assistant d'analyse de données pour un service de livraison de viande (MATA).
+
+CONTEXTE TEMPOREL:
+- Date du jour: ${currentDate}
+- Année en cours: ${currentYear}
+- Mois en cours: ${currentYear}-${currentMonth}
+- Par défaut, cherche sur les 2 dernières années: de ${twoYearsAgo} à ${currentDate}
+- IMPORTANT: N'utilise JAMAIS d'années passées (2023, 2022) sauf si explicitement demandé
 
 ENDPOINTS DISPONIBLES (GET uniquement):
 
@@ -178,6 +190,13 @@ STRATÉGIE:
 1. Si la question correspond à un endpoint spécifique (1-12), utilise-le
 2. Si la question est générale/complexe, utilise orders-detailed (13)
 3. Retourne UNIQUEMENT un JSON valide sans markdown
+
+RÈGLES POUR LES DATES:
+- Si aucune période n'est mentionnée → utilise les 2 dernières années (${twoYearsAgo} à ${currentDate})
+- "ce mois" → ${currentYear}-${currentMonth}
+- "cette année" → ${currentYear}-01-01 à ${currentDate}
+- "année dernière" → ${currentYear - 1}-01-01 à ${currentYear - 1}-12-31
+- JAMAIS utiliser 2023, 2022 ou années antérieures sauf si explicitement demandé
 
 RÈGLES POUR LES MONTANTS (panier/dépenses):
 - "panier < X" ou "inférieur à X" → utilise top-customers avec max_amount=X
@@ -247,11 +266,24 @@ Q: "Clients qui commandent le vendredi à Ngor" (question complexe)
 → {
     "endpoint": "/mata-analytics/orders-detailed",
     "params": {
-      "start_date": "${new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString().split('T')[0]}",
-      "end_date": "${new Date().toISOString().split('T')[0]}"
+      "start_date": "${twoYearsAgo}",
+      "end_date": "${currentDate}",
+      "limit": 5000
     },
     "explanation": "Question complexe nécessitant filtrage multiple (jour + point vente)",
     "post_processing": "Filtrer: day_of_week='Vendredi' ET point_de_vente='Ngor'"
+  }
+
+Q: "Toutes les commandes du numéro 773929671" (historique complet d'un client)
+→ {
+    "endpoint": "/mata-analytics/orders-detailed",
+    "params": {
+      "start_date": "${twoYearsAgo}",
+      "end_date": "${currentDate}",
+      "limit": 5000
+    },
+    "explanation": "Historique complet d'un client spécifique sur 2 ans",
+    "post_processing": "Filtrer: phone_number='773929671'"
   }
 
 Si aucun endpoint ne correspond ou question incompréhensible:
