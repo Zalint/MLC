@@ -403,7 +403,8 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         sentiment_global: sentimentAnalysis.sentiment_global,
         sentiment_score: sentimentAnalysis.sentiment_score,
         sentiment_description: sentimentAnalysis.sentiment_description,
-        statistiques: sentimentAnalysis.statistiques
+        statistiques: sentimentAnalysis.statistiques,
+        notes_detaillees: sentimentAnalysis.notes_detaillees
       };
     }
 

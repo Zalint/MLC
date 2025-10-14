@@ -102,7 +102,8 @@ class DailySentimentAnalyzer {
             ) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '') as commentaires_globaux,
             ROUND(AVG(service_rating), 1) as service_rating_global,
             ROUND(AVG(quality_rating), 1) as quality_rating_global,
-            ROUND(AVG(price_rating), 1) as price_rating_global
+            ROUND(AVG(price_rating), 1) as price_rating_global,
+            ROUND(AVG(commercial_service_rating), 1) as commercial_service_rating_global
           FROM orders
           WHERE DATE(created_at) = $1
             AND order_type = 'MATA'
@@ -117,7 +118,8 @@ class DailySentimentAnalyzer {
             'commentaires', commentaires_globaux,
             'service_rating', service_rating_global,
             'quality_rating', quality_rating_global,
-            'price_rating', price_rating_global
+            'price_rating', price_rating_global,
+            'commercial_service_rating', commercial_service_rating_global
           ) FROM global_sentiment) as global_data,
           json_agg(
             json_build_object(
@@ -209,6 +211,13 @@ class DailySentimentAnalyzer {
           pourcentage_commentaires: globalData.total_evaluees > 0
             ? Math.round((globalData.total_commentaires / globalData.total_evaluees) * 100)
             : 0
+        },
+        notes_detaillees: {
+          service_livraison: globalData.service_rating_global || null,
+          qualite_produits: globalData.quality_rating_global || null,
+          niveau_prix: globalData.price_rating_global || null,
+          service_commercial: globalData.commercial_service_rating || null,
+          note_globale_moyenne: globalData.note_moyenne_globale || null
         },
         // Gardé séparément pour l'enrichissement dans external.js (ne sera pas dans sentimentAnalysis global)
         _parPointVenteData: parPointVente
