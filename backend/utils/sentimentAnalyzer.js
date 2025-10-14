@@ -222,13 +222,7 @@ class DailySentimentAnalyzer {
             ? Math.round((globalData.total_commentaires / globalData.total_evaluees) * 100)
             : 0
         },
-        notes_detaillees: {
-          service_livraison: globalData.service_rating_global || null,
-          qualite_produits: globalData.quality_rating_global || null,
-          niveau_prix: globalData.price_rating_global || null,
-          service_commercial: globalData.commercial_service_rating || null,
-          note_globale_moyenne: globalData.note_moyenne_globale || null
-        },
+        notes_detaillees: this.calculateGlobalNotesFromPointsVente(parPointVente),
         // Gardé séparément pour l'enrichissement dans external.js (ne sera pas dans sentimentAnalysis global)
         _parPointVenteData: parPointVente
       };
@@ -360,6 +354,50 @@ class DailySentimentAnalyzer {
   }
 
   /**
+   * Calcule les notes détaillées globales en agrégeant les données des points de vente
+   * Ignore les valeurs null pour avoir des moyennes réalistes
+   * @param {array} parPointVente - Données des points de vente avec leurs notes historiques
+   * @returns {object} Notes détaillées globales
+   */
+  static calculateGlobalNotesFromPointsVente(parPointVente) {
+    const notes = {
+      service_livraison: [],
+      qualite_produits: [],
+      niveau_prix: [],
+      service_commercial: [],
+      note_globale_moyenne: []
+    };
+
+    // Collecter toutes les notes non-null des points de vente
+    parPointVente.forEach(pv => {
+      if (pv.sentimentAnalysis && pv.sentimentAnalysis.notes_detaillees) {
+        const pvNotes = pv.sentimentAnalysis.notes_detaillees;
+        
+        if (pvNotes.service_livraison !== null) notes.service_livraison.push(pvNotes.service_livraison);
+        if (pvNotes.qualite_produits !== null) notes.qualite_produits.push(pvNotes.qualite_produits);
+        if (pvNotes.niveau_prix !== null) notes.niveau_prix.push(pvNotes.niveau_prix);
+        if (pvNotes.service_commercial !== null) notes.service_commercial.push(pvNotes.service_commercial);
+        if (pvNotes.note_globale_moyenne !== null) notes.note_globale_moyenne.push(pvNotes.note_globale_moyenne);
+      }
+    });
+
+    // Calculer les moyennes (null si aucune donnée)
+    const calculateAverage = (values) => {
+      if (values.length === 0) return null;
+      const sum = values.reduce((acc, val) => acc + val, 0);
+      return Math.round((sum / values.length) * 10) / 10; // Arrondir à 1 décimale
+    };
+
+    return {
+      service_livraison: calculateAverage(notes.service_livraison),
+      qualite_produits: calculateAverage(notes.qualite_produits),
+      niveau_prix: calculateAverage(notes.niveau_prix),
+      service_commercial: calculateAverage(notes.service_commercial),
+      note_globale_moyenne: calculateAverage(notes.note_globale_moyenne)
+    };
+  }
+
+  /**
    * Calcule le sentiment basé sur la note moyenne
    * @param {number} noteMoyenne - Note moyenne sur 10
    * @returns {string} POSITIF, NEUTRE, NEGATIF ou N/A
@@ -376,6 +414,7 @@ class DailySentimentAnalyzer {
       return 'NEGATIF';
     }
   }
+
 
   /**
    * Génère une description intelligente du sentiment global via OpenAI GPT-4o-mini
