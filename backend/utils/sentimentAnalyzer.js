@@ -72,7 +72,8 @@ class DailySentimentAnalyzer {
             ) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '') as commentaires_sample,
             ROUND(AVG(service_rating), 1) as service_rating_avg,
             ROUND(AVG(quality_rating), 1) as quality_rating_avg,
-            ROUND(AVG(price_rating), 1) as price_rating_avg
+            ROUND(AVG(price_rating), 1) as price_rating_avg,
+            ROUND(AVG(commercial_service_rating), 1) as commercial_service_rating_avg
           FROM orders
           WHERE DATE(created_at) = $1
             AND order_type = 'MATA'
@@ -130,7 +131,8 @@ class DailySentimentAnalyzer {
               'commentaires', commentaires_sample,
               'service_rating', service_rating_avg,
               'quality_rating', quality_rating_avg,
-              'price_rating', price_rating_avg
+              'price_rating', price_rating_avg,
+              'commercial_service_rating', commercial_service_rating_avg
             )
           ) FILTER (WHERE point_de_vente IS NOT NULL) as points_vente_data
         FROM sentiment_by_point_vente
@@ -188,7 +190,14 @@ class DailySentimentAnalyzer {
               sentiment_score: Math.round(((pvData.note_moyenne || 0) / 10) * 100),
               sentiment_description: pvDescription,
               nombre_evaluations: parseInt(pvData.nombre_evaluations || 0),
-              nombre_commentaires: parseInt(pvData.nombre_commentaires || 0)
+              nombre_commentaires: parseInt(pvData.nombre_commentaires || 0),
+              notes_detaillees: {
+                service_livraison: pvData.service_rating || null,
+                qualite_produits: pvData.quality_rating || null,
+                niveau_prix: pvData.price_rating || null,
+                service_commercial: pvData.commercial_service_rating || null,
+                note_globale_moyenne: pvData.note_moyenne || null
+              }
             }
           };
         })
@@ -303,7 +312,8 @@ class DailySentimentAnalyzer {
           ) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '') as commentaires_sample,
           ROUND(AVG(service_rating), 1) as service_rating_avg,
           ROUND(AVG(quality_rating), 1) as quality_rating_avg,
-          ROUND(AVG(price_rating), 1) as price_rating_avg
+          ROUND(AVG(price_rating), 1) as price_rating_avg,
+          ROUND(AVG(commercial_service_rating), 1) as commercial_service_rating_avg
         FROM orders
         WHERE DATE(created_at) = $1
           AND order_type = 'MATA'
@@ -323,7 +333,8 @@ class DailySentimentAnalyzer {
           commentaires: result.rows[0].commentaires_sample,
           service_rating: parseFloat(result.rows[0].service_rating_avg) || null,
           quality_rating: parseFloat(result.rows[0].quality_rating_avg) || null,
-          price_rating: parseFloat(result.rows[0].price_rating_avg) || null
+          price_rating: parseFloat(result.rows[0].price_rating_avg) || null,
+          commercial_service_rating: parseFloat(result.rows[0].commercial_service_rating_avg) || null
         };
       }
 
