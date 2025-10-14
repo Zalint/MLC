@@ -155,35 +155,38 @@ class DailySentimentAnalyzer {
         analysisDate
       );
 
-      // Étape 5: Calculer les sentiments par point de vente
+      // Étape 5: Calculer les sentiments par point de vente avec données historiques si nécessaire
       const parPointVente = await Promise.all(
         pointsVenteData.map(async (pv) => {
-          const pvSentiment = this.calculateSentiment(pv.note_moyenne);
-          const pvDescription = await this.generatePointVenteDescription(pv, analysisDate);
-
           // Déterminer la date d'analyse pour ce point de vente
           let pvAnalysisDate = analysisDate; // Par défaut, la date actuelle
+          let pvData = pv; // Par défaut, utiliser les données actuelles
           
-          // Si données insuffisantes (< 2 commentaires), chercher la date la plus récente avec des commentaires significatifs
+          // Si données insuffisantes (< 2 commentaires), chercher et récupérer des données historiques
           if (pv.nombre_commentaires < 2) {
             const historicalDate = await this.findMostRecentMeaningfulDate(pv.point_de_vente, requestedDate);
             if (historicalDate) {
               pvAnalysisDate = historicalDate;
+              // Récupérer les données de sentiment pour cette date historique
+              pvData = await this.getPointVenteSentimentData(pv.point_de_vente, historicalDate);
             }
           }
+
+          const pvSentiment = this.calculateSentiment(pvData.note_moyenne);
+          const pvDescription = await this.generatePointVenteDescription(pvData, pvAnalysisDate);
 
           return {
             point_de_vente: pv.point_de_vente,
             sentiment: pvSentiment,
-            nombre_evaluations: parseInt(pv.nombre_evaluations),
-            note_moyenne: parseFloat(pv.note_moyenne),
+            nombre_evaluations: parseInt(pvData.nombre_evaluations || 0),
+            note_moyenne: parseFloat(pvData.note_moyenne || 0),
             sentimentAnalysis: {
               date_analyse: pvAnalysisDate,
               sentiment: pvSentiment,
-              sentiment_score: Math.round((pv.note_moyenne / 10) * 100),
+              sentiment_score: Math.round(((pvData.note_moyenne || 0) / 10) * 100),
               sentiment_description: pvDescription,
-              nombre_evaluations: parseInt(pv.nombre_evaluations),
-              nombre_commentaires: parseInt(pv.nombre_commentaires)
+              nombre_evaluations: parseInt(pvData.nombre_evaluations || 0),
+              nombre_commentaires: parseInt(pvData.nombre_commentaires || 0)
             }
           };
         })
@@ -258,6 +261,81 @@ class DailySentimentAnalyzer {
     } catch (error) {
       console.error(`❌ Erreur recherche date historique pour ${pointDeVente}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Récupère les données de sentiment pour un point de vente spécifique à une date donnée
+   * @param {string} pointDeVente - Nom du point de vente
+   * @param {string} analysisDate - Date d'analyse au format YYYY-MM-DD
+   * @returns {Promise<object>} Données de sentiment pour ce point de vente
+   */
+  static async getPointVenteSentimentData(pointDeVente, analysisDate) {
+    try {
+      const query = `
+        SELECT 
+          COUNT(*) FILTER (WHERE service_rating IS NOT NULL OR quality_rating IS NOT NULL OR price_rating IS NOT NULL) as nombre_evaluations,
+          ROUND(AVG(
+            COALESCE(average_rating, 
+              (COALESCE(service_rating, 0) + COALESCE(quality_rating, 0) + COALESCE(price_rating, 0) + COALESCE(commercial_service_rating, 0)) / 
+              NULLIF((CASE WHEN service_rating IS NOT NULL THEN 1 ELSE 0 END + 
+                      CASE WHEN quality_rating IS NOT NULL THEN 1 ELSE 0 END + 
+                      CASE WHEN price_rating IS NOT NULL THEN 1 ELSE 0 END + 
+                      CASE WHEN commercial_service_rating IS NOT NULL THEN 1 ELSE 0 END), 0)
+            )
+          ), 1) as note_moyenne,
+          COUNT(*) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '') as nombre_commentaires,
+          STRING_AGG(
+            CASE 
+              WHEN commentaire IS NOT NULL AND commentaire != '' AND LENGTH(commentaire) > 5
+              THEN commentaire
+            END, 
+            ' | '
+          ) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '') as commentaires_sample,
+          ROUND(AVG(service_rating), 1) as service_rating_avg,
+          ROUND(AVG(quality_rating), 1) as quality_rating_avg,
+          ROUND(AVG(price_rating), 1) as price_rating_avg
+        FROM orders
+        WHERE DATE(created_at) = $1
+          AND order_type = 'MATA'
+          AND (interne = false OR interne IS NULL)
+          AND point_de_vente = $2
+      `;
+
+      const result = await db.query(query, [analysisDate, pointDeVente]);
+
+      if (result.rows.length > 0 && result.rows[0].nombre_commentaires > 0) {
+        console.log(`📊 Données historiques récupérées pour ${pointDeVente} le ${analysisDate}: ${result.rows[0].nombre_commentaires} commentaires`);
+        return {
+          point_de_vente: pointDeVente,
+          nombre_evaluations: parseInt(result.rows[0].nombre_evaluations) || 0,
+          note_moyenne: parseFloat(result.rows[0].note_moyenne) || 0,
+          nombre_commentaires: parseInt(result.rows[0].nombre_commentaires) || 0,
+          commentaires: result.rows[0].commentaires_sample,
+          service_rating: parseFloat(result.rows[0].service_rating_avg) || null,
+          quality_rating: parseFloat(result.rows[0].quality_rating_avg) || null,
+          price_rating: parseFloat(result.rows[0].price_rating_avg) || null
+        };
+      }
+
+      console.log(`⚠️ Aucune donnée de sentiment trouvée pour ${pointDeVente} le ${analysisDate}`);
+      return {
+        point_de_vente: pointDeVente,
+        nombre_evaluations: 0,
+        note_moyenne: 0,
+        nombre_commentaires: 0,
+        commentaires: null
+      };
+
+    } catch (error) {
+      console.error(`❌ Erreur récupération données sentiment pour ${pointDeVente} le ${analysisDate}:`, error);
+      return {
+        point_de_vente: pointDeVente,
+        nombre_evaluations: 0,
+        note_moyenne: 0,
+        nombre_commentaires: 0,
+        commentaires: null
+      };
     }
   }
 
@@ -386,8 +464,8 @@ MÊME si la note est bonne (7-8/10), si le commentaire mentionne un problème, M
       const noteMoyenne = pointVenteData.note_moyenne;
       const nbEval = pointVenteData.nombre_evaluations;
       // On prend TOUS les commentaires disponibles (max 10) pour détecter toutes les critiques
-      const commentaires = pointVenteData.commentaires 
-        ? pointVenteData.commentaires.split(' | ').filter(c => c && c.length > 5).slice(0, 10).join(' | ')
+      const commentaires = (pointVenteData.commentaires || pointVenteData.commentaires_sample)
+        ? (pointVenteData.commentaires || pointVenteData.commentaires_sample).split(' | ').filter(c => c && c.length > 5).slice(0, 10).join(' | ')
         : 'Aucun commentaire';
 
       const prompt = `Analyse la satisfaction client du point de vente "${pointVenteData.point_de_vente}" le ${analysisDate}.
