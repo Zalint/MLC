@@ -148,18 +148,7 @@ class DailySentimentAnalyzer {
       const globalData = sentimentResult.rows[0].global_data;
       const pointsVenteData = sentimentResult.rows[0].points_vente_data || [];
 
-      // Étape 3: Calculer le sentiment global
-      const sentimentGlobal = this.calculateSentiment(globalData.note_moyenne);
-      const sentimentScore = Math.round((globalData.note_moyenne / 10) * 100);
-
-      // Étape 4: Générer la description IA pour le sentiment global
-      const sentimentDescription = await this.generateSentimentDescription(
-        globalData,
-        pointsVenteData,
-        analysisDate
-      );
-
-      // Étape 5: Calculer les sentiments par point de vente avec données historiques si nécessaire
+      // Étape 3: Calculer les sentiments par point de vente avec données historiques si nécessaire
       const parPointVente = await Promise.all(
         pointsVenteData.map(async (pv) => {
           // Déterminer la date d'analyse pour ce point de vente
@@ -201,6 +190,18 @@ class DailySentimentAnalyzer {
             }
           };
         })
+      );
+
+      // Étape 4: Analyser le sentiment global intelligemment via LLM basé sur les points de vente
+      const globalSentimentAnalysis = await this.analyzeGlobalSentimentFromPointsVente(parPointVente, analysisDate);
+      const sentimentGlobal = globalSentimentAnalysis.sentiment;
+      const sentimentScore = globalSentimentAnalysis.score;
+
+      // Étape 5: Générer la description IA pour le sentiment global
+      const sentimentDescription = await this.generateSentimentDescription(
+        globalData,
+        pointsVenteData,
+        analysisDate
       );
 
       // Étape 6: Construire la réponse finale
@@ -349,6 +350,150 @@ class DailySentimentAnalyzer {
         note_moyenne: 0,
         nombre_commentaires: 0,
         commentaires: null
+      };
+    }
+  }
+
+  /**
+   * Analyse le sentiment global via LLM en analysant intelligemment les sentiments des points de vente
+   * Le LLM comprend les nuances et contexte métier pour déterminer le sentiment global approprié
+   * @param {array} parPointVente - Données des points de vente avec leurs sentiments calculés
+   * @param {string} analysisDate - Date d'analyse pour contexte
+   * @returns {Promise<object>} {sentiment, score} analysés par le LLM
+   */
+  static async analyzeGlobalSentimentFromPointsVente(parPointVente, analysisDate) {
+    try {
+      // Préparer le résumé des sentiments par point de vente pour le LLM
+      const sentimentSummary = parPointVente.map(pv => ({
+        point_de_vente: pv.point_de_vente,
+        sentiment: pv.sentimentAnalysis?.sentiment || 'N/A',
+        score: pv.sentimentAnalysis?.sentiment_score || 0,
+        note_moyenne: pv.sentimentAnalysis?.notes_detaillees?.note_globale_moyenne || null,
+        nombre_evaluations: pv.sentimentAnalysis?.nombre_evaluations || 0,
+        nombre_commentaires: pv.sentimentAnalysis?.nombre_commentaires || 0,
+        date_analyse: pv.sentimentAnalysis?.date_analyse || analysisDate,
+        description_courte: pv.sentimentAnalysis?.sentiment_description?.substring(0, 100) || 'Aucune description'
+      }));
+
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      const prompt = `Tu es un analyste de satisfaction client pour MATA (service de livraison de viande fraîche).
+
+DONNÉES DES POINTS DE VENTE (date: ${analysisDate}):
+${sentimentSummary.map(pv => `
+• ${pv.point_de_vente}: 
+  - Sentiment: ${pv.sentiment} (${pv.score}%)
+  - Note moyenne: ${pv.note_moyenne || 'N/A'}/10
+  - Évaluations: ${pv.nombre_evaluations}, Commentaires: ${pv.nombre_commentaires}
+  - Date des données: ${pv.date_analyse}
+  - Résumé: ${pv.description_courte}...
+`).join('')}
+
+MISSION: Analyser ces sentiments par point de vente pour déterminer un SENTIMENT GLOBAL cohérent.
+
+CONSIDÉRATIONS MÉTIER:
+- Certains points utilisent données historiques (dates < ${analysisDate}) car pas assez de données récentes
+- Pondérer selon le volume d'activité (évaluations/commentaires) 
+- Les points majeurs (O.Foire, Keur Massar) ont plus d'impact que les petits points
+- Tenir compte des tendances: amélioration vs dégradation
+
+RÈGLES D'ANALYSE:
+1. Si majorité POSITIF avec bonne cohérence → POSITIF global
+2. Si mix POSITIF/NEUTRE → Analyser les notes et volumes pour trancher
+3. Si présence NÉGATIF → Évaluer l'impact selon le volume du point
+4. Donner un score entre 0-100 cohérent avec le sentiment
+
+RÉPONSE REQUISE (JSON strict):
+{
+  "sentiment": "POSITIF|NEUTRE|NEGATIF|N/A",
+  "score": <0-100>,
+  "justification": "<25 mots expliquant la logique d'agrégation>"
+}
+
+Analyse maintenant:`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Tu es un expert analyste de données de satisfaction client. Réponds UNIQUEMENT en JSON valide."
+          },
+          {
+            role: "user", 
+            content: prompt
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.3
+      });
+
+      const responseText = completion.choices[0].message.content.trim();
+      
+      // Parser la réponse JSON
+      try {
+        const analysis = JSON.parse(responseText);
+        
+        console.log(`🤖 LLM analyse sentiment global: ${analysis.sentiment} (${analysis.score}%) - ${analysis.justification}`);
+        
+        return {
+          sentiment: analysis.sentiment || 'N/A',
+          score: analysis.score || 0
+        };
+        
+      } catch (parseError) {
+        console.error('❌ Erreur parsing JSON LLM sentiment global:', parseError.message);
+        console.error('Réponse reçue:', responseText);
+        
+        // Fallback avec calcul mathématique simple
+        return this.calculateFallbackGlobalSentiment(parPointVente);
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur LLM sentiment global:', error.message);
+      return this.calculateFallbackGlobalSentiment(parPointVente);
+    }
+  }
+
+  /**
+   * Calcul de fallback pour sentiment global si LLM échoue
+   * @param {array} parPointVente - Données des points de vente
+   * @returns {object} {sentiment, score} calculés mathématiquement
+   */
+  static calculateFallbackGlobalSentiment(parPointVente) {
+    const validSentiments = parPointVente
+      .filter(pv => pv.sentimentAnalysis?.sentiment !== 'N/A')
+      .map(pv => ({
+        sentiment: pv.sentimentAnalysis.sentiment,
+        score: pv.sentimentAnalysis.sentiment_score || 0,
+        evaluations: pv.sentimentAnalysis.nombre_evaluations || 0
+      }));
+
+    if (validSentiments.length === 0) {
+      return { sentiment: 'N/A', score: 0 };
+    }
+
+    // Moyenne pondérée par le nombre d'évaluations
+    const totalEvaluations = validSentiments.reduce((sum, s) => sum + s.evaluations, 0);
+    
+    if (totalEvaluations > 0) {
+      const scoresPonderes = validSentiments.reduce((sum, s) => 
+        sum + (s.score * s.evaluations), 0
+      );
+      const scoreMoyen = scoresPonderes / totalEvaluations;
+      
+      return {
+        sentiment: this.calculateSentiment((scoreMoyen / 100) * 10),
+        score: Math.round(scoreMoyen)
+      };
+    } else {
+      // Moyenne simple si pas d'évaluations
+      const scoreMoyen = validSentiments.reduce((sum, s) => sum + s.score, 0) / validSentiments.length;
+      return {
+        sentiment: this.calculateSentiment((scoreMoyen / 100) * 10),
+        score: Math.round(scoreMoyen)
       };
     }
   }
