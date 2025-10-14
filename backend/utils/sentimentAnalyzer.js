@@ -161,12 +161,24 @@ class DailySentimentAnalyzer {
           const pvSentiment = this.calculateSentiment(pv.note_moyenne);
           const pvDescription = await this.generatePointVenteDescription(pv, analysisDate);
 
+          // Déterminer la date d'analyse pour ce point de vente
+          let pvAnalysisDate = analysisDate; // Par défaut, la date actuelle
+          
+          // Si données insuffisantes (< 2 évaluations), chercher la date la plus récente avec des données significatives
+          if (pv.nombre_evaluations < 2) {
+            const historicalDate = await this.findMostRecentMeaningfulDate(pv.point_de_vente, requestedDate);
+            if (historicalDate) {
+              pvAnalysisDate = historicalDate;
+            }
+          }
+
           return {
             point_de_vente: pv.point_de_vente,
             sentiment: pvSentiment,
             nombre_evaluations: parseInt(pv.nombre_evaluations),
             note_moyenne: parseFloat(pv.note_moyenne),
             sentimentAnalysis: {
+              date_analyse: pvAnalysisDate,
               sentiment: pvSentiment,
               sentiment_score: Math.round((pv.note_moyenne / 10) * 100),
               sentiment_description: pvDescription,
@@ -205,6 +217,49 @@ class DailySentimentAnalyzer {
 
     } catch (error) {
       console.error('❌ Erreur lors de l\'analyse de sentiment:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Trouve la date la plus récente où un point de vente avait des données significatives
+   * @param {string} pointDeVente - Nom du point de vente
+   * @param {string} beforeDate - Date limite (chercher avant cette date)
+   * @returns {Promise<string|null>} Date au format YYYY-MM-DD ou null
+   */
+  static async findMostRecentMeaningfulDate(pointDeVente, beforeDate) {
+    try {
+      const query = `
+        SELECT TO_CHAR(DATE(created_at), 'YYYY-MM-DD') as analysis_date,
+               COUNT(*) FILTER (WHERE service_rating IS NOT NULL OR quality_rating IS NOT NULL OR price_rating IS NOT NULL) as nombre_evaluations
+        FROM orders
+        WHERE DATE(created_at) < $1
+          AND order_type = 'MATA'
+          AND (interne = false OR interne IS NULL)
+          AND point_de_vente = $2
+          AND (average_rating IS NOT NULL 
+               OR service_rating IS NOT NULL 
+               OR quality_rating IS NOT NULL 
+               OR price_rating IS NOT NULL 
+               OR commercial_service_rating IS NOT NULL)
+        GROUP BY DATE(created_at)
+        HAVING COUNT(*) FILTER (WHERE service_rating IS NOT NULL OR quality_rating IS NOT NULL OR price_rating IS NOT NULL) >= 2
+        ORDER BY DATE(created_at) DESC
+        LIMIT 1
+      `;
+
+      const result = await db.query(query, [beforeDate, pointDeVente]);
+
+      if (result.rows.length > 0) {
+        console.log(`📅 Date historique trouvée pour ${pointDeVente}: ${result.rows[0].analysis_date}`);
+        return result.rows[0].analysis_date;
+      }
+
+      console.log(`⚠️ Aucune date historique significative pour ${pointDeVente}`);
+      return null;
+
+    } catch (error) {
+      console.error(`❌ Erreur recherche date historique pour ${pointDeVente}:`, error);
       return null;
     }
   }
