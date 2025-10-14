@@ -162,6 +162,7 @@ class DailySentimentAnalyzer {
         pointsVenteData.map(async (pv) => {
           // Déterminer la date d'analyse pour ce point de vente
           let pvAnalysisDate = analysisDate; // Par défaut, la date actuelle
+          let pvData = pv; // Par défaut, utiliser les données actuelles
           
           // Si données insuffisantes (< 2 commentaires), chercher et récupérer des données historiques
           if (pv.nombre_commentaires < 2) {
