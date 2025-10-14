@@ -160,7 +160,6 @@ class DailySentimentAnalyzer {
         pointsVenteData.map(async (pv) => {
           // Déterminer la date d'analyse pour ce point de vente
           let pvAnalysisDate = analysisDate; // Par défaut, la date actuelle
-          let pvData = pv; // Par défaut, utiliser les données actuelles
           
           // Si données insuffisantes (< 2 commentaires), chercher et récupérer des données historiques
           if (pv.nombre_commentaires < 2) {
@@ -393,7 +392,14 @@ class DailySentimentAnalyzer {
         })
         .join('\n');
 
-      const prompt = `Tu es un analyste de satisfaction client pour un service de livraison MATA.
+      const prompt = `Tu es un analyste de satisfaction client pour MATA, service de livraison de viande fraîche (boucherie).
+
+CONTEXTE MÉTIER MATA (CRUCIAL À COMPRENDRE) :
+- MATA livre de la viande fraîche (bœuf, agneau, poulet) à domicile
+- Processus normal : 1) Peser la viande → 2) Client paie le poids → 3) Nettoyer après paiement
+- "Saleté" = viande non nettoyée (sang, graisse naturelle) - C'EST NORMAL avant nettoyage
+- "Déchets" = résidus naturels de découpe (os, cartilage, graisse) - PAS un problème de livraison
+- "Retards" = vrais problèmes de service à améliorer
 
 ANALYSE BASÉE PRINCIPALEMENT SUR LES COMMENTAIRES CLIENTS du ${analysisDate} :
 
@@ -408,19 +414,26 @@ Contexte chiffré :
 Points de vente :
 ${pointsVenteResume || 'Données insuffisantes'}
 
-CONSIGNE CRITIQUE : Analyse le CONTENU TEXTUEL des commentaires clients pour détecter les problèmes et critiques. IGNORE les notes numériques. PRIORISE ET METS EN AVANT toute mention de :
-- Plaintes (retard, délai, lenteur, attente)
-- Problèmes de qualité (froid, abîmé, manquant)
-- Insatisfaction du service (impoli, désagréable, mal servi)
-- Déceptions ou suggestions d'amélioration
-MÊME si la note est bonne (7-8/10), si le commentaire mentionne un problème, METS-LE EN AVANT. C'est crucial pour progresser. Génère UNE phrase de 40 mots maximum qui PRIORISE les critiques identifiées dans les commentaires.`;
+CONSIGNE CRITIQUE : Analyse le CONTENU TEXTUEL des commentaires. PRIORISE les VRAIS problèmes :
+- Retards de livraison, délais excessifs
+- Viande abîmée, pas fraîche, mauvaise odeur  
+- Service client impoli, désagréable
+- Problèmes de quantité (manquant, portions incorrectes)
+- Problèmes de découpe ou préparation
+
+IGNORE CES MENTIONS NORMALES (pas des problèmes) :
+- "Saleté" ou "pas nettoyé" (normal avant nettoyage)
+- "Déchets", "os", "graisse" (résidus normaux de viande)
+- "Beaucoup d'os" (normal selon morceau choisi)
+
+Génère UNE phrase de 40 mots maximum qui PRIORISE uniquement les vrais problèmes d'amélioration.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste de données spécialisé en satisfaction client orienté AMÉLIORATION CONTINUE. Tu analyses UNIQUEMENT les commentaires textuels des clients pour identifier les problèmes et axes d'amélioration. Tu IGNORES les notes numériques. Tu PRIORISES les critiques, plaintes et insatisfactions car c'est ce qui permet de progresser. Si un client mentionne un problème même mineur, tu le mets en avant. Tu génères des résumés concis et directs en français."
+            content: "Tu es un analyste spécialisé en satisfaction client pour MATA (boucherie-livraison de viande fraîche). Tu comprends le métier : peser→payer→nettoyer est normal. 'Saleté/déchets/os' ne sont PAS des problèmes (processus normal boucherie). Tu PRIORISES les VRAIS axes d'amélioration : retards, viande pas fraîche, service impoli, quantités incorrectes. Tu ignores les mentions normales du métier. Résumés concis en français."
           },
           {
             role: "user",
@@ -468,28 +481,42 @@ MÊME si la note est bonne (7-8/10), si le commentaire mentionne un problème, M
         ? (pointVenteData.commentaires || pointVenteData.commentaires_sample).split(' | ').filter(c => c && c.length > 5).slice(0, 10).join(' | ')
         : 'Aucun commentaire';
 
-      const prompt = `Analyse la satisfaction client du point de vente "${pointVenteData.point_de_vente}" le ${analysisDate}.
+      const prompt = `Analyse la satisfaction client du point de vente MATA "${pointVenteData.point_de_vente}" le ${analysisDate}.
+
+CONTEXTE MÉTIER MATA (CRUCIAL) :
+- MATA = livraison viande fraîche (boucherie) à domicile  
+- Processus normal : Peser → Client paie → Nettoyer après
+- "Saleté/pas nettoyé" = NORMAL (viande pesée avant nettoyage)
+- "Déchets/os/graisse" = NORMAL (résidus naturels de découpe)
 
 COMMENTAIRES CLIENTS (BASE TON ANALYSE SUR CECI) :
 "${commentaires}"
 
-Contexte chiffré (IGNORE-LE) :
-- Note : ${noteMoyenne}/10 (${nbEval} évaluations)
+Contexte chiffré (informatif) :
+- Note : ${noteMoyenne}/10 (${nbEval} évaluations)  
 - Service : ${pointVenteData.service_rating || 'N/A'}/10, Qualité : ${pointVenteData.quality_rating || 'N/A'}/10, Prix : ${pointVenteData.price_rating || 'N/A'}/10
 
-CONSIGNE CRITIQUE : Analyse uniquement le CONTENU TEXTUEL des commentaires. IGNORE les notes numériques. PRIORISE les problèmes mentionnés :
-- Retards, délais, attente
-- Qualité (froid, abîmé, manquant)
-- Service (impoli, désagréable)
-- Toute insatisfaction ou critique
-MÊME avec une bonne note, si un problème est mentionné, METS-LE EN AVANT. Génère UNE phrase de 30 mots maximum qui PRIORISE les critiques identifiées.`;
+ANALYSE : Focus sur les VRAIS problèmes à améliorer :
+✅ PRIORISE CES PROBLÈMES :
+- Retards de livraison, délais excessifs
+- Viande pas fraîche, mauvaise odeur, abîmée
+- Service impoli, désagréable, mal organisé
+- Quantités incorrectes, commande incomplète
+- Erreurs de découpe ou préparation
+
+❌ IGNORE CES MENTIONS NORMALES :
+- "Saleté", "pas nettoyé", "sang" (processus normal)
+- "Déchets", "beaucoup d'os", "graisse" (naturel)  
+- "Ritakhitt" (terme local sans importance)
+
+Génère UNE phrase de 25 mots maximum ciblant UNIQUEMENT les vrais axes d'amélioration.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste orienté AMÉLIORATION CONTINUE. Tu analyses UNIQUEMENT les commentaires textuels pour identifier les problèmes et axes d'amélioration. Tu IGNORES les notes. Tu PRIORISES les critiques et plaintes car c'est ce qui permet de progresser. Tu génères des résumés concis et directs en français."
+            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu connais le métier : 'saleté/déchets/os' = NORMAL (processus boucherie). Tu focus sur VRAIS problèmes : retards, viande pas fraîche, service impoli, quantités incorrectes. Tu ignores mentions normales métier. Résumés concis français."
           },
           {
             role: "user",
