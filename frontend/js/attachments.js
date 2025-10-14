@@ -10,6 +10,8 @@ const AttachmentsManager = (() => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB en bytes
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
   const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 1000; // 1 seconde
 
   // Éléments DOM
   let dropzone;
@@ -38,6 +40,30 @@ const AttachmentsManager = (() => {
     } else {
       // Fallback : console
       console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+  }
+
+  /**
+   * Fetch avec gestion du rate limiting (429)
+   */
+  async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+    try {
+      const response = await fetch(url, options);
+      
+      // Si rate limited et qu'il reste des tentatives, réessayer
+      if (response.status === 429 && retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchWithRetry(url, options, retries - 1);
+      }
+      
+      return response;
+    } catch (error) {
+      // Si erreur réseau et qu'il reste des tentatives, réessayer
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchWithRetry(url, options, retries - 1);
+      }
+      throw error;
     }
   }
 
@@ -286,13 +312,18 @@ const AttachmentsManager = (() => {
    */
   async function getAttachments(orderId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/attachments`, {
+      const response = await fetchWithRetry(`${API_BASE_URL}/orders/${orderId}/attachments`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
+
+      // Si 404, c'est normal - aucune pièce jointe
+      if (response.status === 404) {
+        return { success: true, data: [] };
+      }
 
       const data = await response.json();
 
@@ -302,7 +333,10 @@ const AttachmentsManager = (() => {
 
       return { success: true, data: data.data };
     } catch (error) {
-      console.error('Erreur récupération pièces jointes:', error);
+      // Ne pas logger les 404 - c'est attendu quand il n'y a pas de pièces jointes
+      if (error.message && !error.message.includes('404')) {
+        console.error('Erreur récupération pièces jointes:', error);
+      }
       return { success: false, error: error.message };
     }
   }
@@ -491,13 +525,18 @@ const AttachmentsManager = (() => {
    */
   async function getAttachmentsCount(orderId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/attachments`, {
+      const response = await fetchWithRetry(`${API_BASE_URL}/orders/${orderId}/attachments`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
+
+      // Si 404, c'est normal - aucune pièce jointe, donc retourner 0
+      if (response.status === 404) {
+        return 0;
+      }
 
       if (!response.ok) {
         return 0;
@@ -506,6 +545,7 @@ const AttachmentsManager = (() => {
       const data = await response.json();
       return data.data ? data.data.length : 0;
     } catch (error) {
+      // Silencieux - retourner simplement 0 si erreur
       return 0;
     }
   }
