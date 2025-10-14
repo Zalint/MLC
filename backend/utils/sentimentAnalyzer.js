@@ -164,8 +164,8 @@ class DailySentimentAnalyzer {
           // Déterminer la date d'analyse pour ce point de vente
           let pvAnalysisDate = analysisDate; // Par défaut, la date actuelle
           
-          // Si données insuffisantes (< 2 évaluations), chercher la date la plus récente avec des données significatives
-          if (pv.nombre_evaluations < 2) {
+          // Si données insuffisantes (< 2 commentaires), chercher la date la plus récente avec des commentaires significatifs
+          if (pv.nombre_commentaires < 2) {
             const historicalDate = await this.findMostRecentMeaningfulDate(pv.point_de_vente, requestedDate);
             if (historicalDate) {
               pvAnalysisDate = historicalDate;
@@ -231,19 +231,16 @@ class DailySentimentAnalyzer {
     try {
       const query = `
         SELECT TO_CHAR(DATE(created_at), 'YYYY-MM-DD') as analysis_date,
+               COUNT(*) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '' AND LENGTH(commentaire) > 5) as nombre_commentaires,
                COUNT(*) FILTER (WHERE service_rating IS NOT NULL OR quality_rating IS NOT NULL OR price_rating IS NOT NULL) as nombre_evaluations
         FROM orders
         WHERE DATE(created_at) < $1
           AND order_type = 'MATA'
           AND (interne = false OR interne IS NULL)
           AND point_de_vente = $2
-          AND (average_rating IS NOT NULL 
-               OR service_rating IS NOT NULL 
-               OR quality_rating IS NOT NULL 
-               OR price_rating IS NOT NULL 
-               OR commercial_service_rating IS NOT NULL)
+          AND (commentaire IS NOT NULL AND commentaire != '' AND LENGTH(commentaire) > 5)
         GROUP BY DATE(created_at)
-        HAVING COUNT(*) FILTER (WHERE service_rating IS NOT NULL OR quality_rating IS NOT NULL OR price_rating IS NOT NULL) >= 2
+        HAVING COUNT(*) FILTER (WHERE commentaire IS NOT NULL AND commentaire != '' AND LENGTH(commentaire) > 5) >= 2
         ORDER BY DATE(created_at) DESC
         LIMIT 1
       `;
@@ -251,11 +248,11 @@ class DailySentimentAnalyzer {
       const result = await db.query(query, [beforeDate, pointDeVente]);
 
       if (result.rows.length > 0) {
-        console.log(`📅 Date historique trouvée pour ${pointDeVente}: ${result.rows[0].analysis_date}`);
+        console.log(`📅 Date historique trouvée pour ${pointDeVente}: ${result.rows[0].analysis_date} (${result.rows[0].nombre_commentaires} commentaires)`);
         return result.rows[0].analysis_date;
       }
 
-      console.log(`⚠️ Aucune date historique significative pour ${pointDeVente}`);
+      console.log(`⚠️ Aucune date historique avec commentaires significatifs pour ${pointDeVente}`);
       return null;
 
     } catch (error) {
@@ -377,9 +374,9 @@ MÊME si la note est bonne (7-8/10), si le commentaire mentionne un problème, M
    */
   static async generatePointVenteDescription(pointVenteData, analysisDate) {
     try {
-      // Si moins de 2 évaluations, description simple
-      if (pointVenteData.nombre_evaluations < 2) {
-        return `Données insuffisantes (${pointVenteData.nombre_evaluations} évaluation).`;
+      // Si moins de 2 commentaires, description simple
+      if (pointVenteData.nombre_commentaires < 2) {
+        return `Données insuffisantes (${pointVenteData.nombre_commentaires} commentaire${pointVenteData.nombre_commentaires > 1 ? 's' : ''}).`;
       }
 
       const openai = new OpenAI({
