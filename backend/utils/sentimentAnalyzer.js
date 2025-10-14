@@ -423,26 +423,27 @@ Contexte chiffré :
 Points de vente :
 ${pointsVenteResume || 'Données insuffisantes'}
 
-CONSIGNE CRITIQUE : Analyse le CONTENU TEXTUEL des commentaires. PRIORISE les VRAIS problèmes :
+CONSIGNE CRITIQUE : Analyse le CONTENU TEXTUEL des commentaires. Inclure TOUS les retours clients avec contexte approprié :
+
+VRAIS PROBLÈMES À PRIORISER :
 - Retards de livraison, délais excessifs
 - Viande abîmée, pas fraîche, mauvaise odeur  
 - Service client impoli, désagréable
 - Problèmes de quantité (manquant, portions incorrectes)
 - Problèmes de découpe ou préparation
 
-IGNORE CES MENTIONS NORMALES (pas des problèmes) :
-- "Saleté" ou "pas nettoyé" (normal avant nettoyage)
-- "Déchets", "os", "graisse" (résidus normaux de viande)
-- "Beaucoup d'os" (normal selon morceau choisi)
+MENTIONS NORMALES À CONTEXTUALISER (pas ignorer) :
+- "Saleté/pas nettoyé" → reformuler en "viande non nettoyée" (processus normal avant remise client)
+- "Déchets/os/graisse" → "résidus de découpe naturels" (inhérent au produit frais)
 
-Génère UNE phrase de 40 mots maximum qui PRIORISE uniquement les vrais problèmes d'amélioration.`;
+Génère UNE analyse de 40 mots qui PRIORISE les vrais problèmes ET mentionne les retours process avec terminologie professionnelle.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste spécialisé en satisfaction client pour MATA (boucherie-livraison de viande fraîche). Tu comprends le métier : peser→payer→nettoyer est normal. 'Saleté/déchets/os' ne sont PAS des problèmes (processus normal boucherie). Tu PRIORISES les VRAIS axes d'amélioration : retards, viande pas fraîche, service impoli, quantités incorrectes. Tu ignores les mentions normales du métier. Résumés concis en français."
+            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu comprends le métier : peser→payer→nettoyer est normal. Tu INCLUS tous retours clients avec terminologie professionnelle : 'saleté'→'viande non nettoyée (processus normal)', 'déchets'→'résidus découpe naturels'. Tu PRIORISES vrais problèmes : retards, viande pas fraîche, service impoli. Analyses complètes en français."
           },
           {
             role: "user",
@@ -505,7 +506,8 @@ Contexte chiffré (informatif) :
 - Note : ${noteMoyenne}/10 (${nbEval} évaluations)  
 - Service : ${pointVenteData.service_rating || 'N/A'}/10, Qualité : ${pointVenteData.quality_rating || 'N/A'}/10, Prix : ${pointVenteData.price_rating || 'N/A'}/10
 
-ANALYSE : Focus sur les VRAIS problèmes à améliorer :
+ANALYSE : Inclure TOUS les retours avec terminologie professionnelle appropriée :
+
 ✅ PRIORISE CES PROBLÈMES :
 - Retards de livraison, délais excessifs
 - Viande pas fraîche, mauvaise odeur, abîmée
@@ -513,19 +515,19 @@ ANALYSE : Focus sur les VRAIS problèmes à améliorer :
 - Quantités incorrectes, commande incomplète
 - Erreurs de découpe ou préparation
 
-❌ IGNORE CES MENTIONS NORMALES :
-- "Saleté", "pas nettoyé", "sang" (processus normal)
-- "Déchets", "beaucoup d'os", "graisse" (naturel)  
+📝 CONTEXTUALISE CES MENTIONS (ne pas ignorer) :
+- "Saleté/pas nettoyé" → "viande non nettoyée" (processus normal)
+- "Déchets/beaucoup d'os/graisse" → "résidus de découpe naturels"
 - "Ritakhitt" (terme local sans importance)
 
-Génère UNE phrase de 25 mots maximum ciblant UNIQUEMENT les vrais axes d'amélioration.`;
+Génère UNE phrase de 30 mots incluant problèmes prioritaires ET mentions process avec bonne terminologie.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu connais le métier : 'saleté/déchets/os' = NORMAL (processus boucherie). Tu focus sur VRAIS problèmes : retards, viande pas fraîche, service impoli, quantités incorrectes. Tu ignores mentions normales métier. Résumés concis français."
+            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu connais le métier et INCLUS tous retours avec bonne terminologie : 'saleté'→'viande non nettoyée (normal)', 'déchets'→'résidus naturels'. Tu PRIORISES vrais problèmes : retards, viande pas fraîche, service impoli. Analyses professionnelles complètes en français."
           },
           {
             role: "user",
