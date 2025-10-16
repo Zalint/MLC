@@ -632,14 +632,14 @@ MENTIONS NORMALES À CONTEXTUALISER (pas ignorer) :
 - "Saleté/pas nettoyé" → reformuler en "viande non nettoyée" (processus normal avant remise client)
 - "Déchets/os/graisse" → "résidus de découpe naturels" (inhérent au produit frais)
 
-Génère UNE analyse de 40 mots qui PRIORISE les vrais problèmes ET mentionne les retours process avec terminologie professionnelle.`;
+IMPORTANT : Rédige une analyse DIRECTE et VARIÉE en 40 mots maximum. Évite les formulations répétitives comme "L'analyse révèle...", "Les données montrent...". Commence directement par les faits marquants.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu comprends le métier : peser→payer→nettoyer est normal. Tu INCLUS tous retours clients avec terminologie professionnelle : 'saleté'→'viande non nettoyée (processus normal)', 'déchets'→'résidus découpe naturels'. Tu PRIORISES vrais problèmes : retards, viande pas fraîche, service impoli. Analyses complètes en français."
+            content: "Tu es un analyste MATA (boucherie-livraison viande fraîche). STYLE: descriptions DIRECTES et VARIÉES, sans formules répétitives. Évite 'L'analyse révèle', 'Les données montrent', etc. Va droit aux faits. MÉTIER: peser→payer→nettoyer est normal. TERMINOLOGIE: 'saleté'→'viande non nettoyée', 'déchets'→'résidus naturels'. PRIORISE: retards, viande pas fraîche, service impoli."
           },
           {
             role: "user",
@@ -716,14 +716,14 @@ ANALYSE : Inclure TOUS les retours avec terminologie professionnelle appropriée
 - "Déchets/beaucoup d'os/graisse" → "résidus de découpe naturels"
 - "Ritakhitt" (terme local sans importance)
 
-Génère UNE phrase de 30 mots incluant problèmes prioritaires ET mentions process avec bonne terminologie.`;
+IMPORTANT : Rédige une description DIRECTE et VARIÉE en 30 mots maximum. Évite "L'analyse de...", "Les données révèlent...", etc. Va droit au but avec les faits.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste spécialisé MATA (boucherie-livraison viande fraîche). Tu connais le métier et INCLUS tous retours avec bonne terminologie : 'saleté'→'viande non nettoyée (normal)', 'déchets'→'résidus naturels'. Tu PRIORISES vrais problèmes : retards, viande pas fraîche, service impoli. Analyses professionnelles complètes en français."
+            content: "Tu es un analyste MATA (boucherie-livraison). STYLE: descriptions DIRECTES et VARIÉES. Évite 'L'analyse de...', 'Les données révèlent...'. Va droit aux faits. MÉTIER: peser→payer→nettoyer normal. TERMINOLOGIE: 'saleté'→'viande non nettoyée', 'déchets'→'résidus naturels'. PRIORISE: retards, viande pas fraîche, service impoli."
           },
           {
             role: "user",
