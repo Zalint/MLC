@@ -597,49 +597,40 @@ Analyse maintenant:`;
         })
         .join('\n');
 
-      const prompt = `Tu es un analyste de satisfaction client pour MATA, service de livraison de viande fraîche (boucherie).
+      const prompt = `Tu es un analyste de satisfaction client pour MATA (boucherie-livraison viande fraîche).
 
-CONTEXTE MÉTIER MATA (CRUCIAL À COMPRENDRE) :
-- MATA livre de la viande fraîche (bœuf, agneau, poulet) à domicile
-- Processus normal : 1) Peser la viande → 2) Client paie le poids → 3) Nettoyer après paiement
-- "Saleté" = viande non nettoyée (sang, graisse naturelle) - C'EST NORMAL avant nettoyage
-- "Déchets" = résidus naturels de découpe (os, cartilage, graisse) - PAS un problème de livraison
-- "Retards" = vrais problèmes de service à améliorer
-
-ANALYSE BASÉE PRINCIPALEMENT SUR LES COMMENTAIRES CLIENTS du ${analysisDate} :
-
-Commentaires clients (SOURCE PRINCIPALE) :
+COMMENTAIRES CLIENTS du ${analysisDate} (SOURCE UNIQUE - LIS-LES ATTENTIVEMENT) :
 "${commentaires}"
 
 Contexte chiffré :
-- ${totalCommandes} commandes totales, ${totalEvaluees} évaluées (${tauxEvaluation}%)
-- Note moyenne : ${noteMoyenne}/10
+- Note moyenne : ${noteMoyenne}/10 (${totalEvaluees}/${totalCommandes} évaluations)
 - Service : ${globalData.service_rating || 'N/A'}/10, Qualité : ${globalData.quality_rating || 'N/A'}/10, Prix : ${globalData.price_rating || 'N/A'}/10
 
-Points de vente :
-${pointsVenteResume || 'Données insuffisantes'}
+RÈGLE ABSOLUE : Mentionne UNIQUEMENT les problèmes EXPLICITEMENT écrits dans les commentaires ci-dessus.
+NE PAS inventer ou déduire des problèmes qui ne sont pas mentionnés.
 
-CONSIGNE CRITIQUE : Analyse le CONTENU TEXTUEL des commentaires. Inclure TOUS les retours clients avec contexte approprié :
-
-VRAIS PROBLÈMES À PRIORISER :
-- Retards de livraison, délais excessifs
-- Viande abîmée, pas fraîche, mauvaise odeur  
-- Service client impoli, désagréable
-- Problèmes de quantité (manquant, portions incorrectes)
+PROBLÈMES RÉELS À SIGNALER (si présents dans les commentaires) :
+- Retards, délais excessifs
+- Viande abîmée, pas fraîche, mauvaise odeur, dure
+- Service impoli, désagréable
+- Problèmes de quantité, poids
 - Problèmes de découpe ou préparation
 
-MENTIONS NORMALES À CONTEXTUALISER (pas ignorer) :
-- "Saleté/pas nettoyé" → reformuler en "viande non nettoyée" (processus normal avant remise client)
-- "Déchets/os/graisse" → "résidus de découpe naturels" (inhérent au produit frais)
+TERMINOLOGIE MÉTIER (si mentionné) :
+- "nrp" = client non joignable par téléphone
+- "Saleté/pas nettoyé" → "viande non nettoyée" (processus normal)
 
-IMPORTANT : Rédige une analyse DIRECTE et VARIÉE en 40 mots maximum. Évite les formulations répétitives comme "L'analyse révèle...", "Les données montrent...". Commence directement par les faits marquants.`;
+FORMAT DE RÉPONSE :
+1. Si majoritairement positif (satisfait/très satisfait) : commence par "Satisfaction globalement positive" puis mentionne les rares problèmes spécifiques
+2. Si problèmes fréquents : liste les problèmes RÉELS trouvés dans les commentaires
+3. 40 mots maximum, style direct, factuel`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste MATA (boucherie-livraison viande fraîche). STYLE: descriptions DIRECTES et VARIÉES, sans formules répétitives. Évite 'L'analyse révèle', 'Les données montrent', etc. Va droit aux faits. MÉTIER: peser→payer→nettoyer est normal. TERMINOLOGIE: 'saleté'→'viande non nettoyée', 'déchets'→'résidus naturels'. PRIORISE: retards, viande pas fraîche, service impoli."
+            content: "Tu es analyste MATA. RÈGLE CRITIQUE: Mentionne SEULEMENT les problèmes EXPLICITEMENT écrits dans les commentaires. N'invente RIEN. Si majoritairement positif, commence par 'Satisfaction positive'. Si problèmes réels, liste-les. Style direct, factuel, 40 mots max."
           },
           {
             role: "user",
@@ -687,43 +678,34 @@ IMPORTANT : Rédige une analyse DIRECTE et VARIÉE en 40 mots maximum. Évite le
         ? (pointVenteData.commentaires || pointVenteData.commentaires_sample).split(' | ').filter(c => c && c.length > 5).slice(0, 10).join(' | ')
         : 'Aucun commentaire';
 
-      const prompt = `Analyse la satisfaction client du point de vente MATA "${pointVenteData.point_de_vente}" le ${analysisDate}.
+      const prompt = `Analyse la satisfaction du point de vente "${pointVenteData.point_de_vente}" (${analysisDate}).
 
-CONTEXTE MÉTIER MATA (CRUCIAL) :
-- MATA = livraison viande fraîche (boucherie) à domicile  
-- Processus normal : Peser → Client paie → Nettoyer après
-- "Saleté/pas nettoyé" = NORMAL (viande pesée avant nettoyage)
-- "Déchets/os/graisse" = NORMAL (résidus naturels de découpe)
-
-COMMENTAIRES CLIENTS (BASE TON ANALYSE SUR CECI) :
+COMMENTAIRES CLIENTS (SOURCE UNIQUE - LIS-LES ATTENTIVEMENT) :
 "${commentaires}"
 
-Contexte chiffré (informatif) :
-- Note : ${noteMoyenne}/10 (${nbEval} évaluations)  
-- Service : ${pointVenteData.service_rating || 'N/A'}/10, Qualité : ${pointVenteData.quality_rating || 'N/A'}/10, Prix : ${pointVenteData.price_rating || 'N/A'}/10
+Contexte : Note ${noteMoyenne}/10 (${nbEval} éval.) | Service: ${pointVenteData.service_rating || 'N/A'}/10 | Qualité: ${pointVenteData.quality_rating || 'N/A'}/10
 
-ANALYSE : Inclure TOUS les retours avec terminologie professionnelle appropriée :
+RÈGLE ABSOLUE : Mentionne UNIQUEMENT les problèmes EXPLICITEMENT écrits dans les commentaires.
+NE PAS inventer des problèmes absents des commentaires.
 
-✅ PRIORISE CES PROBLÈMES :
-- Retards de livraison, délais excessifs
-- Viande pas fraîche, mauvaise odeur, abîmée
-- Service impoli, désagréable, mal organisé
-- Quantités incorrectes, commande incomplète
-- Erreurs de découpe ou préparation
+PROBLÈMES À SIGNALER (si présents) :
+- Retards, viande dure/pas fraîche, service impoli, poids incorrect, découpe problématique
 
-📝 CONTEXTUALISE CES MENTIONS (ne pas ignorer) :
-- "Saleté/pas nettoyé" → "viande non nettoyée" (processus normal)
-- "Déchets/beaucoup d'os/graisse" → "résidus de découpe naturels"
-- "Ritakhitt" (terme local sans importance)
+TERMINOLOGIE :
+- "nrp" = client non joignable
+- Ignorer "ritakhitt" (sans importance)
 
-IMPORTANT : Rédige une description DIRECTE et VARIÉE en 30 mots maximum. Évite "L'analyse de...", "Les données révèlent...", etc. Va droit au but avec les faits.`;
+FORMAT :
+1. Si majoritairement positif : commence par "Satisfaction positive" puis mentionne les rares problèmes réels
+2. Si problèmes fréquents : liste les problèmes RÉELS
+3. 30 mots max, style direct`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Tu es un analyste MATA (boucherie-livraison). STYLE: descriptions DIRECTES et VARIÉES. Évite 'L'analyse de...', 'Les données révèlent...'. Va droit aux faits. MÉTIER: peser→payer→nettoyer normal. TERMINOLOGIE: 'saleté'→'viande non nettoyée', 'déchets'→'résidus naturels'. PRIORISE: retards, viande pas fraîche, service impoli."
+            content: "Tu es analyste MATA. RÈGLE CRITIQUE: Mentionne SEULEMENT les problèmes EXPLICITEMENT dans les commentaires. N'invente RIEN. Si commentaires positifs, dis-le. Si problèmes réels, liste-les factuellement. Style direct, 30 mots max."
           },
           {
             role: "user",
