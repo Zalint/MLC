@@ -2520,6 +2520,9 @@ class MataMonthlyDashboardManager {
     try {
       AppState.isLoading = true;
       
+      // Afficher le spinner
+      this.showSpinner();
+      
       // Obtenir le mois sélectionné ou le mois actuel
       const monthInput = document.getElementById('mata-monthly-date-filter');
       const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
@@ -2546,6 +2549,30 @@ class MataMonthlyDashboardManager {
       ToastManager.error('Erreur lors du chargement des données MATA');
     } finally {
       AppState.isLoading = false;
+      // Masquer le spinner
+      this.hideSpinner();
+    }
+  }
+
+  static showSpinner() {
+    const spinner = document.getElementById('mata-monthly-spinner');
+    const content = document.querySelector('.mata-monthly-dashboard-content .stats-grid');
+    if (spinner) {
+      spinner.style.display = 'block';
+    }
+    if (content) {
+      content.style.display = 'none';
+    }
+  }
+
+  static hideSpinner() {
+    const spinner = document.getElementById('mata-monthly-spinner');
+    const content = document.querySelector('.mata-monthly-dashboard-content .stats-grid');
+    if (spinner) {
+      spinner.style.display = 'none';
+    }
+    if (content) {
+      content.style.display = 'block';
     }
   }
 
