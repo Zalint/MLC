@@ -177,10 +177,13 @@ class OrderController {
   static async getOrderById(req, res) {
     try {
       const { id } = req.params;
+      console.log('🔍 getOrderById - Recherche commande avec ID:', id);
       
       const order = await Order.findById(id);
+      console.log('🔍 getOrderById - Commande trouvée:', order ? 'OUI' : 'NON');
       
       if (!order) {
+        console.log('❌ getOrderById - Commande non trouvée pour ID:', id);
         return res.status(404).json({
           error: 'Commande non trouvée'
         });
@@ -188,17 +191,19 @@ class OrderController {
 
       // Vérifier les permissions
       if (!req.user.isManagerOrAdmin() && order.created_by !== req.user.id) {
+        console.log('❌ getOrderById - Accès refusé pour utilisateur:', req.user.id);
         return res.status(403).json({
           error: 'Accès non autorisé à cette commande'
         });
       }
 
+      console.log('✅ getOrderById - Commande retournée:', order.id, '-', order.client_name);
       res.json({
         order: order ? { ...order, is_subscription: !!order.subscription_id } : null
       });
 
     } catch (error) {
-      console.error('Erreur lors de la récupération de la commande:', error);
+      console.error('❌ getOrderById - Erreur:', error);
       res.status(500).json({
         error: 'Erreur interne du serveur'
       });
@@ -1197,6 +1202,7 @@ class OrderController {
 
       // Enrichir chaque commande avec les informations client (nouveau/récurrent)
       const clientStats = {}; // Cache pour éviter les requêtes multiples par client
+      const clientSourceConnaissance = {}; // Cache pour la source_connaissance par client
       
       for (let order of mataOrders) {
         if (order.phone_number) {
@@ -1223,17 +1229,35 @@ class OrderController {
             const thisMonthResult = await db.query(thisMonthOrdersQuery, [order.phone_number, month]);
             const thisMonthOrders = parseInt(thisMonthResult.rows[0].count);
             
+            // 🔍 RÉCUPÉRER LA SOURCE_CONNAISSANCE UNIFIÉE DU CLIENT
+            const sourceQuery = `
+              SELECT source_connaissance
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+                AND source_connaissance IS NOT NULL
+                AND source_connaissance != ''
+              LIMIT 1
+            `;
+            const sourceResult = await db.query(sourceQuery, [order.phone_number]);
+            const unifiedSource = sourceResult.rows.length > 0 ? sourceResult.rows[0].source_connaissance : null;
+            
             clientStats[order.phone_number] = {
               total_orders: totalOrders,
               this_month_orders: thisMonthOrders,
               is_new: totalOrders === 1 && thisMonthOrders === 1 // Nouveau si c'est sa première commande
             };
+            
+            clientSourceConnaissance[order.phone_number] = unifiedSource;
           }
           
           const stats = clientStats[order.phone_number];
           order.total_orders_count = stats.total_orders;
           order.orders_this_month_count = stats.this_month_orders;
           order.is_new_client = stats.is_new;
+          
+          // 🔄 APPLIQUER LA SOURCE_CONNAISSANCE UNIFIÉE
+          order.source_connaissance = clientSourceConnaissance[order.phone_number];
         } else {
           order.total_orders_count = 0;
           order.orders_this_month_count = 0;
@@ -1686,13 +1710,50 @@ class OrderController {
         });
       }
 
-      // Mettre à jour uniquement la source de connaissance
+      // Mettre à jour la source de connaissance pour cette commande
       const updatedOrder = await Order.update(id, { source_connaissance: source_connaissance || null });
 
-      res.json({
-        message: 'Source de connaissance mise à jour avec succès',
-        order: updatedOrder
-      });
+      // 🔄 PROPAGATION : Mettre à jour TOUTES les commandes du même client (même numéro de téléphone)
+      if (existingOrder.phone_number) {
+        const db = require('../models/database');
+        
+        // Compter le nombre de commandes qui seront mises à jour
+        const countQuery = `
+          SELECT COUNT(*) as total
+          FROM orders
+          WHERE phone_number = $1
+            AND order_type = 'MATA'
+            AND id != $2
+        `;
+        const countResult = await db.query(countQuery, [existingOrder.phone_number, id]);
+        const otherOrdersCount = parseInt(countResult.rows[0].total);
+
+        // Propager la source_connaissance à toutes les autres commandes du même client
+        const propagateQuery = `
+          UPDATE orders
+          SET source_connaissance = $1
+          WHERE phone_number = $2
+            AND order_type = 'MATA'
+            AND id != $3
+        `;
+        
+        await db.query(propagateQuery, [source_connaissance || null, existingOrder.phone_number, id]);
+        
+        console.log(`✅ Source de connaissance propagée à ${otherOrdersCount} autre(s) commande(s) du client ${existingOrder.phone_number}`);
+
+        res.json({
+          message: `Source de connaissance mise à jour avec succès et propagée à ${otherOrdersCount} autre(s) commande(s) du client`,
+          order: updatedOrder,
+          propagated_count: otherOrdersCount
+        });
+      } else {
+        // Pas de numéro de téléphone, pas de propagation
+        res.json({
+          message: 'Source de connaissance mise à jour avec succès',
+          order: updatedOrder,
+          propagated_count: 0
+        });
+      }
 
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour de la source de connaissance:', error);
@@ -1721,6 +1782,19 @@ class OrderController {
 
       const db = require('../models/database');
       
+      // 🔍 RÉCUPÉRER LA SOURCE_CONNAISSANCE DU CLIENT (valeur unifiée)
+      const clientSourceQuery = `
+        SELECT source_connaissance
+        FROM orders
+        WHERE phone_number = $1
+          AND order_type = 'MATA'
+          AND source_connaissance IS NOT NULL
+          AND source_connaissance != ''
+        LIMIT 1
+      `;
+      const clientSourceResult = await db.query(clientSourceQuery, [phone_number]);
+      const clientSourceConnaissance = clientSourceResult.rows.length > 0 ? clientSourceResult.rows[0].source_connaissance : null;
+      
       // Construire la requête avec filtres de date optionnels
       let query = `
         SELECT 
@@ -1739,7 +1813,6 @@ class OrderController {
           o.price_rating,
           o.commercial_service_rating,
           o.interne,
-          o.source_connaissance,
           u.username as livreur,
           o.created_at
         FROM orders o
@@ -1767,6 +1840,11 @@ class OrderController {
 
       const result = await db.query(query, queryParams);
       const orders = result.rows;
+      
+      // 🔄 APPLIQUER LA SOURCE_CONNAISSANCE UNIFIÉE À TOUTES LES COMMANDES
+      orders.forEach(order => {
+        order.source_connaissance = clientSourceConnaissance;
+      });
 
       // Calculer des statistiques
       const stats = {
@@ -2240,10 +2318,24 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
             const thisMonthResult = await db.query(thisMonthOrdersQuery, [order.phone_number, month]);
             const thisMonthOrders = parseInt(thisMonthResult.rows[0].count);
             
+            // 🔍 RÉCUPÉRER LA SOURCE_CONNAISSANCE UNIFIÉE DU CLIENT
+            const sourceQuery = `
+              SELECT source_connaissance
+              FROM orders
+              WHERE phone_number = $1
+                AND order_type = 'MATA'
+                AND source_connaissance IS NOT NULL
+                AND source_connaissance != ''
+              LIMIT 1
+            `;
+            const sourceResult = await db.query(sourceQuery, [order.phone_number]);
+            const unifiedSource = sourceResult.rows.length > 0 ? sourceResult.rows[0].source_connaissance : null;
+            
             clientStats[order.phone_number] = {
               total_orders: totalOrders,
               this_month_orders: thisMonthOrders,
-              is_new: totalOrders === 1 && thisMonthOrders === 1
+              is_new: totalOrders === 1 && thisMonthOrders === 1,
+              source_connaissance: unifiedSource
             };
           }
           
@@ -2251,6 +2343,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
           order.total_orders_count = stats.total_orders;
           order.orders_this_month_count = stats.this_month_orders;
           order.is_new_client = stats.is_new;
+          
+          // 🔄 APPLIQUER LA SOURCE_CONNAISSANCE UNIFIÉE
+          order.source_connaissance = stats.source_connaissance;
         } else {
           order.total_orders_count = 0;
           order.orders_this_month_count = 0;

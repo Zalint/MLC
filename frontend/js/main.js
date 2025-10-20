@@ -1,5 +1,11 @@
 // ===== CONFIGURATION ET CONSTANTES =====
-const API_BASE_URL = window.location.hostname === 'localhost' 
+const isLocalHost = (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '0.0.0.0' ||
+  /^192\.168\./.test(window.location.hostname)
+);
+const API_BASE_URL = isLocalHost
   ? 'http://localhost:4000/api/v1'
   : 'https://matix-livreur-backend.onrender.com/api/v1';
 

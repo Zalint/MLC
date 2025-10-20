@@ -234,6 +234,9 @@ class ClientHistoryManager {
       return '<p class="no-data">Aucune commande trouvée pour cette période.</p>';
     }
 
+    // Vérifier si au moins une commande a source_connaissance renseigné
+    const hasSourceConnaissance = orders.some(order => order.source_connaissance && order.source_connaissance.trim() !== '');
+
     return `
       <table class="history-orders-table">
         <thead>
@@ -242,6 +245,7 @@ class ClientHistoryManager {
             <th>Point de vente</th>
             <th>Montant (FCFA)</th>
             <th>Livreur</th>
+            ${hasSourceConnaissance ? '<th>Comment nous avez-vous connu ?</th>' : ''}
             <th>Commentaire</th>
             <th>Note moyenne</th>
           </tr>
@@ -265,6 +269,7 @@ class ClientHistoryManager {
                 <td>${order.point_de_vente || '-'}</td>
                 <td>${this.formatAmount(order.montant_commande)}</td>
                 <td>${order.livreur || '-'}</td>
+                ${hasSourceConnaissance ? `<td>${order.source_connaissance || 'Non renseigné'}</td>` : ''}
                 <td class="comment-cell">${order.commentaire || '-'}</td>
                 <td class="rating-cell">
                   <span class="rating-badge ${avgRating !== 'N/A' ? (avgRating >= 7 ? 'good' : avgRating >= 5 ? 'average' : 'poor') : ''}">
