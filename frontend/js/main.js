@@ -6391,12 +6391,37 @@ class App {
     document.getElementById('new-order-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      // Obtenir le bouton et le texte
+      const submitBtn = document.getElementById('submit-order-btn');
+      const submitText = document.getElementById('submit-order-text');
+      
+      // Vérifier si une commande est déjà en cours de création
+      if (submitBtn.disabled) {
+        ToastManager.warning('Une commande est déjà en cours de création, veuillez patienter...');
+        return;
+      }
+      
+      // Désactiver le bouton et afficher le spinner
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.6';
+      submitBtn.style.cursor = 'not-allowed';
+      submitText.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent; animation: spin 0.6s linear infinite; margin-right: 8px;"></span>Création en cours...';
+      
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
+      
+      // Fonction pour réactiver le bouton
+      const resetButton = () => {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitText.textContent = 'Créer la commande';
+      };
       
       // Validation du numéro de téléphone (sauf pour les commandes internes)
       if (!orderData.interne && !Utils.validatePhoneNumber(orderData.phone_number)) {
         ToastManager.error(Utils.getPhoneNumberErrorMessage(orderData.phone_number));
+        resetButton();
         return;
       }
       
@@ -6404,6 +6429,7 @@ class App {
       if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
         if (!orderData.created_by) {
           ToastManager.error('Vous devez sélectionner un livreur pour cette commande');
+          resetButton();
           return;
         }
       }
@@ -6529,12 +6555,17 @@ class App {
           }
           
             await OrderManager.loadLastUserOrders();
+            
+            // Réactiver le bouton après succès
+            resetButton();
           } else {
             ToastManager.error(response.message || 'Erreur lors de la création de la commande');
+            resetButton();
           }
         } catch (error) {
           console.error('Erreur lors de la création de la commande:', error);
           ToastManager.error('Erreur lors de la création de la commande');
+          resetButton();
         }
         return;
       }
@@ -6542,9 +6573,11 @@ class App {
       // Pour les autres types de commandes, utiliser la route normale
       try {
         await OrderManager.createOrder(orderData);
+        resetButton();
       } catch (error) {
         console.error('Erreur lors de la création de la commande:', error);
         ToastManager.error('Erreur lors de la création de la commande');
+        resetButton();
       }
     });
 
