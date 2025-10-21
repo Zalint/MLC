@@ -649,10 +649,41 @@
             <div class="page-header">
                 <h2>Commandes enregistrées</h2>
                 <div class="page-actions">
-                    <input type="date" id="orders-date-filter" class="date-input">
-                    <button id="export-excel" class="btn btn-primary btn-sm hidden">
+                    <button id="export-excel" class="btn btn-primary btn-sm">
                         <span class="icon">📊</span>
                         Export Excel
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Filtres pour les commandes -->
+            <div class="orders-filters" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; padding: 0 1rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="orders-date-filter" style="font-weight: bold;">Date:</label>
+                    <input type="date" id="orders-date-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="orders-livreur-filter" style="font-weight: bold;">Livreur:</label>
+                    <select id="orders-livreur-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Tous les livreurs</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="orders-type-filter" style="font-weight: bold;">Type:</label>
+                    <select id="orders-type-filter" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Tous les types</option>
+                        <option value="MATA">MATA</option>
+                        <option value="MLC">MLC</option>
+                        <option value="AUTRE">AUTRE</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="clear-orders-filters" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Effacer filtres
                     </button>
                 </div>
             </div>

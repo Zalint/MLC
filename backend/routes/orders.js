@@ -136,4 +136,7 @@ router.delete('/user/date',
 // Route pour obtenir les dernières commandes de l'utilisateur connecté
 router.get('/user/last', OrderController.getLastUserOrders);
 
+// Route pour obtenir les livreurs actifs
+router.get('/active-livreurs', OrderController.getActiveLivreurs);
+
 module.exports = router; 

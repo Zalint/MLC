@@ -3528,6 +3528,9 @@ class OrderManager {
       this.displayOrders();
       this.updatePagination();
       this.setupOrderEventListeners();
+      
+      // Peupler le filtre des livreurs
+      this.populateLivreurFilter();
     } catch (error) {
       console.error('Erreur lors du chargement des commandes:', error);
       ToastManager.error('Erreur lors du chargement des commandes');
@@ -3547,6 +3550,73 @@ class OrderManager {
       console.error('Erreur lors du chargement des commandes par date:', error);
       ToastManager.error('Erreur lors du chargement des commandes');
     }
+  }
+
+  static async loadOrdersWithFilters() {
+    try {
+      const dateFilter = document.getElementById('orders-date-filter').value;
+      const livreurFilter = document.getElementById('orders-livreur-filter').value;
+      const typeFilter = document.getElementById('orders-type-filter').value;
+
+      let response;
+      if (dateFilter) {
+        response = await ApiClient.getOrdersByDate(dateFilter);
+      } else {
+        response = await ApiClient.getOrders(1, 20);
+      }
+
+      let orders = response.orders || [];
+
+      // Appliquer le filtre par livreur
+      if (livreurFilter) {
+        orders = orders.filter(order => order.creator_username === livreurFilter);
+      }
+
+      // Appliquer le filtre par type
+      if (typeFilter) {
+        orders = orders.filter(order => order.order_type === typeFilter);
+      }
+
+      AppState.orders = orders;
+      this.displayOrders();
+      this.setupOrderEventListeners();
+      
+      // Masquer la pagination pour les filtres
+      document.getElementById('orders-pagination').classList.add('hidden');
+    } catch (error) {
+      console.error('Erreur lors du chargement des commandes avec filtres:', error);
+      ToastManager.error('Erreur lors du chargement des commandes');
+    }
+  }
+
+  static async populateLivreurFilter() {
+    try {
+      const response = await ApiClient.getActiveLivreurs();
+      const livreurs = response.livreurs || [];
+
+      const livreurFilter = document.getElementById('orders-livreur-filter');
+      if (livreurFilter) {
+        // Garder l'option "Tous les livreurs"
+        livreurFilter.innerHTML = '<option value="">Tous les livreurs</option>';
+        
+        // Ajouter les options livreur
+        livreurs.forEach(livreur => {
+          const option = document.createElement('option');
+          option.value = livreur.username;
+          option.textContent = livreur.username;
+          livreurFilter.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des livreurs:', error);
+    }
+  }
+
+  static clearFilters() {
+    document.getElementById('orders-date-filter').value = '';
+    document.getElementById('orders-livreur-filter').value = '';
+    document.getElementById('orders-type-filter').value = '';
+    this.loadOrders();
   }
 
   static async loadLastUserOrders() {
@@ -6478,14 +6548,21 @@ class App {
       }
     });
 
-    // Filtre par date pour les commandes
-    document.getElementById('orders-date-filter').addEventListener('change', (e) => {
-      const date = e.target.value;
-      if (date) {
-        OrderManager.loadOrdersByDate(date);
-      } else {
-        OrderManager.loadOrders();
-      }
+    // Filtres pour les commandes
+    document.getElementById('orders-date-filter').addEventListener('change', () => {
+      OrderManager.loadOrdersWithFilters();
+    });
+
+    document.getElementById('orders-livreur-filter').addEventListener('change', () => {
+      OrderManager.loadOrdersWithFilters();
+    });
+
+    document.getElementById('orders-type-filter').addEventListener('change', () => {
+      OrderManager.loadOrdersWithFilters();
+    });
+
+    document.getElementById('clear-orders-filters').addEventListener('click', () => {
+      OrderManager.clearFilters();
     });
 
     // Pagination des commandes
