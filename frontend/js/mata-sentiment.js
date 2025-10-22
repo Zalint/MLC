@@ -599,11 +599,28 @@ class MataSentimentManager {
                     .reduce((sum, src) => sum + src.count, 0);
                   
                   return by_source_connaissance.map(src => `
-                    <div class="source-item">
-                      <div class="source-name">${src.source}</div>
-                      <div class="source-count">${src.count} client${src.count > 1 ? 's' : ''}</div>
-                      ${src.source !== 'Non renseigné' ? `
-                        <div class="source-percentage">${total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0'}%</div>
+                    <div class="source-item" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                      <div class="source-name" style="font-weight: 600; font-size: 1rem; width: 100%;">${src.source}</div>
+                      <div class="source-count" style="font-size: 0.95rem; color: #4B5563;">${src.count} client${src.count > 1 ? 's' : ''}</div>
+                      ${src.source !== 'Non renseigné' && src.average_amount !== null ? `
+                        <div class="source-percentage" style="background: #EFF6FF; color: #1E40AF; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem;">${total_with_source > 0 ? ((src.count / total_with_source) * 100).toFixed(1) : '0.0'}%</div>
+                        <div style="display: flex; gap: 1.5rem; width: 100%; flex-wrap: wrap;">
+                          <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <span style="font-size: 0.8rem; color: #6B7280; font-weight: 500;">Panier moyen</span>
+                            <span style="font-size: 1.1rem; font-weight: 700; color: #059669;">${src.average_amount.toLocaleString('fr-FR')} FCFA</span>
+                          </div>
+                          ${src.std_deviation !== null ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                              <span style="font-size: 0.8rem; color: #6B7280; font-weight: 500;">Écart-type</span>
+                              <span style="font-size: 1.1rem; font-weight: 700; color: #DC2626;">± ${src.std_deviation.toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                          ` : ''}
+                        </div>
+                        ${src.volatility_comment ? `
+                          <div style="background: #F9FAFB; border-left: 3px solid #6366F1; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; color: #374151; font-style: italic; width: 100%; margin-top: 0.5rem;">
+                            ${src.volatility_comment}
+                          </div>
+                        ` : ''}
                       ` : ''}
                     </div>
                   `).join('');

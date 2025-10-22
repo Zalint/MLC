@@ -2000,20 +2000,65 @@ class OrderController {
           (data.orderRatings.reduce((a, b) => a + b, 0) / data.orderRatings.length).toFixed(1) : null
       })).sort((a, b) => b.count - a.count);
 
-      // Statistiques par source de connaissance
+      // Statistiques par source de connaissance avec panier moyen et écart-type
       const bySourceConnaissance = {};
       orders.forEach(order => {
         const source = order.source_connaissance || 'Non renseigné';
         if (!bySourceConnaissance[source]) {
-          bySourceConnaissance[source] = 0;
+          bySourceConnaissance[source] = {
+            count: 0,
+            amounts: []
+          };
         }
-        bySourceConnaissance[source]++;
+        bySourceConnaissance[source].count++;
+        // Ajouter le montant de la commande pour calculer le panier moyen et l'écart-type
+        if (order.montant_commande) {
+          bySourceConnaissance[source].amounts.push(parseFloat(order.montant_commande));
+        }
       });
 
-      const bySourceConnaissanceArray = Object.entries(bySourceConnaissance).map(([name, count]) => ({
-        source: name,
-        count
-      })).sort((a, b) => b.count - a.count);
+      const bySourceConnaissanceArray = Object.entries(bySourceConnaissance).map(([name, data]) => {
+        const amounts = data.amounts;
+        let averageAmount = null;
+        let stdDeviation = null;
+        let volatilityComment = '';
+        
+        if (amounts.length > 0) {
+          // Calcul du panier moyen
+          const sum = amounts.reduce((a, b) => a + b, 0);
+          averageAmount = Math.round(sum / amounts.length);
+          
+          // Calcul de l'écart-type (volatilité)
+          if (amounts.length > 1) {
+            const variance = amounts.reduce((acc, val) => acc + Math.pow(val - averageAmount, 2), 0) / amounts.length;
+            stdDeviation = Math.round(Math.sqrt(variance));
+            
+            // Coefficient de variation (CV) : écart-type / moyenne * 100
+            const cv = (stdDeviation / averageAmount) * 100;
+            
+            // Commentaire interprétatif sur la volatilité
+            if (cv < 20) {
+              volatilityComment = 'Très stable 🟢 - Clients réguliers avec dépenses homogènes';
+            } else if (cv < 35) {
+              volatilityComment = 'Stable 🟡 - Dépenses relativement prévisibles';
+            } else if (cv < 50) {
+              volatilityComment = 'Volatile 🟠 - Mix de petits et gros paniers';
+            } else {
+              volatilityComment = 'Très volatile 🔴 - Forte variation entre les commandes';
+            }
+          } else {
+            volatilityComment = 'Données insuffisantes (1 seul client)';
+          }
+        }
+        
+        return {
+          source: name,
+          count: data.count,
+          average_amount: averageAmount,
+          std_deviation: stdDeviation,
+          volatility_comment: volatilityComment
+        };
+      }).sort((a, b) => b.count - a.count);
 
       // Analyse IA avec OpenAI
       let aiAnalysis = {
