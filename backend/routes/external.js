@@ -22,9 +22,9 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       });
     }
 
-    // Seuil MATA par défaut: 1500 si non fourni
+    // Seuil MATA par défaut: 1000 si non fourni
     if (!seuilMata) {
-      seuilMata = 1500;
+      seuilMata = 1000;
     } else {
       seuilMata = parseFloat(seuilMata);
       if (isNaN(seuilMata) || seuilMata < 0) {
@@ -509,9 +509,9 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
       }
     }
 
-    // Seuil MATA par défaut: 1500 si non fourni
+    // Seuil MATA par défaut: 1000 si non fourni
     if (!seuilMata) {
-      seuilMata = 1500;
+      seuilMata = 1000;
     } else {
       seuilMata = parseFloat(seuilMata);
       if (isNaN(seuilMata) || seuilMata < 0) {

@@ -418,6 +418,27 @@ body {
   color: var(--white);
 }
 
+.btn-info-outline {
+  background-color: transparent;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.btn-info-outline:hover:not(:disabled) {
+  background-color: #dbeafe;
+  border-color: #2563eb;
+  color: #1e40af;
+}
+
+.btn-info-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #9ca3af;
+  border-color: #d1d5db;
+}
+
 .btn-link {
   background: none;
   color: var(--primary-color);

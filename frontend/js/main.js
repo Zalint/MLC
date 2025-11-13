@@ -3692,6 +3692,11 @@ class OrderManager {
             ${order.order_type === 'MATA' ? `<span class="order-amount">Montant : <b>${Utils.formatAmount(order.amount)}</b></span>` : ''}
           </div>
           <div class="order-type">Type : <b>${Utils.escapeHtml(order.order_type)}</b></div>
+          ${order.order_type === 'MATA' && order.phone_number && !order.interne ? `
+            <button class="btn btn-info-outline btn-client-history-card" data-phone="${Utils.escapeHtml(order.phone_number)}" data-client-name="${Utils.escapeHtml(order.client_name)}" style="margin-top: 10px;">
+              📋 Voir l'historique de ce client
+            </button>
+          ` : ''}
         </div>
       </div>
     `).join('');
@@ -3877,6 +3882,20 @@ class OrderManager {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.dataset.orderId;
         this.editOrder(orderId);
+      });
+    });
+
+    // Boutons pour voir l'historique du client (dans les cartes de commandes)
+    document.querySelectorAll('.btn-client-history-card').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const phoneNumber = e.currentTarget.dataset.phone;
+        const clientName = e.currentTarget.dataset.clientName;
+        
+        if (phoneNumber && phoneNumber !== '0000000000') {
+          ClientHistoryManager.showClientHistory(phoneNumber, clientName);
+        } else {
+          ToastManager.warning('Numéro de téléphone non disponible');
+        }
       });
     });
 
@@ -4160,7 +4179,7 @@ class OrderManager {
           </div>
           <div class="form-group" id="edit-course-price-group" style="display: ${order.order_type ? 'block' : 'none'};">
             <label for="edit-course-price">Prix de la course (FCFA)</label>
-            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" value="${order.course_price || (order.order_type === 'MATA' ? 1500 : '')}" ${order.order_type === 'MATA' ? 'readonly' : ''}>
+            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" value="${order.course_price || (order.order_type === 'MATA' ? 1000 : '')}" ${order.order_type === 'MATA' ? 'readonly' : ''}>
           </div>
           <div class="form-group" id="edit-amount-group" style="display: ${order.order_type === 'MATA' ? 'block' : 'none'};">
             <label for="edit-amount">Montant du panier (FCFA)</label>
@@ -6137,8 +6156,15 @@ class App {
         subscriptionSelectGroup.style.display = 'none';
         mataHorsZoneGroup.style.display = 'block';
         document.getElementById('interne-toggle-group').style.display = 'block';
-        coursePriceInput.value = '1500';
+        coursePriceInput.value = '1000';
         coursePriceInput.readOnly = true;
+        
+        // Afficher le groupe du bouton historique pour MATA
+        const historyButtonGroup = document.getElementById('client-history-button-group');
+        if (historyButtonGroup) {
+          historyButtonGroup.style.display = 'block';
+          // Le bouton sera activé/désactivé automatiquement par toggleClientHistoryButton
+        }
       } else if (orderType === 'MLC') {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'none';
@@ -6159,6 +6185,12 @@ class App {
         subscriptionSelectGroup.style.display = 'none';
         coursePriceInput.value = '';
         coursePriceInput.readOnly = false;
+        
+        // Masquer le bouton historique pour les types non-MATA
+        const historyButtonGroup = document.getElementById('client-history-button-group');
+        if (historyButtonGroup) {
+          historyButtonGroup.style.display = 'none';
+        }
       }
     });
 
@@ -6178,7 +6210,7 @@ class App {
         supplementToggleGroup.style.display = 'block';
         mlcZoneGroup.style.display = 'none';
         document.getElementById('zone-info').style.display = 'none';
-        coursePriceInput.value = '1500';
+        coursePriceInput.value = '1000';
         coursePriceInput.readOnly = true;
         
         // Charger les abonnements actifs
@@ -6239,11 +6271,11 @@ class App {
       const coursePriceInput = document.getElementById('course-price');
       
       if (isHorsZone) {
-        // Ajouter 1000 FCFA au prix par défaut de 1500
-        coursePriceInput.value = '2500';
+        // Ajouter 1000 FCFA au prix par défaut de 1000
+        coursePriceInput.value = '2000';
       } else {
         // Remettre le prix par défaut de MATA
-        coursePriceInput.value = '1500';
+        coursePriceInput.value = '1000';
       }
     });
 
@@ -6262,6 +6294,12 @@ class App {
         // Définir les valeurs par défaut pour les commandes internes
         clientNameInput.value = 'COMMANDE INTERNE';
         phoneNumberInput.value = '0000000000';
+        
+        // Masquer le bouton historique pour les commandes internes
+        const historyButtonGroup = document.getElementById('client-history-button-group');
+        if (historyButtonGroup) {
+          historyButtonGroup.style.display = 'none';
+        }
         clientNameInput.required = false;
         phoneNumberInput.required = false;
       } else {
@@ -6271,6 +6309,70 @@ class App {
         // Les rendre requis
         clientNameInput.required = true;
         phoneNumberInput.required = true;
+        
+        // Réafficher le bouton historique si c'est une commande MATA
+        const orderType = document.getElementById('order-type').value;
+        const historyButtonGroup = document.getElementById('client-history-button-group');
+        if (orderType === 'MATA' && historyButtonGroup) {
+          historyButtonGroup.style.display = 'block';
+          toggleClientHistoryButton(); // Vérifier l'état du téléphone
+        }
+      }
+    });
+
+    // ===== GESTION DU BOUTON HISTORIQUE CLIENT =====
+    
+    // Fonction pour gérer l'affichage et l'activation du bouton historique
+    function toggleClientHistoryButton() {
+      const orderType = document.getElementById('order-type').value;
+      const phoneInput = document.getElementById('phone-number');
+      const interneCheckbox = document.getElementById('interne-toggle');
+      const historyButtonGroup = document.getElementById('client-history-button-group');
+      const historyButton = document.getElementById('voir-historique-btn');
+      
+      if (!historyButtonGroup || !historyButton) return;
+      
+      const phoneValue = phoneInput.value.trim();
+      const isInterne = interneCheckbox.checked;
+      
+      // Afficher le bouton SEULEMENT pour les commandes MATA non internes
+      if (orderType === 'MATA' && !isInterne) {
+        historyButtonGroup.style.display = 'block';
+        
+        // Activer/désactiver selon si le téléphone est rempli
+        if (phoneValue.length > 0 && phoneValue !== '0000000000') {
+          historyButton.disabled = false;
+        } else {
+          historyButton.disabled = true;
+        }
+      } else {
+        // Masquer pour les autres types ou commandes internes
+        historyButtonGroup.style.display = 'none';
+      }
+    }
+    
+    // Appeler toggleClientHistoryButton lors du changement de type de commande
+    const originalOrderTypeListener = document.getElementById('order-type');
+    originalOrderTypeListener.addEventListener('change', toggleClientHistoryButton);
+    
+    // Écouter les changements sur le champ téléphone
+    document.getElementById('phone-number').addEventListener('input', toggleClientHistoryButton);
+    
+    // Écouter les changements sur le toggle interne
+    document.getElementById('interne-toggle').addEventListener('change', toggleClientHistoryButton);
+    
+    // Ajouter le gestionnaire de clic sur le bouton historique
+    document.getElementById('voir-historique-btn').addEventListener('click', () => {
+      const phoneInput = document.getElementById('phone-number');
+      const clientNameInput = document.getElementById('client-name');
+      const phoneNumber = phoneInput.value.trim();
+      const clientName = clientNameInput.value.trim();
+      
+      if (phoneNumber && phoneNumber !== '0000000000') {
+        // Appeler la fonction existante pour afficher l'historique
+        ClientHistoryManager.showClientHistory(phoneNumber, clientName);
+      } else {
+        ToastManager.warning('Veuillez saisir un numéro de téléphone valide');
       }
     });
 
@@ -6464,7 +6566,7 @@ class App {
       
       // Traitement du supplément "hors zone" pour MATA
       if (orderData.order_type === 'MATA' && orderData.mata_hors_zone === 'on') {
-        // Le prix est déjà ajusté dans l'interface (1500 + 1000 = 2500)
+        // Le prix est déjà ajusté dans l'interface (1000 + 1000 = 2000)
         // Pas besoin de traitement supplémentaire côté client
         orderData.hors_zone = true;
       }

@@ -491,8 +491,8 @@ class Order {
         SUM(COALESCE(o.course_price, 0)) as total_amount,
         SUM(
           CASE 
-            -- MATA hors zone : supplément au-dessus du prix de base (1500 FCFA)
-            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN o.course_price - 1500
+            -- MATA hors zone : supplément au-dessus du prix de base (1000 FCFA)
+            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN o.course_price - 1000
             -- MLC avec abonnement : supplément au-dessus du prix unitaire de l'abonnement
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL THEN 
               GREATEST(0, o.course_price - (s.price / s.total_deliveries))
@@ -501,8 +501,8 @@ class Order {
         ) as total_supplements,
         STRING_AGG(
           DISTINCT CASE 
-            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN 
-              CONCAT('MATA Hors zone (+', ROUND(o.course_price - 1500), ')')
+            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN 
+              CONCAT('MATA Hors zone (+', ROUND(o.course_price - 1000), ')')
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 
               CONCAT('MLC Extra (+', ROUND(o.course_price - (s.price / s.total_deliveries)), ')')
             ELSE NULL
@@ -510,7 +510,7 @@ class Order {
         ) as supplement_types,
         COUNT(
           CASE 
-            WHEN o.order_type = 'MATA' AND o.course_price > 1500 THEN 1
+            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN 1
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 1
             ELSE NULL
           END

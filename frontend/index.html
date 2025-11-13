@@ -481,6 +481,14 @@
                     <input type="tel" id="phone-number" name="phone_number" required 
                            placeholder="Sénégal: 775059793 | France: 33762051319">
                 </div>
+                
+                <!-- Bouton pour voir l'historique du client (MATA uniquement, si téléphone existe) -->
+                <div class="form-group" id="client-history-button-group" style="display: none;">
+                    <button type="button" id="voir-historique-btn" class="btn btn-info-outline" disabled>
+                        📋 Voir l'historique de ce client
+                    </button>
+                </div>
+                
                 <div class="form-group" id="adresse-source-group" style="display: none;">
                     <label for="adresse-source">Adresse source *</label>
                     <textarea id="adresse-source" name="adresse_source" rows="2" placeholder="Adresse de départ"></textarea>
@@ -551,7 +559,7 @@
                 <div class="form-group" id="course-price-group" style="display: none;">
                     <label for="course-price">Prix de la course (FCFA)</label>
                     <input type="number" id="course-price" name="course_price" step="0.01" min="0" 
-                           value="1500">
+                           value="1000">
                 </div>
                 
                 <!-- Nouveau groupe pour le supplément MLC -->

@@ -108,7 +108,11 @@ exports/*.xlsx
 # Database backups and documentation
 backups/
 GUIDE_SAUVEGARDE_DATABASE.md 
-# Fichiers de test avec donn�es sensibles
+# Fichiers de test avec donn�es sensibles
 sample*.json
 *.env
 .env.local
+
+# Scripts de démarrage personnalisés (contiennent config locale)
+start-matix.ps1
+start-matix.ps
