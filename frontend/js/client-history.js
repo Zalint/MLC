@@ -4,6 +4,8 @@ class ClientHistoryManager {
   
   static currentPhone = null;
   static currentClientName = null;
+  static currentAuditLogId = null;
+  static auditStartTime = null;
 
   // Initialiser les événements
   static init() {
@@ -73,6 +75,20 @@ class ClientHistoryManager {
         this.resetDateFilters();
       }
     });
+
+    // 📊 AUDIT: Fermer le log si l'utilisateur quitte/rafraîchit la page
+    window.addEventListener('beforeunload', () => {
+      if (this.currentAuditLogId) {
+        // Utiliser sendBeacon pour envoyer la requête même si la page se ferme
+        const durationSeconds = Math.floor((Date.now() - this.auditStartTime) / 1000);
+        const data = JSON.stringify({ duration_seconds: durationSeconds });
+        
+        navigator.sendBeacon(
+          `${window.API_BASE_URL}/audit/client-history/${this.currentAuditLogId}/close`,
+          new Blob([data], { type: 'application/json' })
+        );
+      }
+    });
     
     console.log('📋 ✅ Event listeners installés');
   }
@@ -127,6 +143,9 @@ class ClientHistoryManager {
       console.log('📋 Étape 5: Affichage du modal avec données...');
       this.displayHistoryModal(data);
       console.log('📋 ✅ Modal affiché avec succès');
+
+      // 📊 AUDIT: Enregistrer l'ouverture de l'historique
+      await this.trackAuditOpen(phone, clientName || 'Client', data.orders?.length || 0, data.statistics?.total_amount || 0);
 
     } catch (error) {
       console.error('📋 ❌❌❌ ERREUR DANS showClientHistory:', error);
@@ -341,10 +360,74 @@ class ClientHistoryManager {
   }
 
   // Fermer le modal
-  static closeHistoryModal() {
+  static async closeHistoryModal() {
+    // 📊 AUDIT: Enregistrer la fermeture de l'historique
+    await this.trackAuditClose();
+
     const modal = document.getElementById('history-modal-overlay');
     if (modal) {
       modal.remove();
+    }
+  }
+
+  // 📊 AUDIT: Enregistrer l'ouverture de l'historique
+  static async trackAuditOpen(clientPhone, clientName, ordersCount, totalAmount) {
+    try {
+      this.auditStartTime = Date.now();
+      
+      const response = await fetch(`${window.API_BASE_URL}/audit/client-history/open`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          client_name: clientName,
+          client_phone: clientPhone,
+          orders_count: ordersCount,
+          total_amount: totalAmount
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.currentAuditLogId = data.log_id;
+        console.log('📊 Audit: Ouverture enregistrée', data.log_id);
+      }
+    } catch (error) {
+      console.error('❌ Erreur audit ouverture:', error);
+      // Ne pas bloquer l'affichage si l'audit échoue
+    }
+  }
+
+  // 📊 AUDIT: Enregistrer la fermeture de l'historique
+  static async trackAuditClose() {
+    if (!this.currentAuditLogId || !this.auditStartTime) {
+      return; // Pas de log à fermer
+    }
+
+    try {
+      const durationSeconds = Math.floor((Date.now() - this.auditStartTime) / 1000);
+      
+      await fetch(`${window.API_BASE_URL}/audit/client-history/${this.currentAuditLogId}/close`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          duration_seconds: durationSeconds
+        })
+      });
+
+      console.log('📊 Audit: Fermeture enregistrée', durationSeconds, 'secondes');
+      
+      // Réinitialiser
+      this.currentAuditLogId = null;
+      this.auditStartTime = null;
+    } catch (error) {
+      console.error('❌ Erreur audit fermeture:', error);
+      // Ne pas bloquer la fermeture si l'audit échoue
     }
   }
 

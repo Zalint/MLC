@@ -989,6 +989,14 @@ class PageManager {
             console.log('🗺️ Utilisateur actuel:', AppState.user);
           }
           break;
+        case 'audit':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            console.log('📊 Redirection vers Audit...');
+            window.location.href = 'audit.html';
+          } else {
+            alert('Accès non autorisé');
+          }
+          break;
         case 'gps-analytics':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             console.log('📊 Initialisation GPS Analytics...');
@@ -1187,6 +1195,13 @@ class AuthManager {
       if (navMlcTable) {
         navMlcTable.classList.remove('hidden');
         navMlcTable.style.display = 'flex';
+      }
+
+      // Affichage du menu Audit pour managers/admins
+      const navAudit = document.getElementById('nav-audit');
+      if (navAudit) {
+        navAudit.classList.remove('hidden');
+        navAudit.style.display = 'flex';
       }
       
       // Affichage des menus GPS pour managers/admins
