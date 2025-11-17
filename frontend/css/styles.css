@@ -3769,10 +3769,11 @@ input[type="tel"]:focus {
 }
 
 .history-orders-table .comment-cell {
-  max-width: 300px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 400px;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.5;
+  padding: 12px 8px;
 }
 
 .history-orders-table .rating-cell {
