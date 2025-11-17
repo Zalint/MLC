@@ -5,6 +5,7 @@ const OrderController = require('../controllers/orderController');
 const { 
   authenticateToken, 
   requireManagerOrAdmin,
+  requireManagerAdminOrLivreur,
   requireDeleteAllPermission,
   requireOwnership 
 } = require('../middleware/auth');
@@ -57,7 +58,7 @@ const DeepAnalysisController = require('../controllers/deepAnalysisController');
 router.post('/mata-deep-analysis', requireManagerOrAdmin, DeepAnalysisController.performDeepAnalysis);
 
 // Route pour l'historique des commandes d'un client (par numéro de téléphone)
-router.get('/client-history', requireManagerOrAdmin, OrderController.getClientOrderHistory);
+router.get('/client-history', requireManagerAdminOrLivreur, OrderController.getClientOrderHistory);
 
 // Route pour l'export Excel du récapitulatif par livreur (managers et admins seulement)
 router.get('/monthly-summary-export', requireManagerOrAdmin, OrderController.exportMonthlySummaryToExcel);

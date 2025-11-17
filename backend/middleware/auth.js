@@ -96,6 +96,9 @@ const requireRole = (roles) => {
 // Middleware pour les managers et admins
 const requireManagerOrAdmin = requireRole(['MANAGER', 'ADMIN']);
 
+// Middleware pour les managers, admins et livreurs
+const requireManagerAdminOrLivreur = requireRole(['MANAGER', 'ADMIN', 'LIVREUR']);
+
 // Middleware pour les admins uniquement
 const requireAdmin = requireRole(['ADMIN']);
 
@@ -223,6 +226,7 @@ module.exports = {
   authenticateToken,
   requireRole,
   requireManagerOrAdmin,
+  requireManagerAdminOrLivreur,
   requireAdmin,
   requireDeleteAllPermission,
   requireOwnership,
