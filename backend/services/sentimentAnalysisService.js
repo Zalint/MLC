@@ -2,6 +2,11 @@
 
 const OpenAI = require('openai');
 
+// Vérifier la présence de la clé API
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('⚠️ OPENAI_API_KEY non configurée - l\'analyse basique sera utilisée');
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -73,8 +78,8 @@ Retourne UNIQUEMENT le JSON, sans texte avant ou après.`;
           content: prompt
         }
       ],
-      temperature: 0.3,  // Valeur par défaut pour analyse précise
-      max_tokens: 1000   // Valeur par défaut suffisante pour l'analyse
+      temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.3,
+      max_completion_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 1000
     });
 
     const content = response.choices[0].message.content.trim();
@@ -92,7 +97,13 @@ Retourne UNIQUEMENT le JSON, sans texte avant ou après.`;
     return analysis;
 
   } catch (error) {
-    console.error('❌ Erreur lors de l\'analyse de sentiment:', error);
+    console.error('❌ Erreur lors de l\'analyse de sentiment OpenAI:', error.message);
+    console.error('📋 Détails de l\'erreur:', {
+      name: error.name,
+      status: error.status,
+      code: error.code,
+      type: error.type
+    });
     
     // Fallback: analyse basique sans OpenAI
     return performBasicSentimentAnalysis(orders);
