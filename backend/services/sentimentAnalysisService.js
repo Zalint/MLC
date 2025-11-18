@@ -66,7 +66,8 @@ Fournis une analyse JSON structurée avec:
 
 Retourne UNIQUEMENT le JSON, sans texte avant ou après.`;
 
-    const response = await openai.chat.completions.create({
+    // Configuration pour l'appel OpenAI
+    const config = {
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
         {
@@ -78,9 +79,17 @@ Retourne UNIQUEMENT le JSON, sans texte avant ou après.`;
           content: prompt
         }
       ],
-      temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.3,
       max_completion_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 1000
-    });
+    };
+
+    // gpt-4o-mini ne supporte que temperature=1 (par défaut), on ne l'ajoute pas
+    // Les autres modèles peuvent utiliser OPENAI_TEMPERATURE
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    if (!model.includes('gpt-4o')) {
+      config.temperature = parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7;
+    }
+
+    const response = await openai.chat.completions.create(config);
 
     const content = response.choices[0].message.content.trim();
     
