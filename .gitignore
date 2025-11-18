@@ -116,3 +116,10 @@ sample*.json
 # Scripts de démarrage personnalisés (contiennent config locale)
 start-matix.ps1
 start-matix.ps
+
+# Fichiers de test API externe (peuvent contenir des clés sensibles)
+test_external_api.js
+test_mata_audit_api.sh
+test_local.js
+QUICK_START_*.md
+api_response_*.json

@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../models/database');
 const OpenAI = require('openai');
 const DailySentimentAnalyzer = require('../utils/sentimentAnalyzer');
+const ExternalMataAuditController = require('../controllers/externalMataAuditController');
+const { validateApiKey } = require('../middleware/apiKeyAuth');
 
 // GET /api/external/mlc/livreurStats/daily - Statistiques journalières des livreurs
 router.get('/mlc/livreurStats/daily', async (req, res) => {
@@ -1229,5 +1231,9 @@ Fournis une analyse concise des tendances et points clés, incluant la comparais
     });
   }
 });
+
+// GET/POST /api/external/mata/audit/client - Audit client avec analyse de sentiment (nécessite x-api-key)
+router.get('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);
+router.post('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);
 
 module.exports = router; 
