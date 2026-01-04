@@ -868,6 +868,19 @@ class PageManager {
           break;
         case 'new-order':
           await OrderManager.loadLastUserOrders();
+          
+          // Vérifier s'il y a des données pré-remplies depuis "Prendre la livraison"
+          const prefilledData = sessionStorage.getItem('prefilledOrderData');
+          if (prefilledData) {
+            try {
+              const orderData = JSON.parse(prefilledData);
+              OrderManager.prefillOrderForm(orderData);
+              sessionStorage.removeItem('prefilledOrderData'); // Nettoyer après utilisation
+            } catch (error) {
+              console.error('Erreur lors du pré-remplissage:', error);
+            }
+          }
+          
           // Affichage du champ livreur pour managers/admins
           const livreurGroup = document.getElementById('livreur-select-group');
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
@@ -906,6 +919,12 @@ class PageManager {
         case 'mlc-table':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await MlcTableManager.init();
+          }
+          break;
+        case 'commandes-en-cours':
+          // Les livreurs voient seulement leurs commandes, les managers/admins voient tout
+          if (window.loadCommandesEnCours) {
+            await window.loadCommandesEnCours();
           }
           break;
         case 'livreurs':
@@ -1196,6 +1215,13 @@ class AuthManager {
         navMlcTable.classList.remove('hidden');
         navMlcTable.style.display = 'flex';
       }
+      
+      // Affichage du menu Commandes En Cours pour managers/admins
+      const navCommandesEnCours = document.getElementById('nav-commandes-en-cours');
+      if (navCommandesEnCours) {
+        navCommandesEnCours.classList.remove('hidden');
+        navCommandesEnCours.style.display = 'flex';
+      }
 
       // Affichage du menu Audit pour managers/admins
       const navAudit = document.getElementById('nav-audit');
@@ -1270,6 +1296,13 @@ class AuthManager {
       } else if (navMyPerformance) {
         navMyPerformance.classList.add('hidden');
         navMyPerformance.style.display = 'none';
+      }
+      
+      // Afficher "Commandes en cours" pour les livreurs
+      const navCommandesEnCoursLivreur = document.getElementById('nav-commandes-en-cours');
+      if (navCommandesEnCoursLivreur && AppState.user.role === 'LIVREUR') {
+        navCommandesEnCoursLivreur.classList.remove('hidden');
+        navCommandesEnCoursLivreur.style.display = 'flex';
       }
 
       // Afficher l'interface GPS pour les livreurs dans le profil
@@ -3533,6 +3566,66 @@ class MataMonthlyDashboardManager {
 
 // ===== GESTIONNAIRE DES COMMANDES =====
 class OrderManager {
+  /**
+   * Pré-remplir le formulaire de commande avec des données
+   */
+  static prefillOrderForm(orderData) {
+    try {
+      // Sélectionner le type de commande
+      if (orderData.order_type) {
+        const orderTypeSelect = document.getElementById('order-type');
+        if (orderTypeSelect) {
+          orderTypeSelect.value = orderData.order_type;
+          orderTypeSelect.dispatchEvent(new Event('change')); // Trigger les events pour afficher les bons champs
+        }
+      }
+
+      // Remplir les champs
+      if (orderData.client_name) {
+        document.getElementById('client-name').value = orderData.client_name;
+      }
+      if (orderData.phone_number) {
+        document.getElementById('phone-number').value = orderData.phone_number;
+      }
+      if (orderData.source_address) {
+        document.getElementById('adresse-source').value = orderData.source_address;
+      }
+      if (orderData.destination_address) {
+        document.getElementById('adresse-destination').value = orderData.destination_address;
+      }
+      if (orderData.course_price) {
+        document.getElementById('course-price').value = orderData.course_price;
+      }
+      if (orderData.basket_amount) {
+        const amountField = document.getElementById('amount');
+        const amountGroup = document.getElementById('amount-group');
+        if (amountField) {
+          amountField.value = orderData.basket_amount;
+          // Afficher le champ si c'est une commande MATA
+          if (amountGroup && orderData.order_type === 'MATA') {
+            amountGroup.style.display = 'block';
+          }
+        }
+      }
+      if (orderData.comment) {
+        document.getElementById('description').value = orderData.comment;
+      }
+
+      // Sauvegarder l'ID de la commande en cours pour la marquer comme livrée après
+      if (orderData.commande_en_cours_id) {
+        sessionStorage.setItem('commande_en_cours_to_complete', orderData.commande_en_cours_id);
+      }
+
+      // Afficher un message
+      if (window.ToastManager) {
+        ToastManager.success('Formulaire pré-rempli depuis la commande en cours');
+      }
+
+    } catch (error) {
+      console.error('Erreur lors du pré-remplissage du formulaire:', error);
+    }
+  }
+
   static async loadOrders(page = 1) {
     try {
       const response = await ApiClient.getOrders(page, 20);
@@ -4106,6 +4199,21 @@ class OrderManager {
       }
       
       ToastManager.success('Commande créée avec succès');
+      
+      // Si cette commande vient d'une "commande en cours", la marquer comme livrée
+      const commandeEnCoursId = sessionStorage.getItem('commande_en_cours_to_complete');
+      if (commandeEnCoursId) {
+        try {
+          await ApiClient.request(`/commandes-en-cours/${commandeEnCoursId}/statut`, {
+            method: 'PATCH',
+            body: JSON.stringify({ statut: 'livree' })
+          });
+          sessionStorage.removeItem('commande_en_cours_to_complete');
+          console.log('✅ Commande en cours marquée comme livrée');
+        } catch (error) {
+          console.error('Erreur lors de la mise à jour de la commande en cours:', error);
+        }
+      }
       
       // Réinitialiser le formulaire
       document.getElementById('new-order-form').reset();

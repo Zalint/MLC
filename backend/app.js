@@ -24,6 +24,7 @@ const externalRoutes = require('./routes/external');
 const gpsRoutes = require('./routes/gps');
 const attachmentRoutes = require('./routes/attachments');
 const auditRoutes = require('./routes/audit');
+const commandesEnCoursRoutes = require('./routes/commandesEnCours');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -110,6 +111,8 @@ app.use('/api/v1/gps', gpsRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
+// Routes pour les commandes en cours (externe et interne)
+app.use('/api', commandesEnCoursRoutes);
 
 // Route de santé
 app.get('/api/health', (req, res) => {
