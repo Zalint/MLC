@@ -379,6 +379,7 @@ async function prendreLivraison(id) {
       phone_number: cleanPhone, // Utiliser le numéro nettoyé
       source_address: commande.point_vente, // Point de vente = adresse source
       destination_address: commande.client_adresse,
+      point_vente: commande.point_vente, // Point de vente pour le dropdown
       course_price: 1500, // Prix standard d'une course MATA
       basket_amount: commande.total, // Montant du panier = total des articles
       comment: description,

@@ -3593,6 +3593,29 @@ class OrderManager {
       if (orderData.destination_address) {
         document.getElementById('adresse-destination').value = orderData.destination_address;
       }
+      
+      // Pré-remplir le point de vente si fourni
+      if (orderData.point_vente) {
+        try {
+          const pointVenteSelect = document.getElementById('point-vente');
+          if (pointVenteSelect) {
+            // Vérifier que la valeur existe dans les options
+            const optionExists = Array.from(pointVenteSelect.options).some(
+              option => option.value === orderData.point_vente
+            );
+            if (optionExists) {
+              pointVenteSelect.value = orderData.point_vente;
+              console.log('✅ Point de vente pré-rempli:', orderData.point_vente);
+            } else {
+              console.warn('⚠️ Point de vente non trouvé dans les options:', orderData.point_vente);
+            }
+          }
+        } catch (error) {
+          console.error('Erreur lors du pré-remplissage du point de vente:', error);
+          // On continue même en cas d'erreur (fail silently)
+        }
+      }
+      
       if (orderData.course_price) {
         document.getElementById('course-price').value = orderData.course_price;
       }
