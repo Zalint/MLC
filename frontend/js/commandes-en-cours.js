@@ -242,7 +242,7 @@ function renderCommandeCard(commande) {
         </div>
         
         <div class="commande-total">
-          <span class="total-label">💰 Total:</span>
+          <span class="total-label">Total:</span>
           <span class="total-value">${commande.total.toLocaleString()} FCFA</span>
         </div>
       </div>
