@@ -303,8 +303,26 @@ function addCommandeActionListeners() {
   document.querySelectorAll('.mark-annulee').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.currentTarget.dataset.id;
-      if (confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) {
-        await updateStatut(id, 'annulee');
+      
+      // Utiliser le modal moderne au lieu de confirm()
+      if (window.ModalManager) {
+        window.ModalManager.confirm(
+          'Annuler la commande',
+          'Êtes-vous sûr de vouloir annuler cette commande ?',
+          async () => {
+            await updateStatut(id, 'annulee');
+          },
+          {
+            type: 'warning',
+            confirmText: 'Oui, annuler',
+            cancelText: 'Non, garder'
+          }
+        );
+      } else {
+        // Fallback vers confirm natif si ModalManager n'est pas disponible
+        if (confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) {
+          await updateStatut(id, 'annulee');
+        }
       }
     });
   });
@@ -313,8 +331,27 @@ function addCommandeActionListeners() {
   document.querySelectorAll('.delete-commande').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.currentTarget.dataset.id;
-      if (confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
-        await deleteCommande(id);
+      
+      // Utiliser le modal moderne au lieu de confirm()
+      if (window.ModalManager) {
+        window.ModalManager.confirm(
+          'Supprimer la commande',
+          'Êtes-vous sûr de vouloir supprimer définitivement cette commande ?',
+          async () => {
+            await deleteCommande(id);
+          },
+          {
+            type: 'danger',
+            icon: '🗑️',
+            confirmText: 'Oui, supprimer',
+            cancelText: 'Non, garder'
+          }
+        );
+      } else {
+        // Fallback vers confirm natif si ModalManager n'est pas disponible
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
+          await deleteCommande(id);
+        }
       }
     });
   });
@@ -537,12 +574,20 @@ async function updateStatut(id, statut) {
     if (window.ToastManager) {
       ToastManager.success(`✅ Statut mis à jour avec succès`);
     }
+    
+    // Recharger les commandes pour mettre à jour l'affichage
     await loadCommandesEnCours(false);
     
   } catch (error) {
     console.error('❌ Erreur:', error);
     if (window.ToastManager) {
       ToastManager.error(`❌ ${error.message}`);
+    }
+    // Toujours recharger même en cas d'erreur pour être sûr
+    try {
+      await loadCommandesEnCours(false);
+    } catch (reloadError) {
+      console.error('❌ Erreur lors du rechargement:', reloadError);
     }
   }
 }
@@ -560,12 +605,20 @@ async function deleteCommande(id) {
     if (window.ToastManager) {
       ToastManager.success(`✅ Commande supprimée avec succès`);
     }
+    
+    // Recharger les commandes pour mettre à jour l'affichage
     await loadCommandesEnCours(false);
     
   } catch (error) {
     console.error('❌ Erreur:', error);
     if (window.ToastManager) {
       ToastManager.error(`❌ ${error.message}`);
+    }
+    // Toujours recharger même en cas d'erreur pour être sûr
+    try {
+      await loadCommandesEnCours(false);
+    } catch (reloadError) {
+      console.error('❌ Erreur lors du rechargement:', reloadError);
     }
   }
 }

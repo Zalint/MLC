@@ -240,25 +240,69 @@ class ModalManager {
     overlay.classList.add('hidden');
   }
 
-  static confirm(title, message, onConfirm) {
+  static confirm(title, message, onConfirm, options = {}) {
+    const iconMap = {
+      danger: '⚠️',
+      warning: '⚠️',
+      info: 'ℹ️',
+      question: '❓'
+    };
+    
+    const icon = options.icon || iconMap[options.type] || '❓';
+    const confirmText = options.confirmText || 'Confirmer';
+    const cancelText = options.cancelText || 'Annuler';
+    const confirmClass = options.type === 'danger' ? 'btn-danger' : 'btn-primary';
+    
     const content = `
-      <p>${Utils.escapeHtml(message)}</p>
-      <div class="form-actions">
-        <button type="button" class="btn btn-danger" id="confirm-yes">Confirmer</button>
-        <button type="button" class="btn btn-secondary" id="confirm-no">Annuler</button>
+      <div style="text-align: center; padding: 1rem 0;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">${icon}</div>
+        <p style="font-size: 1.1rem; color: #333; margin-bottom: 1.5rem;">${Utils.escapeHtml(message)}</p>
+      </div>
+      <div class="form-actions" style="display: flex; gap: 0.5rem; justify-content: center;">
+        <button type="button" class="btn ${confirmClass}" id="confirm-yes" style="min-width: 120px;">
+          ${confirmText}
+        </button>
+        <button type="button" class="btn btn-secondary" id="confirm-no" style="min-width: 120px;">
+          ${cancelText}
+        </button>
       </div>
     `;
 
     this.show(title, content);
 
-    document.getElementById('confirm-yes').addEventListener('click', () => {
+    // Gérer la confirmation
+    const confirmHandler = () => {
       this.hide();
       onConfirm();
-    });
-
-    document.getElementById('confirm-no').addEventListener('click', () => {
+      cleanup();
+    };
+    
+    // Gérer l'annulation
+    const cancelHandler = () => {
       this.hide();
-    });
+      if (options.onCancel) {
+        options.onCancel();
+      }
+      cleanup();
+    };
+    
+    // Nettoyer les event listeners
+    const cleanup = () => {
+      document.getElementById('confirm-yes')?.removeEventListener('click', confirmHandler);
+      document.getElementById('confirm-no')?.removeEventListener('click', cancelHandler);
+    };
+
+    document.getElementById('confirm-yes').addEventListener('click', confirmHandler);
+    document.getElementById('confirm-no').addEventListener('click', cancelHandler);
+    
+    // Fermer avec Escape
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        cancelHandler();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
   }
 }
 
