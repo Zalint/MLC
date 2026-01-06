@@ -9,6 +9,7 @@ const commandeEnCoursController = require('../controllers/commandeEnCoursControl
  * 
  * Routes externes (avec x-api-key):
  * - POST /api/external/commande-en-cours - Créer/mettre à jour une commande en cours
+ * - DELETE /api/external/commande-en-cours/annuler - Annuler une commande (depuis application de caisse)
  * 
  * Routes internes (avec authentification JWT):
  * - GET /api/v1/commandes-en-cours - Liste des commandes en cours
@@ -16,9 +17,10 @@ const commandeEnCoursController = require('../controllers/commandeEnCoursControl
  * - PATCH /api/v1/commandes-en-cours/:id/statut - Mettre à jour le statut
  */
 
-// Route externe protégée par x-api-key
-// Cette route sera accessible depuis n'importe où avec la clé API
+// Routes externes protégées par x-api-key
+// Ces routes sont accessibles depuis n'importe où avec la clé API
 router.post('/external/commande-en-cours', validateApiKey, commandeEnCoursController.createCommandeEnCours);
+router.delete('/external/commande-en-cours/annuler', validateApiKey, commandeEnCoursController.annulerCommandeExterne);
 
 // Routes internes protégées par authentification JWT
 router.get('/v1/commandes-en-cours', authenticateToken, commandeEnCoursController.getCommandesEnCours);

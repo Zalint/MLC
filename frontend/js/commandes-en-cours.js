@@ -10,6 +10,8 @@ let currentFilters = {
   livreur_id: '',
   point_vente: ''
 };
+let autoRefreshInterval = null; // Pour éviter les multiples intervalles
+let isLoadingCommandes = false; // Pour éviter les appels simultanés
 
 /**
  * Récupérer le rôle de l'utilisateur courant
@@ -25,32 +27,56 @@ function getUserRole() {
 function initCommandesEnCours() {
   console.log('📦 Initialisation de la page Commandes En Cours');
   
+  // Nettoyer l'ancien intervalle s'il existe
+  if (autoRefreshInterval) {
+    console.log('🧹 Nettoyage de l\'ancien intervalle');
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+  }
+  
   // Charger les données initiales
   loadCommandesEnCours();
   
   // Event listeners pour les filtres
   document.getElementById('apply-commandes-filters')?.addEventListener('click', applyFilters);
   document.getElementById('clear-commandes-filters')?.addEventListener('click', clearFilters);
-  document.getElementById('refresh-commandes-en-cours')?.addEventListener('click', loadCommandesEnCours);
+  document.getElementById('refresh-commandes-en-cours')?.addEventListener('click', () => loadCommandesEnCours(true, false));
   
-  // Auto-refresh toutes les 30 secondes
-  setInterval(() => {
+  // Auto-refresh toutes les 30 secondes (avec rafraîchissement silencieux)
+  autoRefreshInterval = setInterval(() => {
     if (document.getElementById('commandes-en-cours-page')?.classList.contains('active')) {
-      loadCommandesEnCours(false); // false = pas de message de toast
+      console.log('🔄 Auto-refresh des commandes en cours (silencieux)');
+      loadCommandesEnCours(false, true); // false = pas de toast, true = silencieux
     }
   }, 30000);
+  
+  console.log('✅ Intervalle auto-refresh créé');
 }
 
 /**
  * Charger les commandes en cours depuis l'API
  */
-async function loadCommandesEnCours(showToast = true) {
+async function loadCommandesEnCours(showToast = true, silentRefresh = false) {
+  // Éviter les appels multiples simultanés
+  if (isLoadingCommandes) {
+    console.log('⏳ Chargement déjà en cours, appel ignoré');
+    return;
+  }
+  
+  isLoadingCommandes = true;
+  
   try {
     const container = document.getElementById('commandes-en-cours-container');
-    if (!container) return;
+    if (!container) {
+      isLoadingCommandes = false;
+      return;
+    }
     
-    // Afficher le loader
-    container.innerHTML = '<div class="loading-message"><p>🔄 Chargement des commandes en cours...</p></div>';
+    // Afficher le loader UNIQUEMENT si ce n'est pas un refresh silencieux
+    // et si le container est vide
+    if (!silentRefresh && container.children.length === 0) {
+      container.innerHTML = '<div class="loading-message"><p>🔄 Chargement des commandes en cours...</p></div>';
+    }
     
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
@@ -68,18 +94,27 @@ async function loadCommandesEnCours(showToast = true) {
     // Afficher les commandes
     displayCommandesEnCours();
     
-    if (showToast && window.ToastManager) {
+    // N'afficher le toast que si demandé et non en mode silencieux
+    if (showToast && !silentRefresh && window.ToastManager) {
       ToastManager.success(`✅ ${commandesEnCoursData.length} commande(s) chargée(s)`);
     }
     
   } catch (error) {
     console.error('❌ Erreur lors du chargement des commandes:', error);
-    document.getElementById('commandes-en-cours-container').innerHTML = `
-      <div class="alert alert-danger">
-        <p>❌ Erreur lors du chargement des commandes en cours</p>
-        <p>${error.message}</p>
-      </div>
-    `;
+    // N'afficher l'erreur que si ce n'est pas un refresh silencieux
+    if (!silentRefresh) {
+      const container = document.getElementById('commandes-en-cours-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="alert alert-danger">
+            <p>❌ Erreur lors du chargement des commandes en cours</p>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+  } finally {
+    isLoadingCommandes = false;
   }
 }
 
@@ -666,11 +701,22 @@ function clearFilters() {
   loadCommandesEnCours();
 }
 
+// Variable pour éviter la double initialisation
+let commandesEnCoursInitialized = false;
+
 // Initialiser quand la page se charge
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initCommandesEnCours);
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!commandesEnCoursInitialized) {
+      commandesEnCoursInitialized = true;
+      initCommandesEnCours();
+    }
+  });
 } else {
-  initCommandesEnCours();
+  if (!commandesEnCoursInitialized) {
+    commandesEnCoursInitialized = true;
+    initCommandesEnCours();
+  }
 }
 
 // Ajouter les styles CSS dynamiquement

@@ -486,11 +486,83 @@ const reassignCommande = async (req, res) => {
   }
 };
 
+/**
+ * DELETE /api/external/commande-en-cours/annuler
+ * Annule une commande en cours via l'API externe (protégée par x-api-key)
+ * Utilisé par les applications de caisse externes
+ */
+const annulerCommandeExterne = async (req, res) => {
+  try {
+    // Accepter commande_id depuis le body (DELETE) ou query parameter
+    const commande_id = req.body.commande_id || req.query.commande_id;
+
+    if (!commande_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'commande_id est requis',
+        usage: 'DELETE /api/external/commande-en-cours/annuler?commande_id=XXX ou body: {"commande_id": "XXX"}'
+      });
+    }
+
+    // Chercher la commande par commande_id
+    const findQuery = `
+      SELECT * FROM commandes_en_cours
+      WHERE commande_id = $1
+    `;
+    const findResult = await db.query(findQuery, [commande_id]);
+
+    if (findResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `Commande "${commande_id}" non trouvée`
+      });
+    }
+
+    const commande = findResult.rows[0];
+
+    // Vérifier si la commande est déjà annulée
+    if (commande.statut === 'annulee') {
+      return res.status(200).json({
+        success: true,
+        message: 'Commande déjà annulée',
+        data: commande
+      });
+    }
+
+    // Mettre à jour le statut à "annulee"
+    const updateQuery = `
+      UPDATE commandes_en_cours
+      SET statut = 'annulee', updated_at = NOW()
+      WHERE commande_id = $1
+      RETURNING *
+    `;
+
+    const result = await db.query(updateQuery, [commande_id]);
+
+    console.log(`✅ Commande annulée via API externe: ${commande_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Commande annulée avec succès',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'annulation de la commande:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur interne du serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   createCommandeEnCours,
   getCommandesEnCours,
   deleteCommandeEnCours,
   updateStatutCommande,
-  reassignCommande
+  reassignCommande,
+  annulerCommandeExterne
 };
 
