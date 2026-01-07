@@ -6,6 +6,7 @@
 // Variables globales
 let commandesEnCoursData = [];
 let currentFilters = {
+  date: new Date().toISOString().split('T')[0], // Date du jour par défaut (YYYY-MM-DD)
   statut: 'en_livraison', // Par défaut, afficher uniquement les commandes en livraison
   livreur_id: '',
   point_vente: ''
@@ -32,6 +33,18 @@ function initCommandesEnCours() {
     console.log('🧹 Nettoyage de l\'ancien intervalle');
     clearInterval(autoRefreshInterval);
     autoRefreshInterval = null;
+  }
+  
+  // Initialiser le champ date avec la date du jour
+  const filterDateInput = document.getElementById('filter-date');
+  if (filterDateInput) {
+    filterDateInput.value = currentFilters.date;
+    
+    // Ajouter un event listener pour appliquer automatiquement les filtres quand la date change
+    filterDateInput.addEventListener('change', () => {
+      console.log('📅 Changement de date détecté:', filterDateInput.value);
+      applyFilters();
+    });
   }
   
   // Charger les données initiales
@@ -80,6 +93,7 @@ async function loadCommandesEnCours(showToast = true, silentRefresh = false) {
     
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
+    if (currentFilters.date) params.append('date', currentFilters.date);
     if (currentFilters.statut) params.append('statut', currentFilters.statut);
     if (currentFilters.livreur_id) params.append('livreur_id', currentFilters.livreur_id);
     if (currentFilters.point_vente) params.append('point_vente', currentFilters.point_vente);
@@ -677,6 +691,7 @@ function updateStatistics() {
  * Appliquer les filtres
  */
 function applyFilters() {
+  currentFilters.date = document.getElementById('filter-date')?.value || '';
   currentFilters.statut = document.getElementById('filter-statut')?.value || '';
   currentFilters.livreur_id = document.getElementById('filter-livreur')?.value || '';
   currentFilters.point_vente = document.getElementById('filter-point-vente')?.value || '';
@@ -688,11 +703,15 @@ function applyFilters() {
  * Effacer les filtres
  */
 function clearFilters() {
+  // Réinitialiser à la date du jour
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filter-date').value = today;
   document.getElementById('filter-statut').value = 'en_livraison';
   document.getElementById('filter-livreur').value = '';
   document.getElementById('filter-point-vente').value = '';
-  
+
   currentFilters = {
+    date: today,
     statut: 'en_livraison',
     livreur_id: '',
     point_vente: ''

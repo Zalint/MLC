@@ -1232,6 +1232,39 @@ Fournis une analyse concise des tendances et points clés, incluant la comparais
   }
 });
 
+// GET /api/external/livreurs/actifs - Liste des livreurs actifs (nécessite x-api-key)
+router.get('/livreurs/actifs', validateApiKey, async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        id,
+        username,
+        full_name,
+        role,
+        is_active,
+        created_at
+      FROM users
+      WHERE role = 'LIVREUR' AND is_active = true
+      ORDER BY username
+    `;
+    
+    const result = await db.query(query);
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      livreurs: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Erreur récupération livreurs actifs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération des livreurs actifs',
+      details: error.message
+    });
+  }
+});
+
 // GET/POST /api/external/mata/audit/client - Audit client avec analyse de sentiment (nécessite x-api-key)
 router.get('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);
 router.post('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);

@@ -33,12 +33,25 @@ const createCommandeEnCours = async (req, res) => {
     }
 
     // Validation du client
-    if (!client.nom || !client.telephone || !client.adresse) {
+    // client.nom est REQUIS, client.telephone et client.adresse sont OPTIONNELS
+    if (!client.nom || client.nom.trim() === '' || client.nom.toLowerCase() === 'client inconnu') {
       return res.status(400).json({
         success: false,
-        error: 'Données client manquantes (nom, telephone, adresse requis)'
+        error: 'Le nom du client est requis et ne peut pas être vide ou "Client inconnu"'
       });
     }
+
+    // Vérifier les champs optionnels manquants pour générer un avertissement
+    const missingFields = [];
+    if (!client.telephone || client.telephone.trim() === '') {
+      missingFields.push('telephone');
+    }
+    if (!client.adresse || client.adresse.trim() === '') {
+      missingFields.push('adresse');
+    }
+    const warning = missingFields.length > 0 
+      ? `Champs optionnels manquants: ${missingFields.join(', ')}` 
+      : null;
 
     // Validation des articles
     if (!Array.isArray(articles) || articles.length === 0) {
@@ -118,8 +131,8 @@ const createCommandeEnCours = async (req, res) => {
         livreurIdReel,  // Utiliser l'ID réel de la base
         livreurNomReel, // Utiliser le nom réel de la base
         client.nom,
-        client.telephone,
-        client.adresse,
+        client.telephone || '',  // Valeur par défaut: chaîne vide si non fourni
+        client.adresse || '',    // Valeur par défaut: chaîne vide si non fourni
         JSON.stringify(articles),
         total,
         point_vente,
@@ -129,11 +142,17 @@ const createCommandeEnCours = async (req, res) => {
 
       console.log(`✅ Commande en cours mise à jour: ${commande_id}`);
 
-      return res.status(200).json({
+      const response = {
         success: true,
         message: 'Commande en cours mise à jour avec succès',
         data: result.rows[0]
-      });
+      };
+
+      if (warning) {
+        response.warning = warning;
+      }
+
+      return res.status(200).json(response);
     }
 
     // Insérer une nouvelle commande en cours
@@ -159,8 +178,8 @@ const createCommandeEnCours = async (req, res) => {
       livreurIdReel,  // Utiliser l'ID réel de la base
       livreurNomReel, // Utiliser le nom réel de la base
       client.nom,
-      client.telephone,
-      client.adresse,
+      client.telephone || '',  // Valeur par défaut: chaîne vide si non fourni
+      client.adresse || '',    // Valeur par défaut: chaîne vide si non fourni
       JSON.stringify(articles),
       total,
       point_vente,
@@ -170,11 +189,17 @@ const createCommandeEnCours = async (req, res) => {
 
     console.log(`✅ Nouvelle commande en cours créée: ${commande_id}`);
 
-    return res.status(201).json({
+    const response = {
       success: true,
       message: 'Commande en cours créée avec succès',
       data: result.rows[0]
-    });
+    };
+
+    if (warning) {
+      response.warning = warning;
+    }
+
+    return res.status(201).json(response);
 
   } catch (error) {
     console.error('❌ Erreur lors de la création de la commande en cours:', error);
@@ -194,7 +219,7 @@ const createCommandeEnCours = async (req, res) => {
  */
 const getCommandesEnCours = async (req, res) => {
   try {
-    const { statut, livreur_id, point_vente } = req.query;
+    const { statut, livreur_id, point_vente, date } = req.query;
     const user = req.user; // Utilisateur authentifié depuis le middleware JWT
 
     let query = `
@@ -225,6 +250,13 @@ const getCommandesEnCours = async (req, res) => {
       // Pour les livreurs, on filtre par leur username (qui est stocké dans livreur_id)
       query += ` AND livreur_id = $${paramCounter}`;
       params.push(user.username); // Utiliser username (plus simple)
+      paramCounter++;
+    }
+
+    // Filtrer par date (format YYYY-MM-DD)
+    if (date) {
+      query += ` AND DATE(date_commande) = $${paramCounter}`;
+      params.push(date);
       paramCounter++;
     }
 
