@@ -26,6 +26,9 @@ router.get('/mata-list', authenticateToken, requireManagerOrAdmin, ClientCredits
 // POST /api/v1/clients/credits/use - Utiliser/déduire un crédit (DOIT ÊTRE AVANT /credits)
 router.post('/credits/use', authenticateToken, requireManagerOrAdmin, ClientCreditsController.useClientCredit);
 
+// POST /api/v1/clients/credits/refund - Rembourser un crédit (DOIT ÊTRE AVANT /credits)
+router.post('/credits/refund', authenticateToken, requireManagerOrAdmin, ClientCreditsController.refundClientCredit);
+
 // POST /api/v1/clients/credits - Attribuer ou mettre à jour un crédit
 router.post('/credits', authenticateToken, requireManagerOrAdmin, ClientCreditsController.setClientCredit);
 

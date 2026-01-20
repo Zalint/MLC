@@ -498,21 +498,79 @@ async function deleteCredit(phone) {
  * Voir l'historique des transactions d'un client
  */
 async function viewCreditHistory(phone) {
+  // Afficher un spinner de chargement
+  const loadingModal = showLoadingModal('Chargement de l\'historique...');
+  
   try {
     console.log(`📜 Chargement historique: ${phone}`);
 
     const response = await ApiClient.request(`/clients/credits/history/${phone}`);
+
+    // Fermer le spinner
+    if (loadingModal) loadingModal.remove();
 
     if (response.success) {
       displayHistoryModal(phone, response.transactions || []);
     }
 
   } catch (error) {
+    // Fermer le spinner en cas d'erreur
+    if (loadingModal) loadingModal.remove();
+    
     console.error('❌ Erreur viewCreditHistory:', error);
     if (window.ToastManager) {
       ToastManager.error(`❌ ${error.message}`);
     }
   }
+}
+
+/**
+ * Afficher une modal de chargement avec spinner
+ */
+function showLoadingModal(message) {
+  const modal = document.createElement('div');
+  modal.id = 'credit-loading-modal';
+  modal.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    ">
+      <div style="
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      ">
+        <div style="
+          width: 50px;
+          height: 50px;
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #2196f3;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 1rem auto;
+        "></div>
+        <p style="margin: 0; color: #666; font-size: 1rem;">${message}</p>
+      </div>
+    </div>
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  `;
+  document.body.appendChild(modal);
+  return modal;
 }
 
 /**
@@ -545,6 +603,8 @@ function displayHistoryModal(phone, transactions) {
               const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
               const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               const isCredit = t.transaction_type === 'CREDIT';
+              const isRefund = t.transaction_type === 'REFUND';
+              const isDebit = t.transaction_type === 'DEBIT';
               
               return `
                 <tr style="border-bottom: 1px solid #eee;">
@@ -559,10 +619,10 @@ function displayHistoryModal(phone, transactions) {
                       border-radius: 4px;
                       font-size: 0.85rem;
                       font-weight: 500;
-                      background: ${isCredit ? '#e8f5e9' : '#fff3e0'};
-                      color: ${isCredit ? '#2e7d32' : '#e65100'};
+                      background: ${isCredit ? '#e8f5e9' : isRefund ? '#e3f2fd' : '#fff3e0'};
+                      color: ${isCredit ? '#2e7d32' : isRefund ? '#1565c0' : '#e65100'};
                     ">
-                      ${isCredit ? '✅ Attribution' : '💳 Utilisation'}
+                      ${isCredit ? '✅ Attribution' : isRefund ? '🔄 Remboursement' : '💳 Utilisation'}
                     </span>
                   </td>
                   <td style="padding: 0.75rem; text-align: right; font-weight: 500;">

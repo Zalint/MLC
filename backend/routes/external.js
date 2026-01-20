@@ -1273,7 +1273,13 @@ router.post('/mata/audit/client', validateApiKey, ExternalMataAuditController.ge
 const ClientCreditsController = require('../controllers/clientCreditsController');
 router.post('/clients/credits/use', validateApiKey, ClientCreditsController.useClientCredit);
 
+// POST /api/external/clients/credits/refund - Rembourser un crédit (nécessite x-api-key)
+router.post('/clients/credits/refund', validateApiKey, ClientCreditsController.refundClientCredit);
+
 // GET /api/external/clients/credits/history/:phone_number - Historique des transactions (nécessite x-api-key)
 router.get('/clients/credits/history/:phone_number', validateApiKey, ClientCreditsController.getClientCreditHistory);
+
+// DELETE /api/external/clients/credits/:phone_number - Supprimer le crédit d'un client (nécessite x-api-key)
+router.delete('/clients/credits/:phone_number', validateApiKey, ClientCreditsController.deleteClientCredit);
 
 module.exports = router; 

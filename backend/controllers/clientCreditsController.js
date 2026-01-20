@@ -502,6 +502,145 @@ class ClientCreditsController {
   }
 
   /**
+   * POST /api/v1/clients/credits/refund
+   * POST /api/external/clients/credits/refund
+   * Rembourse/annule une utilisation de crédit (ex: commande supprimée)
+   */
+  static async refundClientCredit(req, res) {
+    try {
+      const { phone_number, amount, order_id, notes } = req.body;
+
+      // Validation
+      if (!phone_number) {
+        return res.status(400).json({
+          success: false,
+          error: 'phone_number est requis'
+        });
+      }
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'amount doit être un montant positif'
+        });
+      }
+
+      // Récupérer le crédit actuel du client
+      const creditQuery = `
+        SELECT 
+          *,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
+            ELSE 0
+          END as current_balance,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN false
+            ELSE true
+          END as is_expired
+        FROM client_credits
+        WHERE phone_number = $1
+      `;
+
+      const creditResult = await db.query(creditQuery, [phone_number]);
+
+      let currentBalance = 0;
+      let expirationDays = 30; // Par défaut
+      let expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expirationDays);
+
+      // Si le client a déjà un crédit
+      if (creditResult.rows.length > 0) {
+        const credit = creditResult.rows[0];
+        currentBalance = parseFloat(credit.current_balance);
+        expirationDays = credit.expiration_days;
+        
+        // Si le crédit n'est pas expiré, garder la même date d'expiration
+        if (!credit.is_expired) {
+          expiresAt = new Date(credit.expires_at);
+        }
+      }
+
+      const amountToRefund = parseFloat(amount);
+      const newBalance = currentBalance + amountToRefund;
+
+      // Mettre à jour ou créer le crédit
+      const upsertQuery = `
+        INSERT INTO client_credits (
+          phone_number,
+          credit_amount,
+          expiration_days,
+          expires_at,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (phone_number) 
+        DO UPDATE SET
+          credit_amount = EXCLUDED.credit_amount,
+          expires_at = EXCLUDED.expires_at,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+      `;
+
+      const updateResult = await db.query(upsertQuery, [
+        phone_number,
+        newBalance,
+        expirationDays,
+        expiresAt,
+        'SYSTEM'
+      ]);
+
+      // Enregistrer la transaction dans l'historique
+      const transactionQuery = `
+        INSERT INTO client_credit_transactions (
+          phone_number,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          order_id,
+          notes,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `;
+      
+      await db.query(transactionQuery, [
+        phone_number,
+        'REFUND',
+        amountToRefund,
+        currentBalance,
+        newBalance,
+        order_id || null,
+        notes || 'Remboursement crédit',
+        'SYSTEM'
+      ]);
+
+      console.log(`✅ Crédit remboursé: ${phone_number} + ${amountToRefund} FCFA (solde: ${newBalance} FCFA)`);
+
+      return res.json({
+        success: true,
+        message: 'Crédit remboursé avec succès',
+        transaction: {
+          phone_number: phone_number,
+          amount_refunded: amountToRefund,
+          previous_balance: currentBalance,
+          new_balance: newBalance,
+          order_id: order_id || null,
+          timestamp: new Date().toISOString()
+        },
+        credit: updateResult.rows[0]
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur refundClientCredit:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors du remboursement du crédit',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
    * GET /api/v1/clients/credits/history/:phone_number
    * GET /api/external/clients/credits/history/:phone_number
    * Récupère l'historique des transactions de crédit d'un client
@@ -526,6 +665,7 @@ class ClientCreditsController {
           CASE 
             WHEN transaction_type = 'CREDIT' THEN 'Attribution'
             WHEN transaction_type = 'DEBIT' THEN 'Utilisation'
+            WHEN transaction_type = 'REFUND' THEN 'Remboursement'
             ELSE transaction_type
           END as transaction_label
         FROM client_credit_transactions
