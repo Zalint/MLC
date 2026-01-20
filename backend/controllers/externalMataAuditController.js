@@ -4,17 +4,34 @@ const db = require('../models/database');
 const { buildPhoneSearchClause, normalizePhoneNumber } = require('../utils/phoneNormalizer');
 const { analyzeClientSentiment } = require('../services/sentimentAnalysisService');
 
+// ⚡ Cache en mémoire pour les analyses de sentiment (économise les appels OpenAI)
+const sentimentCache = new Map();
+
+// Nettoyage automatique du cache toutes les heures
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of sentimentCache.entries()) {
+    if (now - value.timestamp > 6 * 60 * 60 * 1000) { // 6 heures
+      sentimentCache.delete(key);
+      console.log('🧹 Cache sentiment expiré:', key);
+    }
+  }
+}, 60 * 60 * 1000); // Vérification toutes les heures
+
 class ExternalMataAuditController {
   /**
    * Récupère l'historique complet d'un client avec analyse de sentiment
-   * GET /api/external/mata/audit/client?phone_number=XXX
-   * POST /api/external/mata/audit/client (Body: { phone_number })
+   * GET /api/external/mata/audit/client?phone_number=XXX&skip_sentiment=true
+   * POST /api/external/mata/audit/client (Body: { phone_number, skip_sentiment })
    * Header: x-api-key
    */
   static async getClientAudit(req, res) {
+    const startTime = Date.now(); // ⚡ Mesure de performance
+    
     try {
       // Accepter le numéro depuis query (GET) ou body (POST)
       const phone_number = req.query.phone_number || req.body.phone_number;
+      const skip_sentiment = (req.query.skip_sentiment === 'true') || (req.body.skip_sentiment === true);
 
       if (!phone_number) {
         return res.status(400).json({
@@ -23,7 +40,7 @@ class ExternalMataAuditController {
         });
       }
 
-      console.log('📞 Recherche client avec numéro:', phone_number);
+      console.log('📞 Recherche client avec numéro:', phone_number, skip_sentiment ? '(sans analyse)' : '(avec analyse)');
 
       // Normaliser le numéro de téléphone
       const phoneInfo = normalizePhoneNumber(phone_number);
@@ -102,10 +119,52 @@ class ExternalMataAuditController {
         avg_rating: calculateGlobalAverageRating(orders)
       };
 
-      // Analyse de sentiment avec OpenAI
-      console.log('🤖 Analyse de sentiment en cours avec OpenAI...');
-      const sentimentAnalysis = await analyzeClientSentiment(orders, clientInfo);
-      console.log('✅ Analyse de sentiment terminée');
+      // ⚡ ANALYSE DE SENTIMENT OPTIMISÉE
+      let sentimentAnalysis = null;
+      
+      if (!skip_sentiment) {
+        // Générer une clé de cache unique basée sur le téléphone, nombre de commandes et date dernière commande
+        const cacheKey = `sentiment_${normalized}_${orders.length}_${orders[0].date}`;
+        
+        // Vérifier si l'analyse est en cache
+        const cachedResult = sentimentCache.get(cacheKey);
+        
+        if (cachedResult && (Date.now() - cachedResult.timestamp < 6 * 60 * 60 * 1000)) {
+          // Cache valide (< 6 heures)
+          console.log(`⚡ Analyse depuis cache pour ${normalized} (économie d'appel OpenAI)`);
+          sentimentAnalysis = {
+            ...cachedResult.data,
+            cached: true,
+            cache_age_minutes: Math.floor((Date.now() - cachedResult.timestamp) / 60000)
+          };
+        } else {
+          // Pas en cache ou expiré - appel OpenAI
+          console.log(`🤖 Nouvelle analyse de sentiment pour ${normalized}...`);
+          const analysisStartTime = Date.now();
+          
+          sentimentAnalysis = await analyzeClientSentiment(orders, clientInfo);
+          
+          const analysisTime = Date.now() - analysisStartTime;
+          sentimentAnalysis.cached = false;
+          sentimentAnalysis.analysis_time_ms = analysisTime;
+          
+          // Mettre en cache
+          sentimentCache.set(cacheKey, {
+            data: sentimentAnalysis,
+            timestamp: Date.now()
+          });
+          
+          console.log(`✅ Analyse terminée en ${analysisTime}ms et mise en cache`);
+        }
+      } else {
+        // Analyse ignorée (skip_sentiment=true)
+        console.log(`⚡ Analyse de sentiment ignorée pour ${normalized} (gain de temps)`);
+        sentimentAnalysis = {
+          skipped: true,
+          message: 'Analyse de sentiment non demandée (skip_sentiment=true)',
+          tip: 'Retirez le paramètre skip_sentiment pour obtenir l\'analyse complète'
+        };
+      }
 
       // Formater les commandes pour la réponse
       const formattedOrders = orders.map(order => ({
@@ -126,6 +185,9 @@ class ExternalMataAuditController {
         adresse_destination: order.adresse_destination
       }));
 
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Réponse générée en ${totalTime}ms pour ${normalized}`);
+
       // Réponse complète
       res.json({
         success: true,
@@ -136,6 +198,10 @@ class ExternalMataAuditController {
         orders_history: formattedOrders,
         sentiment_analysis: sentimentAnalysis,
         statistics: statistics,
+        performance: {
+          total_time_ms: totalTime,
+          cache_size: sentimentCache.size
+        },
         generated_at: new Date().toISOString()
       });
 
