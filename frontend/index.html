@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matix Livreur - Gestion des Commandes et Livraisons</title>
     <meta name="description" content="Plateforme de gestion des commandes, livraisons et analyse de satisfaction client pour Matix Livreur">
-    <link rel="stylesheet" href="css/styles.css?v=1.3">
+    <link rel="stylesheet" href="css/styles.css?v=1.4">
     <!-- Leaflet for interactive maps (local) -->
     <link rel="stylesheet" href="assets/leaflet/leaflet.css" />
     <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
@@ -187,7 +187,7 @@
                         </div>
                     </div>
                     <div class="stat-card" id="stat-benefice">
-                        <div class="stat-icon">💰</div>
+                        <div class="stat-icon"></div>
                         <div class="stat-content">
                             <h3 id="total-benefice-today">0</h3>
                             <p>Bénéfice</p>
@@ -273,7 +273,7 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">💰</div>
+                        <div class="stat-icon"></div>
                         <div class="stat-content">
                             <h3 id="monthly-total-benefice">0 FCFA</h3>
                             <p>Bénéfice du mois</p>
@@ -418,6 +418,10 @@
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Détail des commandes MATA</h3>
                         <div class="mata-actions-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button id="open-client-credits" class="btn btn-primary btn-sm">
+                                <span class="icon">💳</span>
+                                Crédits Clients
+                            </button>
                             <button id="mata-sentiment-analysis-btn" class="btn btn-secondary btn-sm">
                                 <span class="icon">🔍</span>
                                 Analyse de Satisfaction Client IA
@@ -1647,6 +1651,88 @@
                 </div>
             </div>
         </div>
+
+        <!-- Page Crédits Clients MATA -->
+        <div id="client-credits-page" class="page" style="display: none;">
+            <div class="page-header">
+                <h2>💳 Crédits Clients MATA</h2>
+                <div class="page-actions">
+                    <button id="close-client-credits" class="btn btn-secondary btn-sm">
+                        <span class="icon">←</span>
+                        Retour
+                    </button>
+                    <button id="refresh-client-credits" class="btn btn-secondary btn-sm">
+                        <span class="icon">🔄</span>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+
+            <div class="client-credits-info" style="margin: 1rem; padding: 1rem; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                <p style="margin: 0; color: #1565c0;">
+                    <strong>ℹ️ Information:</strong> Attribuez des crédits aux clients MATA. Le crédit expire automatiquement après le délai défini.
+                </p>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="stats-grid" style="margin: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3 id="total-clients">0</h3>
+                        <p>Clients MATA</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💳</div>
+                    <div class="stat-content">
+                        <h3 id="clients-with-credit">0</h3>
+                        <p>Avec crédit actif</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"></div>
+                    <div class="stat-content">
+                        <h3 id="total-credits-amount">0 FCFA</h3>
+                        <p>Total crédits actifs</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barre de recherche -->
+            <div style="margin: 1rem; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <label for="client-credits-search" style="font-weight: 500; color: #555; white-space: nowrap;">
+                        🔍 Rechercher :
+                    </label>
+                    <input 
+                        type="text" 
+                        id="client-credits-search" 
+                        class="form-control" 
+                        placeholder="Rechercher par numéro de téléphone ou nom du client..."
+                        style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;"
+                    />
+                    <button 
+                        id="clear-client-credits-search" 
+                        class="btn btn-secondary btn-sm"
+                        style="white-space: nowrap;"
+                    >
+                        <span class="icon">✕</span>
+                        Effacer
+                    </button>
+                </div>
+                <div id="client-credits-search-results" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666; display: none;">
+                    <span id="client-credits-search-count">0</span> client(s) trouvé(s)
+                </div>
+            </div>
+
+            <!-- Liste des clients -->
+            <div id="client-credits-container" style="margin: 1rem;">
+                <div class="loading-message">
+                    <p>🔄 Chargement des clients...</p>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Modales -->
@@ -1684,5 +1770,6 @@
     <script src="js/gps-analytics.js"></script>
     <script src="js/mlc-table.js"></script>
     <script src="js/commandes-en-cours.js"></script>
+    <script src="js/client-credits.js"></script>
 </body>
 </html> 

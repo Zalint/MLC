@@ -109,6 +109,46 @@ class ExternalMataAuditController {
         total_orders: orders.length
       };
 
+      // ⚡ Récupérer le crédit client (avec gestion expiration)
+      const creditQuery = `
+        SELECT 
+          credit_amount,
+          expires_at,
+          expiration_days,
+          created_at,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
+            ELSE 0
+          END as current_balance,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN false
+            ELSE true
+          END as is_expired,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN EXTRACT(DAY FROM (expires_at - CURRENT_TIMESTAMP))::INTEGER
+            ELSE 0
+          END as days_remaining
+        FROM client_credits
+        WHERE phone_number = $1
+      `;
+      
+      const creditResult = await db.query(creditQuery, [orders[0].phone_number]);
+      
+      if (creditResult.rows.length > 0) {
+        const credit = creditResult.rows[0];
+        clientInfo.credit = {
+          amount: parseFloat(credit.credit_amount),
+          current_balance: parseFloat(credit.current_balance),
+          expires_at: credit.expires_at,
+          expiration_days: credit.expiration_days,
+          is_expired: credit.is_expired,
+          days_remaining: credit.days_remaining,
+          created_at: credit.created_at
+        };
+      } else {
+        clientInfo.credit = null;
+      }
+
       // Statistiques
       const statistics = {
         total_orders: orders.length,

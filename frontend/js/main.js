@@ -3989,7 +3989,7 @@ class OrderManager {
             </div>
 
             <div class="detail-group">
-              <h3>💰 Montants</h3>
+              <h3> Montants</h3>
               <p><strong>Prix de la course:</strong> ${Utils.formatAmount(order.course_price)}</p>
               ${order.order_type === 'MATA' && order.amount ? `<p><strong>Montant du panier:</strong> ${Utils.formatAmount(order.amount)}</p>` : ''}
             </div>
