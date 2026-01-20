@@ -17,11 +17,17 @@ x-api-key: your-secret-api-key-here
 ## 📍 Endpoint
 
 ```
-GET  /api/external/mata/audit/client?phone_number=XXX
+GET  /api/external/mata/audit/client?phone_number=XXX&skip_sentiment=true
 POST /api/external/mata/audit/client
 ```
 
 **Méthodes supportées** : GET et POST
+
+### ⚡ Nouveau : Paramètre d'optimisation
+
+- `skip_sentiment` (optional) : `true` pour une réponse ultra-rapide sans analyse de sentiment
+  - **Avec analyse** : 5-15 secondes (premier appel) ou < 1 seconde (cache)
+  - **Sans analyse** : < 1 seconde garanti
 
 ---
 
@@ -29,7 +35,15 @@ POST /api/external/mata/audit/client
 
 ### Option 1: GET (Recommandé - Plus simple)
 
-**URL** : `/api/external/mata/audit/client?phone_number=773929671`
+**URL rapide (sans analyse)** : 
+```
+/api/external/mata/audit/client?phone_number=773929671&skip_sentiment=true
+```
+
+**URL complète (avec analyse)** : 
+```
+/api/external/mata/audit/client?phone_number=773929671
+```
 
 **Headers** :
 ```
@@ -44,7 +58,15 @@ Content-Type: application/json
 x-api-key: your-secret-api-key-here
 ```
 
-**Body** :
+**Body (rapide)** :
+```json
+{
+  "phone_number": "773929671",
+  "skip_sentiment": true
+}
+```
+
+**Body (avec analyse)** :
 ```json
 {
   "phone_number": "773929671"

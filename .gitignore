@@ -121,5 +121,33 @@ start-matix.ps
 test_external_api.js
 test_mata_audit_api.sh
 test_local.js
+t_local.js
 QUICK_START_*.md
 api_response_*.json
+
+# Scripts de test et commandes SQL
+test_*.js
+test_*.ps1
+creer_*.js
+check_*.sql
+create_*.sql
+create_table_commandes_en_cours.js
+delete_*.sql
+diagnose_*.sql
+force_*.sql
+identifier_*.sql
+list_*.sql
+migration_*.sql
+requete_*.sql
+reset_*.sql
+update_*.sql
+update_mata_prices_nov_2025.js
+
+# Documentation locale et guides (non versionnés)
+API_*.md
+ENDPOINT_*.md
+FIX_*.md
+GUIDE_*.md
+INSTALLATION_*.md
+RESUME_*.md
+exemples_*.sh

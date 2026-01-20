@@ -176,13 +176,46 @@ class ClientCreditsController {
         RETURNING *
       `;
 
+      // Récupérer le crédit précédent pour l'historique
+      const previousCreditQuery = `
+        SELECT credit_amount FROM client_credits WHERE phone_number = $1
+      `;
+      const previousCredit = await db.query(previousCreditQuery, [phone_number]);
+      const balanceBefore = previousCredit.rows.length > 0 ? parseFloat(previousCredit.rows[0].credit_amount) : 0;
+
       const result = await db.query(upsertQuery, [
         phone_number,
         credit_amount,
         expiration_days,
         expiresAt,
         userId,
-        notes || null
+        notes ? notes : null
+      ]);
+
+      // Enregistrer la transaction dans l'historique
+      const transactionQuery = `
+        INSERT INTO client_credit_transactions (
+          phone_number,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          order_id,
+          notes,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `;
+      
+      await db.query(transactionQuery, [
+        phone_number,
+        'CREDIT',
+        credit_amount,
+        balanceBefore,
+        credit_amount,
+        null,
+        notes || null,
+        userId
       ]);
 
       console.log(`✅ Crédit attribué: ${phone_number} - ${credit_amount} FCFA - ${expiration_days} jours`);
@@ -291,6 +324,231 @@ class ClientCreditsController {
       return res.status(500).json({
         success: false,
         error: 'Erreur lors de la suppression du crédit'
+      });
+    }
+  }
+
+  /**
+   * POST /api/v1/clients/credits/use
+   * POST /api/external/clients/credits/use
+   * Déduit un montant du crédit d'un client
+   */
+  static async useClientCredit(req, res) {
+    try {
+      const { phone_number, amount_used, order_id, notes } = req.body;
+
+      // Validation
+      if (!phone_number) {
+        return res.status(400).json({
+          success: false,
+          error: 'phone_number est requis'
+        });
+      }
+
+      if (!amount_used || amount_used <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'amount_used doit être un montant positif'
+        });
+      }
+
+      // Récupérer le crédit actuel du client
+      const creditQuery = `
+        SELECT 
+          *,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
+            ELSE 0
+          END as current_balance,
+          CASE 
+            WHEN expires_at > CURRENT_TIMESTAMP THEN false
+            ELSE true
+          END as is_expired
+        FROM client_credits
+        WHERE phone_number = $1
+      `;
+
+      const creditResult = await db.query(creditQuery, [phone_number]);
+
+      // Vérifier si le client a un crédit
+      if (creditResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Aucun crédit trouvé pour ce client',
+          phone_number: phone_number
+        });
+      }
+
+      const credit = creditResult.rows[0];
+
+      // Vérifier si le crédit est expiré
+      if (credit.is_expired) {
+        return res.status(400).json({
+          success: false,
+          error: 'Le crédit de ce client est expiré',
+          phone_number: phone_number,
+          expired_at: credit.expires_at
+        });
+      }
+
+      // Vérifier si le crédit est suffisant
+      const currentBalance = parseFloat(credit.current_balance);
+      const amountToUse = parseFloat(amount_used);
+
+      if (currentBalance < amountToUse) {
+        return res.status(400).json({
+          success: false,
+          error: 'Crédit insuffisant',
+          phone_number: phone_number,
+          current_balance: currentBalance,
+          amount_requested: amountToUse,
+          shortage: amountToUse - currentBalance
+        });
+      }
+
+      // Calculer le nouveau solde
+      const newBalance = currentBalance - amountToUse;
+
+      // Mettre à jour le crédit
+      let updateQuery;
+      let updateParams;
+
+      if (newBalance <= 0) {
+        // Si le solde est 0 ou négatif, supprimer le crédit
+        updateQuery = `
+          DELETE FROM client_credits
+          WHERE phone_number = $1
+          RETURNING *
+        `;
+        updateParams = [phone_number];
+      } else {
+        // Sinon, mettre à jour le montant
+        if (notes) {
+          updateQuery = `
+            UPDATE client_credits
+            SET 
+              credit_amount = $1,
+              updated_at = CURRENT_TIMESTAMP,
+              notes = $2
+            WHERE phone_number = $3
+            RETURNING *
+          `;
+          updateParams = [newBalance, notes, phone_number];
+        } else {
+          updateQuery = `
+            UPDATE client_credits
+            SET 
+              credit_amount = $1,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE phone_number = $2
+            RETURNING *
+          `;
+          updateParams = [newBalance, phone_number];
+        }
+      }
+
+      const updateResult = await db.query(updateQuery, updateParams);
+
+      // Enregistrer la transaction dans l'historique
+      const transactionQuery = `
+        INSERT INTO client_credit_transactions (
+          phone_number,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          order_id,
+          notes,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `;
+      
+      await db.query(transactionQuery, [
+        phone_number,
+        'DEBIT',
+        amountToUse,
+        currentBalance,
+        newBalance > 0 ? newBalance : 0,
+        order_id || null,
+        notes || null,
+        'SYSTEM'
+      ]);
+
+      console.log(`✅ Crédit utilisé: ${phone_number} - ${amountToUse} FCFA déduit (solde: ${newBalance} FCFA)`);
+
+      return res.json({
+        success: true,
+        message: newBalance <= 0 ? 'Crédit entièrement utilisé' : 'Crédit utilisé avec succès',
+        transaction: {
+          phone_number: phone_number,
+          amount_used: amountToUse,
+          previous_balance: currentBalance,
+          new_balance: newBalance > 0 ? newBalance : 0,
+          order_id: order_id || null,
+          timestamp: new Date().toISOString()
+        },
+        credit: newBalance > 0 ? updateResult.rows[0] : null
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur useClientCredit:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors de l\'utilisation du crédit',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/clients/credits/history/:phone_number
+   * GET /api/external/clients/credits/history/:phone_number
+   * Récupère l'historique des transactions de crédit d'un client
+   */
+  static async getClientCreditHistory(req, res) {
+    try {
+      const { phone_number } = req.params;
+      const { limit = 50 } = req.query;
+
+      const query = `
+        SELECT 
+          id,
+          phone_number,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          order_id,
+          notes,
+          created_by,
+          created_at,
+          CASE 
+            WHEN transaction_type = 'CREDIT' THEN 'Attribution'
+            WHEN transaction_type = 'DEBIT' THEN 'Utilisation'
+            ELSE transaction_type
+          END as transaction_label
+        FROM client_credit_transactions
+        WHERE phone_number = $1
+        ORDER BY created_at DESC
+        LIMIT $2
+      `;
+
+      const result = await db.query(query, [phone_number, parseInt(limit)]);
+
+      return res.json({
+        success: true,
+        phone_number: phone_number,
+        count: result.rows.length,
+        transactions: result.rows
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur getClientCreditHistory:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la récupération de l\'historique',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

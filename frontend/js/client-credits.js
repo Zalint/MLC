@@ -327,6 +327,18 @@ function renderClientCreditCard(client) {
               </button>
             </div>
           ` : ''}
+
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button 
+              class="btn btn-info btn-view-history" 
+              data-phone="${client.phone_number}"
+              style="width: 100%;"
+            >
+              <span class="icon">📜</span>
+              Historique
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -388,6 +400,14 @@ function addClientCreditsEventListeners() {
           await deleteCredit(phone);
         }
       }
+    });
+  });
+
+  // Voir l'historique
+  document.querySelectorAll('.btn-view-history').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const phone = e.currentTarget.dataset.phone;
+      await viewCreditHistory(phone);
     });
   });
 }
@@ -471,6 +491,162 @@ async function deleteCredit(phone) {
     if (window.ToastManager) {
       ToastManager.error(`❌ ${error.message}`);
     }
+  }
+}
+
+/**
+ * Voir l'historique des transactions d'un client
+ */
+async function viewCreditHistory(phone) {
+  try {
+    console.log(`📜 Chargement historique: ${phone}`);
+
+    const response = await ApiClient.request(`/clients/credits/history/${phone}`);
+
+    if (response.success) {
+      displayHistoryModal(phone, response.transactions || []);
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur viewCreditHistory:', error);
+    if (window.ToastManager) {
+      ToastManager.error(`❌ ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Afficher l'historique dans une modal
+ */
+function displayHistoryModal(phone, transactions) {
+  const client = clientsData.find(c => c.phone_number === phone);
+  const clientName = client ? client.primary_name : phone;
+
+  let historyHTML = '';
+
+  if (transactions.length === 0) {
+    historyHTML = '<p style="text-align: center; color: #666; padding: 2rem;">Aucune transaction pour ce client</p>';
+  } else {
+    historyHTML = `
+      <div style="max-height: 500px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead style="position: sticky; top: 0; background: #f5f5f5;">
+            <tr style="border-bottom: 2px solid #ddd;">
+              <th style="padding: 0.75rem; text-align: left;">Date</th>
+              <th style="padding: 0.75rem; text-align: left;">Type</th>
+              <th style="padding: 0.75rem; text-align: right;">Montant</th>
+              <th style="padding: 0.75rem; text-align: right;">Solde</th>
+              <th style="padding: 0.75rem; text-align: left;">Order ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${transactions.map(t => {
+              const date = new Date(t.created_at);
+              const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+              const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              const isCredit = t.transaction_type === 'CREDIT';
+              
+              return `
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 0.75rem; font-size: 0.9rem;">
+                    <div>${dateStr}</div>
+                    <div style="color: #999; font-size: 0.8rem;">${timeStr}</div>
+                  </td>
+                  <td style="padding: 0.75rem;">
+                    <span style="
+                      display: inline-block;
+                      padding: 0.25rem 0.5rem;
+                      border-radius: 4px;
+                      font-size: 0.85rem;
+                      font-weight: 500;
+                      background: ${isCredit ? '#e8f5e9' : '#fff3e0'};
+                      color: ${isCredit ? '#2e7d32' : '#e65100'};
+                    ">
+                      ${isCredit ? '✅ Attribution' : '💳 Utilisation'}
+                    </span>
+                  </td>
+                  <td style="padding: 0.75rem; text-align: right; font-weight: 500;">
+                    ${parseFloat(t.amount).toLocaleString()} F
+                  </td>
+                  <td style="padding: 0.75rem; text-align: right; font-size: 0.9rem; color: #666;">
+                    ${parseFloat(t.balance_before).toLocaleString()} → ${parseFloat(t.balance_after).toLocaleString()} F
+                  </td>
+                  <td style="padding: 0.75rem; font-size: 0.85rem; color: #666;">
+                    ${t.order_id || '-'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const modalContent = `
+    <div style="padding: 1rem;">
+      <h3 style="margin: 0 0 0.5rem 0; color: #333;">
+        📜 Historique des transactions
+      </h3>
+      <p style="margin: 0 0 1.5rem 0; color: #666; font-size: 0.95rem;">
+        Client: <strong>${clientName}</strong> (${phone})
+        <br>
+        <span style="font-size: 0.9rem;">${transactions.length} transaction${transactions.length > 1 ? 's' : ''}</span>
+      </p>
+      ${historyHTML}
+    </div>
+  `;
+
+  // Utiliser ModalManager si disponible, sinon alert
+  if (window.ModalManager) {
+    window.ModalManager.show(
+      'Historique des transactions',
+      modalContent,
+      () => {},
+      { size: 'large', showCancel: false, confirmText: 'Fermer' }
+    );
+  } else {
+    // Créer une simple modal si ModalManager n'est pas disponible
+    const existingModal = document.getElementById('credit-history-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'credit-history-modal';
+    modal.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+      ">
+        <div style="
+          background: white;
+          border-radius: 8px;
+          max-width: 900px;
+          width: 90%;
+          max-height: 80vh;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        ">
+          ${modalContent}
+          <div style="padding: 1rem; border-top: 1px solid #eee; text-align: right;">
+            <button 
+              class="btn btn-secondary" 
+              onclick="document.getElementById('credit-history-modal').remove()"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
   }
 }
 
@@ -596,7 +772,7 @@ if (!document.getElementById('client-credits-styles')) {
 
 .form-row {
   display: grid;
-  grid-template-columns: 2fr 1fr auto auto;
+  grid-template-columns: 2fr 1fr auto auto auto;
   gap: 1rem;
   align-items: end;
 }

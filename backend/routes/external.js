@@ -1269,4 +1269,11 @@ router.get('/livreurs/actifs', validateApiKey, async (req, res) => {
 router.get('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);
 router.post('/mata/audit/client', validateApiKey, ExternalMataAuditController.getClientAudit);
 
+// POST /api/external/clients/credits/use - Utiliser/déduire un crédit client (nécessite x-api-key)
+const ClientCreditsController = require('../controllers/clientCreditsController');
+router.post('/clients/credits/use', validateApiKey, ClientCreditsController.useClientCredit);
+
+// GET /api/external/clients/credits/history/:phone_number - Historique des transactions (nécessite x-api-key)
+router.get('/clients/credits/history/:phone_number', validateApiKey, ClientCreditsController.getClientCreditHistory);
+
 module.exports = router; 

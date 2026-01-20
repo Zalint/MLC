@@ -23,6 +23,9 @@ const requireManagerOrAdmin = (req, res, next) => {
 // GET /api/v1/clients/mata-list - Liste de tous les clients MATA avec noms alternatifs
 router.get('/mata-list', authenticateToken, requireManagerOrAdmin, ClientCreditsController.getMataClientsList);
 
+// POST /api/v1/clients/credits/use - Utiliser/déduire un crédit (DOIT ÊTRE AVANT /credits)
+router.post('/credits/use', authenticateToken, requireManagerOrAdmin, ClientCreditsController.useClientCredit);
+
 // POST /api/v1/clients/credits - Attribuer ou mettre à jour un crédit
 router.post('/credits', authenticateToken, requireManagerOrAdmin, ClientCreditsController.setClientCredit);
 
@@ -31,6 +34,9 @@ router.get('/credits/:phone_number', authenticateToken, requireManagerOrAdmin, C
 
 // DELETE /api/v1/clients/credits/:phone_number - Supprimer le crédit d'un client
 router.delete('/credits/:phone_number', authenticateToken, requireManagerOrAdmin, ClientCreditsController.deleteClientCredit);
+
+// GET /api/v1/clients/credits/history/:phone_number - Historique des transactions d'un client
+router.get('/credits/history/:phone_number', authenticateToken, requireManagerOrAdmin, ClientCreditsController.getClientCreditHistory);
 
 module.exports = router;
 

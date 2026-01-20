@@ -64,7 +64,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 ✅ **Vous êtes prêt !**
 
-💰 **Coût** : ~$0.0004 par analyse (négligeable)
+ **Coût** : ~$0.0004 par analyse (négligeable)
 
 ⚠️ **Si pas de clé OpenAI** : Le système fonctionne en mode analyse basique (sans IA)
 
