@@ -335,7 +335,7 @@ class ClientCreditsController {
    */
   static async useClientCredit(req, res) {
     try {
-      const { phone_number, amount_used, order_id, notes } = req.body;
+      const { phone_number, amount_used, order_id, notes, version } = req.body;
 
       // Validation
       if (!phone_number) {
@@ -349,6 +349,14 @@ class ClientCreditsController {
         return res.status(400).json({
           success: false,
           error: 'amount_used doit être un montant positif'
+        });
+      }
+
+      // Version est maintenant requise pour éviter les race conditions
+      if (version === undefined || version === null) {
+        return res.status(400).json({
+          success: false,
+          error: 'version est requise pour éviter les conflits. Veuillez relire le crédit avant utilisation.'
         });
       }
 
@@ -380,6 +388,19 @@ class ClientCreditsController {
       }
 
       const credit = creditResult.rows[0];
+
+      // 🔒 OPTIMISTIC LOCKING: Vérifier la version
+      if (credit.version !== parseInt(version)) {
+        return res.status(409).json({
+          success: false,
+          error: 'CREDIT_VERSION_MISMATCH',
+          message: 'Le crédit a été modifié par une autre transaction. Veuillez relire le crédit et réessayer.',
+          phone_number: phone_number,
+          current_version: credit.version,
+          current_balance: parseFloat(credit.current_balance),
+          retry: true
+        });
+      }
 
       // Vérifier si le crédit est expiré
       if (credit.is_expired) {
@@ -422,32 +443,47 @@ class ClientCreditsController {
         `;
         updateParams = [phone_number];
       } else {
-        // Sinon, mettre à jour le montant
+        // Sinon, mettre à jour le montant et incrémenter la version
         if (notes) {
           updateQuery = `
             UPDATE client_credits
             SET 
               credit_amount = $1,
               updated_at = CURRENT_TIMESTAMP,
-              notes = $2
-            WHERE phone_number = $3
+              notes = $2,
+              version = version + 1
+            WHERE phone_number = $3 AND version = $4
             RETURNING *
           `;
-          updateParams = [newBalance, notes, phone_number];
+          updateParams = [newBalance, notes, phone_number, version];
         } else {
           updateQuery = `
             UPDATE client_credits
             SET 
               credit_amount = $1,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE phone_number = $2
+              updated_at = CURRENT_TIMESTAMP,
+              version = version + 1
+            WHERE phone_number = $2 AND version = $3
             RETURNING *
           `;
-          updateParams = [newBalance, phone_number];
+          updateParams = [newBalance, phone_number, version];
         }
       }
 
       const updateResult = await db.query(updateQuery, updateParams);
+
+      // Vérifier que l'UPDATE a bien affecté une ligne (sinon conflit de version)
+      if (updateResult.rows.length === 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'CREDIT_VERSION_MISMATCH',
+          message: 'Le crédit a été modifié par une autre transaction pendant le traitement. Veuillez réessayer.',
+          phone_number: phone_number,
+          retry: true
+        });
+      }
+
+      const updatedCredit = updateResult.rows[0];
 
       // Enregistrer la transaction dans l'historique
       const transactionQuery = `
@@ -475,7 +511,7 @@ class ClientCreditsController {
         'SYSTEM'
       ]);
 
-      console.log(`✅ Crédit utilisé: ${phone_number} - ${amountToUse} FCFA déduit (solde: ${newBalance} FCFA)`);
+      console.log(`✅ Crédit utilisé: ${phone_number} - ${amountToUse} FCFA déduit (solde: ${newBalance} FCFA) [v${credit.version} → v${updatedCredit.version}]`);
 
       return res.json({
         success: true,
@@ -485,10 +521,13 @@ class ClientCreditsController {
           amount_used: amountToUse,
           previous_balance: currentBalance,
           new_balance: newBalance > 0 ? newBalance : 0,
+          previous_version: credit.version,
+          new_version: updatedCredit.version,
           order_id: order_id || null,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          transaction_id: `CRED_${Date.now()}`
         },
-        credit: newBalance > 0 ? updateResult.rows[0] : null
+        credit: newBalance > 0 ? updatedCredit : null
       });
 
     } catch (error) {
@@ -508,7 +547,7 @@ class ClientCreditsController {
    */
   static async refundClientCredit(req, res) {
     try {
-      const { phone_number, amount, order_id, notes } = req.body;
+      const { phone_number, amount, order_id, notes, version } = req.body;
 
       // Validation
       if (!phone_number) {

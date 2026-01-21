@@ -116,6 +116,7 @@ class ExternalMataAuditController {
           expires_at,
           expiration_days,
           created_at,
+          version,
           CASE 
             WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
             ELSE 0
@@ -139,6 +140,7 @@ class ExternalMataAuditController {
         clientInfo.credit = {
           amount: parseFloat(credit.credit_amount),
           current_balance: parseFloat(credit.current_balance),
+          version: credit.version,
           expires_at: credit.expires_at,
           expiration_days: credit.expiration_days,
           is_expired: credit.is_expired,
