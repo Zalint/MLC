@@ -662,7 +662,10 @@ function displayHistoryModal(phone, transactions) {
     window.ModalManager.show(
       'Historique des transactions',
       modalContent,
-      () => {},
+      () => {
+        // Recharger les crédits après fermeture de l'historique
+        loadClientCredits();
+      },
       { size: 'large', showCancel: false, confirmText: 'Fermer' }
     );
   } else {
@@ -698,7 +701,7 @@ function displayHistoryModal(phone, transactions) {
           <div style="padding: 1rem; border-top: 1px solid #eee; text-align: right;">
             <button 
               class="btn btn-secondary" 
-              onclick="document.getElementById('credit-history-modal').remove()"
+              onclick="document.getElementById('credit-history-modal').remove(); window.clientCreditsModule && window.clientCreditsModule.loadClientCredits();"
             >
               Fermer
             </button>
@@ -882,5 +885,11 @@ if (!document.getElementById('client-credits-styles')) {
   styleElement.innerHTML = clientCreditsStyles;
   document.head.appendChild(styleElement);
 }
+
+// Exporter les fonctions pour qu'elles soient accessibles globalement
+window.clientCreditsModule = {
+  loadClientCredits: loadClientCredits,
+  openClientCreditsPage: openClientCreditsPage
+};
 
 } // Fin de la garde window.clientCreditsInitialized
