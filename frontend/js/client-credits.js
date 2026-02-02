@@ -224,6 +224,38 @@ function clearClientCreditsSearch() {
 }
 
 /**
+ * Afficher le badge du tag client
+ */
+function renderClientTagBadge(clientTag) {
+  const tag = clientTag || 'STANDARD';
+  
+  const tagStyles = {
+    'VVIP': { bg: '#FF1493', color: '#FFF', icon: '👑', label: 'VVIP' },
+    'VIP': { bg: '#FFD700', color: '#000', icon: '⭐', label: 'VIP' },
+    'STANDARD': { bg: '#E0E0E0', color: '#666', icon: '👤', label: 'Standard' }
+  };
+  
+  const style = tagStyles[tag] || tagStyles['STANDARD'];
+  
+  return `
+    <div style="margin-top: 0.75rem;">
+      <span style="
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: ${style.bg};
+        color: ${style.color};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      ">
+        ${style.icon} ${style.label}
+      </span>
+    </div>
+  `;
+}
+
+/**
  * Rendre une carte de crédit client
  */
 function renderClientCreditCard(client) {
@@ -259,6 +291,7 @@ function renderClientCreditCard(client) {
             <span>📦 ${client.total_orders || 0} commandes</span>
             <span style="margin-left: 1rem;"> ${parseFloat(client.total_spent || 0).toLocaleString()} FCFA</span>
           </div>
+          ${renderClientTagBadge(client.client_tag)}
         </div>
         
         ${hasCredit && !isExpired ? `
@@ -300,6 +333,23 @@ function renderClientCreditCard(client) {
               min="1"
               max="365"
             >
+          </div>
+
+          <div class="form-group">
+            <label for="client-tag-${client.phone_number}" title="Le tag peut être modifié sans attribuer de crédit">
+              🏷️ Tag Client
+              <span style="font-size: 0.75rem; color: #999; font-weight: normal;">(indépendant)</span>
+            </label>
+            <select 
+              id="client-tag-${client.phone_number}" 
+              class="form-control client-tag-select"
+              style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; pointer-events: auto; -webkit-appearance: menulist; -moz-appearance: menulist; appearance: menulist;"
+              title="Vous pouvez changer le tag sans modifier le crédit"
+            >
+              <option value="STANDARD" ${(!client.client_tag || client.client_tag === 'STANDARD') ? 'selected' : ''}>👤 STANDARD</option>
+              <option value="VIP" ${client.client_tag === 'VIP' ? 'selected' : ''}>⭐ VIP</option>
+              <option value="VVIP" ${client.client_tag === 'VVIP' ? 'selected' : ''}>👑 VVIP</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -416,54 +466,135 @@ function addClientCreditsEventListeners() {
  * Sauvegarder un crédit client
  */
 async function saveCredit(phone) {
+  console.log('🚀 ========== DÉBUT saveCredit ==========');
+  console.log('📞 Téléphone:', phone);
+  
   try {
     const amountInput = document.getElementById(`credit-amount-${phone}`);
     const daysInput = document.getElementById(`credit-days-${phone}`);
+    const tagSelect = document.getElementById(`client-tag-${phone}`);
+
+    console.log('🔍 Éléments trouvés:', {
+      amountInput: !!amountInput,
+      daysInput: !!daysInput,
+      tagSelect: !!tagSelect
+    });
 
     const creditAmount = parseFloat(amountInput.value);
     const expirationDays = parseInt(daysInput.value);
+    const clientTag = tagSelect ? tagSelect.value : 'STANDARD';
 
-    // Validation
-    if (!creditAmount || creditAmount <= 0) {
-      if (window.ToastManager) {
-        ToastManager.error('Le montant du crédit doit être supérieur à 0');
-      }
-      return;
-    }
-
-    if (!expirationDays || expirationDays < 1) {
-      if (window.ToastManager) {
-        ToastManager.error('Le délai d\'expiration doit être au moins 1 jour');
-      }
-      return;
-    }
-
-    console.log(`💾 Sauvegarde crédit: ${phone} - ${creditAmount} FCFA - ${expirationDays} jours`);
-
-    const response = await ApiClient.request('/clients/credits', {
-      method: 'POST',
-      body: JSON.stringify({
-        phone_number: phone,
-        credit_amount: creditAmount,
-        expiration_days: expirationDays
-      })
+    console.log('📊 Valeurs lues:', {
+      creditAmount: creditAmount,
+      creditAmountRaw: amountInput.value,
+      expirationDays: expirationDays,
+      expirationDaysRaw: daysInput.value,
+      clientTag: clientTag
     });
 
-    if (response.success) {
-      if (window.ToastManager) {
-        ToastManager.success(`✅ Crédit de ${creditAmount.toLocaleString()} FCFA attribué à ${phone}`);
-      }
+    // Vérifier si c'est une mise à jour de tag uniquement ou un crédit complet
+    // IMPORTANT: On se base UNIQUEMENT sur le montant pour décider du cas
+    // (le champ délai a souvent une valeur par défaut qui ne veut pas dire que l'utilisateur veut un crédit)
+    const hasAmount = !isNaN(creditAmount) && creditAmount > 0;
+    const hasDays = !isNaN(expirationDays) && expirationDays > 0;
+
+    console.log('✅ Validation:', {
+      hasAmount: hasAmount,
+      hasDays: hasDays,
+      isNaN_amount: isNaN(creditAmount),
+      isNaN_days: isNaN(expirationDays),
+      decision: hasAmount ? 'CAS 1 - Crédit' : 'CAS 2 - Tag seul'
+    });
+
+    // Cas 1: L'utilisateur veut attribuer un crédit (basé UNIQUEMENT sur le montant)
+    if (hasAmount) {
+      console.log('🔷 CAS 1: Attribuer un crédit (au moins un champ rempli)');
       
-      // Recharger la liste
-      await loadClientCredits();
+      // Si un montant ou un délai est fourni, les deux sont requis
+      if (!hasAmount) {
+        console.log('❌ Erreur: Montant manquant');
+        if (window.ToastManager) {
+          ToastManager.error('Le montant du crédit doit être supérieur à 0');
+        }
+        return;
+      }
+
+      if (!hasDays) {
+        console.log('❌ Erreur: Délai manquant');
+        if (window.ToastManager) {
+          ToastManager.error('Le délai d\'expiration doit être au moins 1 jour');
+        }
+        return;
+      }
+
+      console.log(`💾 Sauvegarde crédit + tag: ${phone} - ${creditAmount} FCFA - ${expirationDays} jours - Tag: ${clientTag}`);
+
+      const response = await ApiClient.request('/clients/credits', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone_number: phone,
+          credit_amount: creditAmount,
+          expiration_days: expirationDays,
+          client_tag: clientTag
+        })
+      });
+
+      if (response.success) {
+        if (window.ToastManager) {
+          ToastManager.success(`✅ Crédit de ${creditAmount.toLocaleString()} FCFA + Tag ${clientTag} attribués à ${phone}`);
+        }
+        
+        // Recharger la liste
+        await loadClientCredits();
+      }
+    } 
+    // Cas 2: L'utilisateur veut juste changer le tag (sans crédit)
+    else {
+      console.log('🔶 CAS 2: Mise à jour tag uniquement (aucun montant/délai)');
+      console.log(`🏷️ Mise à jour tag uniquement: ${phone} - Tag: ${clientTag}`);
+
+      console.log('📡 Envoi requête API (tag seul)...');
+      const response = await ApiClient.request('/clients/credits', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone_number: phone,
+          client_tag: clientTag
+          // Pas de credit_amount ni expiration_days
+          // Le backend comprendra que c'est juste un tag
+        })
+      });
+
+      console.log('✅ Réponse API reçue:', response);
+      
+      if (response.success) {
+        const tagEmoji = { 'VVIP': '👑', 'VIP': '⭐', 'STANDARD': '👤' }[clientTag] || '🏷️';
+        console.log('🎉 Succès! Affichage du toast...');
+        if (window.ToastManager) {
+          ToastManager.success(`✅ Tag ${tagEmoji} ${clientTag} attribué à ${phone}`);
+        }
+        
+        // Recharger la liste
+        console.log('🔄 Rechargement de la liste des clients...');
+        await loadClientCredits();
+        console.log('✅ Liste rechargée');
+      } else {
+        console.log('⚠️ Réponse non-success:', response);
+      }
     }
 
   } catch (error) {
-    console.error('❌ Erreur saveCredit:', error);
+    console.error('❌ ========== ERREUR saveCredit ==========');
+    console.error('❌ Type:', error.name);
+    console.error('❌ Message:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Objet complet:', error);
+    
     if (window.ToastManager) {
       ToastManager.error(`❌ ${error.message}`);
     }
   }
+  
+  console.log('🏁 ========== FIN saveCredit ==========');
 }
 
 /**
@@ -835,7 +966,7 @@ if (!document.getElementById('client-credits-styles')) {
 
 .form-row {
   display: grid;
-  grid-template-columns: 2fr 1fr auto auto auto;
+  grid-template-columns: 2fr 1fr 1fr auto auto auto;
   gap: 1rem;
   align-items: end;
 }
@@ -875,6 +1006,26 @@ if (!document.getElementById('client-credits-styles')) {
 
 .btn-link:hover {
   color: #1976d2;
+}
+
+.client-tag-select {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+  background-color: white !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  appearance: menulist !important;
+}
+
+.client-tag-select:hover {
+  border-color: #2196f3 !important;
+}
+
+.client-tag-select:focus {
+  outline: 2px solid #2196f3 !important;
+  outline-offset: 2px !important;
 }
 </style>
 `;

@@ -64,6 +64,7 @@ class ClientCreditsController {
           cc.credit_amount,
           cc.expires_at,
           cc.expiration_days,
+          COALESCE(cc.client_tag, 'STANDARD') as client_tag,
           CASE 
             WHEN cc.expires_at > CURRENT_TIMESTAMP THEN cc.credit_amount
             ELSE 0
@@ -107,7 +108,7 @@ class ClientCreditsController {
    */
   static async setClientCredit(req, res) {
     try {
-      const { phone_number, credit_amount, expiration_days, notes } = req.body;
+      const { phone_number, credit_amount, expiration_days, notes, client_tag } = req.body;
       const userId = req.user.id;
 
       // Validation
@@ -118,27 +119,39 @@ class ClientCreditsController {
         });
       }
 
-      if (!credit_amount || credit_amount < 0) {
+      // Validation du tag client
+      if (client_tag && !['STANDARD', 'VIP', 'VVIP'].includes(client_tag)) {
         return res.status(400).json({
           success: false,
-          error: 'credit_amount doit être un montant positif'
+          error: 'client_tag doit être STANDARD, VIP ou VVIP'
         });
       }
 
-      if (!expiration_days || expiration_days < 1) {
+      // Déterminer si c'est une mise à jour de crédit ou juste de tag
+      const isUpdatingCredit = credit_amount && credit_amount > 0;
+      const isUpdatingTagOnly = !isUpdatingCredit && client_tag;
+
+      // Si on met à jour un crédit, valider les champs requis
+      if (isUpdatingCredit) {
+        if (!expiration_days || expiration_days < 1) {
+          return res.status(400).json({
+            success: false,
+            error: 'expiration_days doit être au moins 1 jour'
+          });
+        }
+      }
+
+      // Si aucun crédit ni tag, erreur
+      if (!isUpdatingCredit && !isUpdatingTagOnly) {
         return res.status(400).json({
           success: false,
-          error: 'expiration_days doit être au moins 1 jour'
+          error: 'credit_amount ou client_tag est requis'
         });
       }
 
       // Normaliser le numéro de téléphone
       const phoneInfo = normalizePhoneNumber(phone_number);
       const normalizedPhone = phoneInfo ? phoneInfo.normalized : phone_number;
-
-      // Calculer la date d'expiration
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + parseInt(expiration_days));
 
       // Vérifier si le client existe dans orders
       const clientCheckQuery = `
@@ -155,75 +168,125 @@ class ClientCreditsController {
         });
       }
 
-      // Upsert (INSERT ou UPDATE)
-      const upsertQuery = `
-        INSERT INTO client_credits (
+      let result;
+      let balanceBefore = 0;
+
+      // CAS 1: Mise à jour du tag uniquement (sans crédit)
+      if (isUpdatingTagOnly) {
+        console.log(`🏷️ Mise à jour tag uniquement: ${phone_number} -> ${client_tag}`);
+        
+        // Essayer de mettre à jour le tag sur une ligne existante
+        const updateTagQuery = `
+          UPDATE client_credits
+          SET client_tag = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE phone_number = $2
+          RETURNING *
+        `;
+        
+        result = await db.query(updateTagQuery, [client_tag, phone_number]);
+        
+        // Si la ligne n'existe pas, la créer avec juste le tag (crédit à 0)
+        if (result.rows.length === 0) {
+          const insertTagQuery = `
+            INSERT INTO client_credits (
+              phone_number,
+              credit_amount,
+              expiration_days,
+              expires_at,
+              created_by,
+              client_tag
+            ) VALUES ($1, 0, 30, NOW() + INTERVAL '30 days', $2, $3)
+            RETURNING *
+          `;
+          result = await db.query(insertTagQuery, [phone_number, userId, client_tag]);
+        }
+      } 
+      // CAS 2: Mise à jour du crédit + tag
+      else {
+        console.log(`💰 Mise à jour crédit + tag: ${phone_number} - ${credit_amount} FCFA - ${client_tag}`);
+        
+        // Calculer la date d'expiration
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + parseInt(expiration_days));
+
+        // Récupérer le crédit précédent pour l'historique
+        const previousCreditQuery = `
+          SELECT credit_amount FROM client_credits WHERE phone_number = $1
+        `;
+        const previousCredit = await db.query(previousCreditQuery, [phone_number]);
+        balanceBefore = previousCredit.rows.length > 0 ? parseFloat(previousCredit.rows[0].credit_amount) : 0;
+
+        // Upsert (INSERT ou UPDATE)
+        const upsertQuery = `
+          INSERT INTO client_credits (
+            phone_number,
+            credit_amount,
+            expiration_days,
+            expires_at,
+            created_by,
+            notes,
+            client_tag
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ON CONFLICT (phone_number) 
+          DO UPDATE SET
+            credit_amount = EXCLUDED.credit_amount,
+            expiration_days = EXCLUDED.expiration_days,
+            expires_at = EXCLUDED.expires_at,
+            created_by = EXCLUDED.created_by,
+            notes = EXCLUDED.notes,
+            client_tag = EXCLUDED.client_tag,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING *
+        `;
+
+        result = await db.query(upsertQuery, [
           phone_number,
           credit_amount,
           expiration_days,
-          expires_at,
-          created_by,
-          notes
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (phone_number) 
-        DO UPDATE SET
-          credit_amount = EXCLUDED.credit_amount,
-          expiration_days = EXCLUDED.expiration_days,
-          expires_at = EXCLUDED.expires_at,
-          created_by = EXCLUDED.created_by,
-          notes = EXCLUDED.notes,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
+          expiresAt,
+          userId,
+          notes ? notes : null,
+          client_tag || 'STANDARD'
+        ]);
+      }
 
-      // Récupérer le crédit précédent pour l'historique
-      const previousCreditQuery = `
-        SELECT credit_amount FROM client_credits WHERE phone_number = $1
-      `;
-      const previousCredit = await db.query(previousCreditQuery, [phone_number]);
-      const balanceBefore = previousCredit.rows.length > 0 ? parseFloat(previousCredit.rows[0].credit_amount) : 0;
-
-      const result = await db.query(upsertQuery, [
-        phone_number,
-        credit_amount,
-        expiration_days,
-        expiresAt,
-        userId,
-        notes ? notes : null
-      ]);
-
-      // Enregistrer la transaction dans l'historique
-      const transactionQuery = `
-        INSERT INTO client_credit_transactions (
+      // Enregistrer la transaction dans l'historique (uniquement si c'est un crédit)
+      if (isUpdatingCredit) {
+        const transactionQuery = `
+          INSERT INTO client_credit_transactions (
+            phone_number,
+            transaction_type,
+            amount,
+            balance_before,
+            balance_after,
+            order_id,
+            notes,
+            created_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING id
+        `;
+        
+        await db.query(transactionQuery, [
           phone_number,
-          transaction_type,
-          amount,
-          balance_before,
-          balance_after,
-          order_id,
-          notes,
-          created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id
-      `;
-      
-      await db.query(transactionQuery, [
-        phone_number,
-        'CREDIT',
-        credit_amount,
-        balanceBefore,
-        credit_amount,
-        null,
-        notes || null,
-        userId
-      ]);
+          'CREDIT',
+          credit_amount,
+          balanceBefore,
+          credit_amount,
+          null,
+          notes || null,
+          userId
+        ]);
 
-      console.log(`✅ Crédit attribué: ${phone_number} - ${credit_amount} FCFA - ${expiration_days} jours`);
+        console.log(`✅ Crédit attribué: ${phone_number} - ${credit_amount} FCFA - ${expiration_days} jours - Tag: ${client_tag || 'STANDARD'}`);
+      } else {
+        console.log(`✅ Tag mis à jour: ${phone_number} - Tag: ${client_tag}`);
+      }
 
       return res.json({
         success: true,
-        message: 'Crédit attribué avec succès',
-        credit: result.rows[0]
+        message: isUpdatingCredit ? 'Crédit attribué avec succès' : `Tag ${client_tag} attribué avec succès`,
+        credit: result.rows[0],
+        tag_only: isUpdatingTagOnly
       });
 
     } catch (error) {
@@ -247,6 +310,7 @@ class ClientCreditsController {
       const query = `
         SELECT 
           *,
+          COALESCE(client_tag, 'STANDARD') as client_tag,
           CASE 
             WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
             ELSE 0

@@ -109,7 +109,7 @@ class ExternalMataAuditController {
         total_orders: orders.length
       };
 
-      // ⚡ Récupérer le crédit client (avec gestion expiration)
+      // ⚡ Récupérer le crédit client (avec gestion expiration et tag)
       const creditQuery = `
         SELECT 
           credit_amount,
@@ -117,6 +117,7 @@ class ExternalMataAuditController {
           expiration_days,
           created_at,
           version,
+          client_tag,
           CASE 
             WHEN expires_at > CURRENT_TIMESTAMP THEN credit_amount
             ELSE 0
@@ -145,10 +146,13 @@ class ExternalMataAuditController {
           expiration_days: credit.expiration_days,
           is_expired: credit.is_expired,
           days_remaining: credit.days_remaining,
-          created_at: credit.created_at
+          created_at: credit.created_at,
+          client_tag: credit.client_tag || 'STANDARD'
         };
+        clientInfo.client_tag = credit.client_tag || 'STANDARD';
       } else {
         clientInfo.credit = null;
+        clientInfo.client_tag = 'STANDARD';
       }
 
       // Statistiques
