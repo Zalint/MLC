@@ -752,18 +752,56 @@ const TimesheetsLivreurManager = (() => {
 
     // Event listeners
     const closeChoice = () => {
-      modalContainer.remove();
+      console.log('🔴 closeChoice appelé - fermeture du modal de choix');
+      try {
+        if (modalContainer && modalContainer.parentNode) {
+          modalContainer.remove();
+          console.log('✅ Modal de choix supprimé avec succès');
+        } else {
+          console.warn('⚠️ modalContainer n\'a pas de parent');
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la suppression du modal:', error);
+      }
     };
 
-    document.getElementById('close-modify-choice').addEventListener('click', closeChoice);
-    document.getElementById('modify-choice-overlay').addEventListener('click', closeChoice);
+    const closeBtn = document.getElementById('close-modify-choice');
+    const overlay = document.getElementById('modify-choice-overlay');
+    
+    console.log('📋 Boutons trouvés:', { 
+      closeBtn: !!closeBtn, 
+      overlay: !!overlay,
+      timesheetId 
+    });
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        console.log('🖱️ Clic sur bouton X détecté');
+        e.preventDefault();
+        e.stopPropagation();
+        closeChoice();
+      });
+    } else {
+      console.error('❌ Bouton close-modify-choice non trouvé !');
+    }
+    
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        console.log('🖱️ Clic sur overlay détecté');
+        e.preventDefault();
+        e.stopPropagation();
+        closeChoice();
+      });
+    }
     
     document.getElementById('btn-choice-start').addEventListener('click', () => {
+      console.log('🟢 Clic sur "Modifier le début"');
       closeChoice();
       openModifyStartModal(timesheetId);
     });
     
     document.getElementById('btn-choice-end').addEventListener('click', () => {
+      console.log('🔴 Clic sur "Modifier la fin"');
       closeChoice();
       openModifyEndModal(timesheetId);
     });
