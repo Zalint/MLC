@@ -7026,19 +7026,34 @@ class App {
           console.log('📅 Changement de date dashboard détecté');
           await DashboardManager.loadDashboard();
           
-          // Recharger aussi le résumé des pointages si l'utilisateur est manager
-          const isManagerOrAdmin = AppState.user?.role === 'MANAGER' || AppState.user?.role === 'ADMIN';
-          console.log('👤 Est Manager/Admin?', isManagerOrAdmin, '- User:', AppState.user);
+          const userRole = AppState.user?.role;
+          const isManagerOrAdmin = userRole === 'MANAGER' || userRole === 'ADMIN';
+          const isLivreur = userRole === 'LIVREUR';
           
+          // Recharger le widget des pointages selon le rôle
           if (isManagerOrAdmin) {
             const timesheetWidget = document.getElementById('timesheet-manager-widget');
             const isWidgetVisible = timesheetWidget && timesheetWidget.style.display !== 'none';
-            console.log('📊 Widget visible?', isWidgetVisible);
+            console.log('📊 Widget manager visible?', isWidgetVisible);
             
             if (isWidgetVisible && typeof TimesheetsManagerView !== 'undefined' && TimesheetsManagerView.reloadSummary) {
-              console.log('🔄 Rechargement du résumé des pointages...');
+              console.log('🔄 Rechargement du résumé des pointages (Manager)...');
               await TimesheetsManagerView.reloadSummary();
               console.log('✅ Résumé des pointages rechargé');
+            }
+          } else if (isLivreur) {
+            const timesheetWidget = document.getElementById('timesheet-widget-content');
+            const isWidgetVisible = timesheetWidget && timesheetWidget.style.display !== 'none';
+            console.log('📊 Widget livreur visible?', isWidgetVisible);
+            
+            if (typeof TimesheetsLivreurManager !== 'undefined' && TimesheetsLivreurManager.loadTodayTimesheet) {
+              console.log('🔄 Rechargement du pointage (Livreur)...');
+              await TimesheetsLivreurManager.loadTodayTimesheet();
+              console.log('✅ Pointage livreur rechargé');
+              // Re-render le widget après rechargement
+              if (typeof TimesheetsLivreurManager.renderTimesheetWidget === 'function') {
+                TimesheetsLivreurManager.renderTimesheetWidget();
+              }
             }
           }
         } catch (error) {

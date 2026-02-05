@@ -40,11 +40,22 @@ const TimesheetsLivreurManager = (() => {
   }
 
   /**
-   * Charger le pointage du jour
+   * Obtenir la date sélectionnée dans le dashboard
+   */
+  function getSelectedDashboardDate() {
+    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
+    return dashboardDateFilter?.value || formatLocalYYYYMMDD(new Date());
+  }
+
+  /**
+   * Charger le pointage pour la date sélectionnée (ou aujourd'hui)
    */
   async function loadTodayTimesheet() {
     try {
-      const response = await fetch(`${window.API_BASE_URL}/timesheets/today`, {
+      // Utiliser la date du dashboard si disponible, sinon aujourd'hui
+      const selectedDate = getSelectedDashboardDate();
+      
+      const response = await fetch(`${window.API_BASE_URL}/timesheets/today?date=${selectedDate}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -56,7 +67,7 @@ const TimesheetsLivreurManager = (() => {
 
       if (response.ok) {
         todayTimesheet = data.data;
-        console.log('📊 Pointage du jour:', todayTimesheet);
+        console.log('📊 Pointage chargé pour', data.date, ':', todayTimesheet);
       } else {
         console.error('Erreur chargement pointage:', data.message);
       }
@@ -870,7 +881,8 @@ const TimesheetsLivreurManager = (() => {
   // API publique
   return {
     init,
-    loadTodayTimesheet
+    loadTodayTimesheet,
+    renderTimesheetWidget
   };
 })();
 

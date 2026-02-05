@@ -61,18 +61,20 @@ function formatLocalDate(date) {
 
 /**
  * Récupérer le pointage du jour pour le livreur connecté
- * GET /api/timesheets/today
+ * GET /api/timesheets/today?date=YYYY-MM-DD (date optionnelle)
  */
 const getTodayTimesheet = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = formatLocalDate(new Date()); // YYYY-MM-DD en timezone local
+    // Accepter une date en paramètre, sinon utiliser aujourd'hui
+    const targetDate = req.query.date || formatLocalDate(new Date());
     
-    const timesheet = await Timesheet.findByUserAndDate(userId, today);
+    const timesheet = await Timesheet.findByUserAndDate(userId, targetDate);
     
     res.json({
       success: true,
-      data: timesheet
+      data: timesheet,
+      date: targetDate // Retourner la date utilisée
     });
   } catch (error) {
     console.error('Erreur getTodayTimesheet:', error);
