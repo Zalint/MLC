@@ -825,7 +825,9 @@ const updateStartActivity = async (req, res) => {
         ? formatLocalDate(timesheet.date)
         : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
       
-      const pointageTime = new Date(timesheetDate).getTime();
+      // Parse la date du pointage en local midnight (pas UTC)
+      const [year, month, day] = timesheetDate.split('-').map(Number);
+      const pointageTime = new Date(year, month - 1, day).getTime();
       const now = new Date().getTime();
       const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
       
@@ -937,7 +939,9 @@ const updateEndActivity = async (req, res) => {
         ? formatLocalDate(timesheet.date)
         : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
       
-      const pointageTime = new Date(timesheetDate).getTime();
+      // Parse la date du pointage en local midnight (pas UTC)
+      const [year, month, day] = timesheetDate.split('-').map(Number);
+      const pointageTime = new Date(year, month - 1, day).getTime();
       const now = new Date().getTime();
       const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
       

@@ -7000,6 +7000,15 @@ class App {
           return;
         }
         
+        // Valider que la date de début <= date de fin
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        if (startDateObj > endDateObj) {
+          ToastManager.warning('La date de début doit être antérieure ou égale à la date de fin');
+          return;
+        }
+        
         closeModal();
         
         try {

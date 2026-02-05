@@ -402,7 +402,15 @@ const AttachmentsManager = (() => {
       modalContainer.innerHTML = modalHTML;
       document.body.appendChild(modalContainer);
       
+      // Fermer avec Escape
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          closeModal(false);
+        }
+      };
+      
       const closeModal = (confirmed) => {
+        document.removeEventListener('keydown', handleEscape);
         modalContainer.remove();
         resolve(confirmed);
       };
@@ -412,13 +420,6 @@ const AttachmentsManager = (() => {
       document.getElementById('btn-cancel-confirm-attachment').addEventListener('click', () => closeModal(false));
       document.getElementById('btn-ok-confirm-attachment').addEventListener('click', () => closeModal(true));
       
-      // Fermer avec Escape
-      const handleEscape = (e) => {
-        if (e.key === 'Escape') {
-          closeModal(false);
-          document.removeEventListener('keydown', handleEscape);
-        }
-      };
       document.addEventListener('keydown', handleEscape);
     });
   }

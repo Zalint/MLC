@@ -693,11 +693,11 @@ const TimesheetsLivreurManager = (() => {
         <div class="modal-overlay" id="confirm-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
         <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; animation: modalSlideIn 0.3s ease-out;">
           <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 1rem 1rem 0 0;">
-            <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${title}</h3>
+            <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${escapeHtml(title)}</h3>
             <button id="close-confirm" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&times;</button>
           </div>
           <div class="modal-body" style="padding: 2rem 1.5rem;">
-            <p style="color: #4a5568; font-size: 1rem; line-height: 1.6; margin: 0; white-space: pre-line;">${message}</p>
+            <p style="color: #4a5568; font-size: 1rem; line-height: 1.6; margin: 0; white-space: pre-line;">${escapeHtml(message)}</p>
           </div>
           <div class="modal-footer" style="display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; background: #f7fafc; border-radius: 0 0 1rem 1rem; justify-content: flex-end;">
             <button id="btn-cancel-confirm" class="btn-secondary" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;">Annuler</button>
@@ -985,6 +985,15 @@ const TimesheetsLivreurManager = (() => {
       console.log(`[${type.toUpperCase()}] ${message}`);
       alert(message);
     }
+  }
+
+  /**
+   * Échapper le HTML pour éviter les injections XSS
+   */
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   // API publique
