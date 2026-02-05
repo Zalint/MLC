@@ -629,12 +629,17 @@ const getTimesheets = async (req, res) => {
 };
 
 /**
- * Supprimer un pointage (manager/admin uniquement)
+ * Supprimer un pointage
  * DELETE /api/timesheets/:id
+ * Permissions: 
+ * - Manager/Admin: peut supprimer n'importe quel pointage
+ * - Livreur: peut supprimer uniquement son propre pointage du jour même
  */
 const deleteTimesheet = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
     // Récupérer le pointage
     const timesheet = await Timesheet.findById(id);
@@ -644,6 +649,30 @@ const deleteTimesheet = async (req, res) => {
         success: false,
         message: 'Pointage introuvable.'
       });
+    }
+
+    // Vérifier les permissions
+    const isManager = ['MANAGER', 'ADMIN'].includes(userRole);
+    const isOwner = timesheet.user_id === userId;
+    
+    if (!isManager && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vous n\'avez pas l\'autorisation de supprimer ce pointage.'
+      });
+    }
+
+    // Si c'est un livreur, vérifier que c'est pour aujourd'hui seulement
+    if (userRole === 'LIVREUR') {
+      const today = formatLocalDate(new Date());
+      const timesheetDate = timesheet.date.split('T')[0]; // Format YYYY-MM-DD
+      
+      if (timesheetDate !== today) {
+        return res.status(403).json({
+          success: false,
+          message: 'Vous ne pouvez supprimer que le pointage du jour même.'
+        });
+      }
     }
 
     // Supprimer les photos physiques
@@ -657,7 +686,7 @@ const deleteTimesheet = async (req, res) => {
     // Supprimer le pointage
     await Timesheet.delete(id);
 
-    console.log(`🗑️ ${req.user.username} a supprimé le pointage ${id}`);
+    console.log(`🗑️ ${req.user.username} (${userRole}) a supprimé le pointage ${id} de ${timesheet.date}`);
 
     res.json({
       success: true,

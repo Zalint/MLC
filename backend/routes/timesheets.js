@@ -109,8 +109,11 @@ router.get('/', timesheetController.getTimesheets);
 // PUT /api/timesheets/:id
 router.put('/:id', timesheetController.updateTimesheet);
 
-// Supprimer un pointage (admin/manager uniquement)
+// Supprimer un pointage
 // DELETE /api/timesheets/:id
-router.delete('/:id', requireManagerOrAdmin, timesheetController.deleteTimesheet);
+// Permissions gérées dans le controller:
+// - Manager/Admin: peut supprimer n'importe quel pointage
+// - Livreur: peut supprimer uniquement son propre pointage du jour même
+router.delete('/:id', timesheetController.deleteTimesheet);
 
 module.exports = router;
