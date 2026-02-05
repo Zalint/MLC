@@ -217,6 +217,8 @@ function renderAllTimesheetsTable() {
         statusBadge = '<span class="timesheet-status status-complete">Complet</span>';
         actions = `
           <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir les photos">🔍</button>
+          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Modifier le pointage">✏️</button>
+          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Supprimer le pointage">🗑️</button>
         `;
       } else if (timesheet.start_time) {
         endCell = '<span class="status-partial">⏳ En cours</span>';
@@ -224,6 +226,8 @@ function renderAllTimesheetsTable() {
         actions = `
           <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir photo début">🔍</button>
           <button class="btn-icon btn-point-end" data-user-id="${item.user_id}" title="Pointer la fin">➕</button>
+          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Modifier le pointage">✏️</button>
+          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Supprimer le pointage">🗑️</button>
         `;
       }
     }
@@ -266,6 +270,22 @@ function renderAllTimesheetsTable() {
     btn.addEventListener('click', () => {
       const timesheetId = btn.getAttribute('data-timesheet-id');
       viewPhotos(timesheetId);
+    });
+  });
+  
+  container.querySelectorAll('.btn-edit-timesheet').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const timesheetId = btn.getAttribute('data-timesheet-id');
+      const username = btn.getAttribute('data-username');
+      showEditTimesheetModal(timesheetId, username);
+    });
+  });
+  
+  container.querySelectorAll('.btn-delete-timesheet').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const timesheetId = btn.getAttribute('data-timesheet-id');
+      const username = btn.getAttribute('data-username');
+      deleteTimesheetConfirm(timesheetId, username);
     });
   });
 }
@@ -655,6 +675,109 @@ function showLoader() {
 function hideLoader() {
   const loader = document.getElementById('loader');
   if (loader) loader.style.display = 'none';
+}
+
+/**
+ * Afficher le modal de modification de pointage
+ */
+function showEditTimesheetModal(timesheetId, username) {
+  const timesheet = allTimesheets.find(item => item.timesheet && item.timesheet.id === timesheetId)?.timesheet;
+  
+  if (!timesheet) {
+    showNotification('Pointage introuvable', 'error');
+    return;
+  }
+  
+  const hasEnd = !!timesheet.end_time;
+  
+  const modalHTML = `
+    <div id="modal-edit-timesheet" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+      <div class="modal-overlay" id="edit-timesheet-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+      <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 1rem 1rem 0 0;">
+          <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">✏️ Modifier - ${username}</h3>
+          <button id="close-edit-timesheet" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+          ${hasEnd ? `
+            <button id="btn-edit-start" class="btn-choice-modify" style="width: 100%; margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+              <span style="font-size: 1.5rem;">🟢</span>
+              <span>Modifier le début (${timesheet.start_km} km)</span>
+            </button>
+            <button id="btn-edit-end" class="btn-choice-modify" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+              <span style="font-size: 1.5rem;">🔴</span>
+              <span>Modifier la fin (${timesheet.end_km} km)</span>
+            </button>
+          ` : `
+            <button id="btn-edit-start" class="btn-choice-modify" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+              <span style="font-size: 1.5rem;">🟢</span>
+              <span>Modifier le début (${timesheet.start_km} km)</span>
+            </button>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer);
+  
+  const closeModal = () => {
+    modalContainer.remove();
+  };
+  
+  document.getElementById('close-edit-timesheet').addEventListener('click', closeModal);
+  document.getElementById('edit-timesheet-overlay').addEventListener('click', closeModal);
+  
+  document.getElementById('btn-edit-start').addEventListener('click', () => {
+    closeModal();
+    // Ouvrir le modal de modification du début
+    showNotification('Fonctionnalité de modification en cours de développement', 'info');
+    // TODO: Implémenter le modal de modification avec les valeurs pré-remplies
+  });
+  
+  if (hasEnd) {
+    document.getElementById('btn-edit-end').addEventListener('click', () => {
+      closeModal();
+      // Ouvrir le modal de modification de la fin
+      showNotification('Fonctionnalité de modification en cours de développement', 'info');
+      // TODO: Implémenter le modal de modification avec les valeurs pré-remplies
+    });
+  }
+}
+
+/**
+ * Confirmer et supprimer un pointage
+ */
+async function deleteTimesheetConfirm(timesheetId, username) {
+  const confirmed = confirm(`⚠️ Êtes-vous sûr de vouloir supprimer le pointage de ${username} ?\n\nCette action est irréversible et supprimera également les photos associées.`);
+  
+  if (!confirmed) return;
+  
+  try {
+    showNotification('Suppression en cours...', 'info');
+    
+    const response = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      showNotification(`✅ Pointage de ${username} supprimé avec succès`, 'success');
+      await loadAllTimesheetsForDate();
+    } else {
+      showNotification(data.message || 'Erreur lors de la suppression', 'error');
+    }
+  } catch (error) {
+    console.error('Erreur deleteTimesheet:', error);
+    showNotification('Erreur de connexion', 'error');
+  }
 }
 
 /**
