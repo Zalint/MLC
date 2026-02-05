@@ -217,8 +217,8 @@ function renderAllTimesheetsTable() {
         statusBadge = '<span class="timesheet-status status-complete">Complet</span>';
         actions = `
           <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir les photos">🔍</button>
-          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Modifier le pointage">✏️</button>
-          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Supprimer le pointage">🗑️</button>
+          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Modifier le pointage">✏️</button>
+          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Supprimer le pointage">🗑️</button>
         `;
       } else if (timesheet.start_time) {
         endCell = '<span class="status-partial">⏳ En cours</span>';
@@ -226,15 +226,15 @@ function renderAllTimesheetsTable() {
         actions = `
           <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir photo début">🔍</button>
           <button class="btn-icon btn-point-end" data-user-id="${item.user_id}" title="Pointer la fin">➕</button>
-          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Modifier le pointage">✏️</button>
-          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${item.username}" title="Supprimer le pointage">🗑️</button>
+          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Modifier le pointage">✏️</button>
+          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Supprimer le pointage">🗑️</button>
         `;
       }
     }
 
     html += `
       <tr>
-        <td><strong>👤 ${item.username}</strong></td>
+        <td><strong>👤 ${escapeHtml(item.username)}</strong></td>
         <td>${startCell}</td>
         <td>${endCell}</td>
         <td>${kmCell}</td>
@@ -353,7 +353,7 @@ function openPointForUserModal(userId, type) {
   if (title) {
     const emoji = type === 'start' ? '🟢' : '🔴';
     const action = type === 'start' ? 'le début' : 'la fin';
-    title.innerHTML = `${emoji} Pointer ${action} pour: <span id="livreur-name">${livreur.username}</span>`;
+    title.innerHTML = `${emoji} Pointer ${action} pour: <span id="livreur-name">${escapeHtml(livreur.username)}</span>`;
   }
   
   if (livreurDisplay) livreurDisplay.value = livreur.username;
@@ -681,7 +681,7 @@ function hideLoader() {
  * Afficher le modal de modification de pointage
  */
 function showEditTimesheetModal(timesheetId, username) {
-  const timesheet = allTimesheets.find(item => item.timesheet && item.timesheet.id === timesheetId)?.timesheet;
+  const timesheet = allTimesheets.find(item => item.timesheet && item.timesheet.id == timesheetId)?.timesheet;
   
   if (!timesheet) {
     showNotification('Pointage introuvable', 'error');
@@ -695,7 +695,7 @@ function showEditTimesheetModal(timesheetId, username) {
       <div class="modal-overlay" id="edit-timesheet-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
       <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 1rem 1rem 0 0;">
-          <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">✏️ Modifier - ${username}</h3>
+          <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">✏️ Modifier - ${escapeHtml(username)}</h3>
           <button id="close-edit-timesheet" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
         </div>
         <div class="modal-body" style="padding: 1.5rem;">
@@ -732,29 +732,311 @@ function showEditTimesheetModal(timesheetId, username) {
   
   document.getElementById('btn-edit-start').addEventListener('click', () => {
     closeModal();
-    // Ouvrir le modal de modification du début
-    showNotification('Fonctionnalité de modification en cours de développement', 'info');
-    // TODO: Implémenter le modal de modification avec les valeurs pré-remplies
+    showModifyModal(timesheet.id, 'start', timesheet.start_km, username);
   });
   
   if (hasEnd) {
     document.getElementById('btn-edit-end').addEventListener('click', () => {
       closeModal();
-      // Ouvrir le modal de modification de la fin
-      showNotification('Fonctionnalité de modification en cours de développement', 'info');
-      // TODO: Implémenter le modal de modification avec les valeurs pré-remplies
+      showModifyModal(timesheet.id, 'end', timesheet.end_km, username);
     });
   }
+}
+
+/**
+ * Afficher le modal de modification (début ou fin)
+ */
+function showModifyModal(timesheetId, type, currentKm, username) {
+  const isStart = type === 'start';
+  const emoji = isStart ? '🟢' : '🔴';
+  const label = isStart ? 'début' : 'fin';
+  const color = isStart ? '#10b981' : '#ef4444';
+  const colorDark = isStart ? '#059669' : '#dc2626';
+  
+  const modalHTML = `
+    <div id="modal-modify-timesheet" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+      <div class="modal-overlay" id="modify-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+      <div class="modal-content" style="position: relative; z-index: 10001; max-width: 500px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, ${color} 0%, ${colorDark} 100%); border-radius: 1rem 1rem 0 0;">
+          <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${emoji} Modifier ${label} - ${escapeHtml(username)}</h3>
+          <button id="close-modify" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+        </div>
+        <form id="form-modify-timesheet" style="padding: 1.5rem;">
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Kilométrage actuel</label>
+            <div style="padding: 0.75rem; background: #f7fafc; border-radius: 0.5rem; color: #718096; font-size: 1rem;">
+              ${currentKm} km
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 1.5rem;">
+            <label for="modify-km" style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Nouveau kilométrage *</label>
+            <input 
+              type="number" 
+              id="modify-km" 
+              name="km" 
+              value="${currentKm}"
+              step="0.1" 
+              min="0" 
+              required 
+              style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem; transition: border-color 0.2s;"
+            />
+          </div>
+          
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">
+              Nouvelle photo (optionnel)
+            </label>
+            <div 
+              id="modify-photo-dropzone" 
+              style="border: 2px dashed #cbd5e0; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; background: #f7fafc; transition: all 0.2s;"
+            >
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">📸</div>
+              <p style="margin: 0; color: #718096;">Cliquez pour ajouter une photo (optionnel)</p>
+            </div>
+            <input type="file" id="modify-photo-input" accept="image/jpeg,image/png" style="display: none;" />
+            <div id="modify-photo-preview" style="margin-top: 1rem;"></div>
+          </div>
+          
+          <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+            <button 
+              type="button" 
+              id="btn-cancel-modify" 
+              class="btn-secondary" 
+              style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;"
+            >
+              Annuler
+            </button>
+            <button 
+              type="submit" 
+              class="btn-primary" 
+              style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, ${color}, ${colorDark}); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer);
+  
+  let selectedFile = null;
+  
+  const closeModal = () => {
+    modalContainer.remove();
+  };
+  
+  // Event listeners
+  document.getElementById('close-modify').addEventListener('click', closeModal);
+  document.getElementById('modify-overlay').addEventListener('click', closeModal);
+  document.getElementById('btn-cancel-modify').addEventListener('click', closeModal);
+  
+  // Photo upload
+  const dropzone = document.getElementById('modify-photo-dropzone');
+  const fileInput = document.getElementById('modify-photo-input');
+  const preview = document.getElementById('modify-photo-preview');
+  const kmInput = document.getElementById('modify-km');
+  
+  // Event listeners pour l'input kilométrage (remplace onfocus/onblur inline)
+  kmInput.addEventListener('focus', () => {
+    kmInput.style.borderColor = color;
+  });
+  
+  kmInput.addEventListener('blur', () => {
+    kmInput.style.borderColor = '#e2e8f0';
+  });
+  
+  // Event listeners pour la dropzone (remplace onmouseover/onmouseout inline)
+  dropzone.addEventListener('mouseover', () => {
+    dropzone.style.borderColor = color;
+    dropzone.style.background = '#f0fdf4';
+  });
+  
+  dropzone.addEventListener('mouseout', () => {
+    dropzone.style.borderColor = '#cbd5e0';
+    dropzone.style.background = '#f7fafc';
+  });
+  
+  dropzone.addEventListener('click', () => fileInput.click());
+  
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
+    
+    if (file.size > MAX_SIZE) {
+      showNotification('Photo trop volumineuse (max 10 Mo)', 'error');
+      return;
+    }
+    
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      showNotification('Format non accepté (JPEG ou PNG uniquement)', 'error');
+      return;
+    }
+    
+    selectedFile = file;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      preview.innerHTML = `
+        <div class="photo-preview">
+          <img src="${e.target.result}" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          <div class="photo-name" style="margin-top: 8px; font-size: 0.9rem; color: #718096;">${file.name}</div>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  // Form submit
+  document.getElementById('form-modify-timesheet').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const km = document.getElementById('modify-km').value;
+    
+    if (!km) {
+      showNotification('Veuillez entrer le kilométrage', 'error');
+      return;
+    }
+    
+    const kmNumber = parseFloat(km);
+    if (isNaN(kmNumber) || kmNumber < 0) {
+      showNotification('Kilométrage invalide', 'error');
+      return;
+    }
+    
+    closeModal();
+    
+    try {
+      showLoader();
+      showNotification('Modification en cours...', 'info');
+      
+      const formData = new FormData();
+      formData.append('km', km);
+      if (selectedFile) {
+        formData.append('photo', selectedFile);
+      }
+      
+      const endpoint = isStart ? 'start' : 'end';
+      const response = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}/${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      let data;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error('Erreur parsing JSON:', parseError);
+          data = { message: response.statusText || `Erreur ${response.status}` };
+        }
+      } else {
+        data = { message: response.statusText || `Erreur ${response.status}` };
+      }
+      
+      if (response.ok) {
+        showNotification(data.message || '✅ Pointage modifié avec succès', 'success');
+        await loadAllTimesheetsForDate();
+      } else {
+        showNotification(data.message || 'Erreur lors de la modification', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur modification:', error);
+      showNotification('Erreur de connexion', 'error');
+    } finally {
+      hideLoader();
+    }
+  });
+  
+  // Fermer avec Escape
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
+}
+
+/**
+ * Afficher un modal de confirmation personnalisé
+ */
+function showConfirmModal(title, message, onConfirm) {
+  const modalHTML = `
+    <div id="modal-confirm-delete" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+      <div class="modal-overlay" id="confirm-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+      <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; animation: modalSlideIn 0.3s ease-out;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 1rem 1rem 0 0;">
+          <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${escapeHtml(title)}</h3>
+          <button id="close-confirm" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 2rem 1.5rem;">
+          <p style="color: #4a5568; font-size: 1rem; line-height: 1.6; margin: 0; white-space: pre-line;">${escapeHtml(message)}</p>
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; background: #f7fafc; border-radius: 0 0 1rem 1rem; justify-content: flex-end;">
+          <button id="btn-cancel-confirm" class="btn-secondary" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;">Annuler</button>
+          <button id="btn-ok-confirm" class="btn-danger" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;">Supprimer</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer);
+  
+  const closeModal = () => {
+    modalContainer.remove();
+  };
+  
+  document.getElementById('close-confirm').addEventListener('click', closeModal);
+  document.getElementById('confirm-overlay').addEventListener('click', closeModal);
+  document.getElementById('btn-cancel-confirm').addEventListener('click', closeModal);
+  
+  document.getElementById('btn-ok-confirm').addEventListener('click', () => {
+    closeModal();
+    onConfirm();
+  });
+  
+  // Fermer avec Escape
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
 }
 
 /**
  * Confirmer et supprimer un pointage
  */
 async function deleteTimesheetConfirm(timesheetId, username) {
-  const confirmed = confirm(`⚠️ Êtes-vous sûr de vouloir supprimer le pointage de ${username} ?\n\nCette action est irréversible et supprimera également les photos associées.`);
-  
-  if (!confirmed) return;
-  
+  showConfirmModal(
+    '⚠️ Supprimer le pointage',
+    `Êtes-vous sûr de vouloir supprimer le pointage de ${username} ?\n\nCette action est irréversible et supprimera également les photos associées.`,
+    async () => {
+      await performDeleteTimesheet(timesheetId, username);
+    }
+  );
+}
+
+/**
+ * Effectuer la suppression du pointage
+ */
+async function performDeleteTimesheet(timesheetId, username) {
   try {
     showNotification('Suppression en cours...', 'info');
     
@@ -766,7 +1048,19 @@ async function deleteTimesheetConfirm(timesheetId, username) {
       }
     });
     
-    const data = await response.json();
+    let data;
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Erreur parsing JSON:', parseError);
+        data = { message: response.statusText || `Erreur ${response.status}` };
+      }
+    } else {
+      data = { message: response.statusText || `Erreur ${response.status}` };
+    }
     
     if (response.ok) {
       showNotification(`✅ Pointage de ${username} supprimé avec succès`, 'success');
@@ -775,7 +1069,7 @@ async function deleteTimesheetConfirm(timesheetId, username) {
       showNotification(data.message || 'Erreur lors de la suppression', 'error');
     }
   } catch (error) {
-    console.error('Erreur deleteTimesheet:', error);
+    console.error('Erreur performDeleteTimesheet:', error);
     showNotification('Erreur de connexion', 'error');
   }
 }

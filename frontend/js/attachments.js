@@ -375,10 +375,64 @@ const AttachmentsManager = (() => {
   }
 
   /**
+   * Afficher un modal de confirmation
+   */
+  function showConfirmModal(title, message) {
+    return new Promise((resolve) => {
+      const modalHTML = `
+        <div id="modal-confirm-attachment" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+          <div class="modal-overlay" id="confirm-overlay-attachment" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+          <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 1rem 1rem 0 0;">
+              <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${title}</h3>
+              <button id="close-confirm-attachment" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 2rem 1.5rem;">
+              <p style="color: #4a5568; font-size: 1rem; line-height: 1.6; margin: 0;">${message}</p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; background: #f7fafc; border-radius: 0 0 1rem 1rem; justify-content: flex-end;">
+              <button id="btn-cancel-confirm-attachment" class="btn-secondary" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600;">Annuler</button>
+              <button id="btn-ok-confirm-attachment" class="btn-danger" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600;">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const modalContainer = document.createElement('div');
+      modalContainer.innerHTML = modalHTML;
+      document.body.appendChild(modalContainer);
+      
+      const closeModal = (confirmed) => {
+        modalContainer.remove();
+        resolve(confirmed);
+      };
+      
+      document.getElementById('close-confirm-attachment').addEventListener('click', () => closeModal(false));
+      document.getElementById('confirm-overlay-attachment').addEventListener('click', () => closeModal(false));
+      document.getElementById('btn-cancel-confirm-attachment').addEventListener('click', () => closeModal(false));
+      document.getElementById('btn-ok-confirm-attachment').addEventListener('click', () => closeModal(true));
+      
+      // Fermer avec Escape
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          closeModal(false);
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+    });
+  }
+
+  /**
    * Supprimer une pièce jointe
    */
   async function deleteAttachment(attachmentId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette pièce jointe ?')) {
+    const confirmed = await showConfirmModal(
+      '⚠️ Supprimer la pièce jointe',
+      'Êtes-vous sûr de vouloir supprimer cette pièce jointe ?'
+    );
+    
+    if (!confirmed) {
       return { success: false, cancelled: true };
     }
 

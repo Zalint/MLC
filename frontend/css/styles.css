@@ -5027,12 +5027,18 @@ input[type="tel"]:focus {
   text-align: left;
   font-weight: 600;
   font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+.timesheets-table th:last-child {
+  text-align: center;
 }
 
 .timesheets-table td {
   padding: 12px;
   border-bottom: 1px solid #e2e8f0;
   font-size: 0.9rem;
+  vertical-align: middle;
 }
 
 .timesheets-table tr:hover {
@@ -5075,6 +5081,8 @@ input[type="tel"]:focus {
 .actions-cell {
   display: flex;
   gap: 5px;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-icon {

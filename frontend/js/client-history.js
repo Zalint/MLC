@@ -49,7 +49,9 @@ class ClientHistoryManager {
         
         if (!phone) {
           console.error('📋 ❌ ERREUR: Pas de numéro de téléphone!');
-          alert('Erreur: Numéro de téléphone manquant');
+          if (typeof ToastManager !== 'undefined') {
+            ToastManager.error('Erreur: Numéro de téléphone manquant');
+          }
           return;
         }
         

@@ -1060,7 +1060,7 @@ class PageManager {
             console.log('📊 Redirection vers Audit...');
             window.location.href = 'audit.html';
           } else {
-            alert('Accès non autorisé');
+            ToastManager.error('Accès non autorisé');
           }
           break;
         case 'gps-analytics':
@@ -6949,20 +6949,66 @@ class App {
     });
 
     // Export Excel
-    document.getElementById('export-excel').addEventListener('click', () => {
+    document.getElementById('export-excel').addEventListener('click', async () => {
       const today = new Date().toISOString().split('T')[0];
-      const startDate = prompt('Date de début (YYYY-MM-DD):', today);
-      if (!startDate) return;
       
-      const endDate = prompt('Date de fin (YYYY-MM-DD):', today);
-      if (!endDate) return;
-
-      try {
-        ApiClient.exportOrders(startDate, endDate);
-        ToastManager.success('Export en cours...');
-      } catch (error) {
-        ToastManager.error('Erreur lors de l\'export');
-      }
+      // Utiliser le modal ModalManager pour les dates
+      const modalHTML = `
+        <div id="modal-export-dates" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+          <div class="modal-overlay" id="export-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+          <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 1rem 1rem 0 0;">
+              <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">📊 Export Excel</h3>
+              <button id="close-export" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+              <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Date de début</label>
+                <input type="date" id="export-start-date" value="${today}" style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem;" />
+              </div>
+              <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Date de fin</label>
+                <input type="date" id="export-end-date" value="${today}" style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.5rem; font-size: 1rem;" />
+              </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; background: #f7fafc; border-radius: 0 0 1rem 1rem; justify-content: flex-end;">
+              <button id="btn-cancel-export" class="btn-secondary" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600;">Annuler</button>
+              <button id="btn-ok-export" class="btn-primary" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600;">Exporter</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const modalContainer = document.createElement('div');
+      modalContainer.innerHTML = modalHTML;
+      document.body.appendChild(modalContainer);
+      
+      const closeModal = () => {
+        modalContainer.remove();
+      };
+      
+      document.getElementById('close-export').addEventListener('click', closeModal);
+      document.getElementById('export-overlay').addEventListener('click', closeModal);
+      document.getElementById('btn-cancel-export').addEventListener('click', closeModal);
+      
+      document.getElementById('btn-ok-export').addEventListener('click', () => {
+        const startDate = document.getElementById('export-start-date').value;
+        const endDate = document.getElementById('export-end-date').value;
+        
+        if (!startDate || !endDate) {
+          ToastManager.warning('Veuillez sélectionner les dates');
+          return;
+        }
+        
+        closeModal();
+        
+        try {
+          ApiClient.exportOrders(startDate, endDate);
+          ToastManager.success('Export en cours...');
+        } catch (error) {
+          ToastManager.error('Erreur lors de l\'export');
+        }
+      });
     });
 
     // Boutons utilisateurs

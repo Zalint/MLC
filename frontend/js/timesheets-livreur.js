@@ -685,13 +685,72 @@ const TimesheetsLivreurManager = (() => {
   }
 
   /**
+   * Afficher un modal de confirmation personnalisé
+   */
+  function showConfirmModal(title, message, onConfirm) {
+    const modalHTML = `
+      <div id="modal-confirm-delete" class="modal active" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px); padding: 1rem;">
+        <div class="modal-overlay" id="confirm-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);"></div>
+        <div class="modal-content" style="position: relative; z-index: 10001; max-width: 450px; width: 95%; background: white; border-radius: 1rem; box-shadow: 0 25px 75px rgba(0, 0, 0, 0.5); padding: 0; animation: modalSlideIn 0.3s ease-out;">
+          <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 1rem 1rem 0 0;">
+            <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 700;">${title}</h3>
+            <button id="close-confirm" class="modal-close" style="background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.5rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 2rem 1.5rem;">
+            <p style="color: #4a5568; font-size: 1rem; line-height: 1.6; margin: 0; white-space: pre-line;">${message}</p>
+          </div>
+          <div class="modal-footer" style="display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; background: #f7fafc; border-radius: 0 0 1rem 1rem; justify-content: flex-end;">
+            <button id="btn-cancel-confirm" class="btn-secondary" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;">Annuler</button>
+            <button id="btn-ok-confirm" class="btn-danger" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s;">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+    
+    const closeModal = () => {
+      modalContainer.remove();
+    };
+    
+    document.getElementById('close-confirm').addEventListener('click', closeModal);
+    document.getElementById('confirm-overlay').addEventListener('click', closeModal);
+    document.getElementById('btn-cancel-confirm').addEventListener('click', closeModal);
+    
+    document.getElementById('btn-ok-confirm').addEventListener('click', () => {
+      closeModal();
+      onConfirm();
+    });
+    
+    // Fermer avec Escape
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
+
+  /**
    * Supprimer un pointage
    */
   async function deleteTimesheet(timesheetId) {
-    const confirmed = confirm('⚠️ Êtes-vous sûr de vouloir supprimer ce pointage ?\n\nCette action est irréversible.');
-    
-    if (!confirmed) return;
+    showConfirmModal(
+      '⚠️ Supprimer le pointage',
+      'Êtes-vous sûr de vouloir supprimer ce pointage ?\n\nCette action est irréversible.',
+      async () => {
+        await performDeleteTimesheet(timesheetId);
+      }
+    );
+  }
 
+  /**
+   * Effectuer la suppression du pointage
+   */
+  async function performDeleteTimesheet(timesheetId) {
     try {
       showNotification('Suppression en cours...', 'info');
       
@@ -703,7 +762,19 @@ const TimesheetsLivreurManager = (() => {
         }
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error('Erreur parsing JSON:', parseError);
+          data = { message: response.statusText || `Erreur ${response.status}` };
+        }
+      } else {
+        data = { message: response.statusText || `Erreur ${response.status}` };
+      }
 
       if (response.ok) {
         showNotification('✅ Pointage supprimé avec succès', 'success');
@@ -713,7 +784,7 @@ const TimesheetsLivreurManager = (() => {
         showNotification(data.message || 'Erreur lors de la suppression', 'error');
       }
     } catch (error) {
-      console.error('Erreur deleteTimesheet:', error);
+      console.error('Erreur performDeleteTimesheet:', error);
       showNotification('Erreur de connexion', 'error');
     }
   }

@@ -665,7 +665,10 @@ const deleteTimesheet = async (req, res) => {
     // Si c'est un livreur, vérifier que c'est pour aujourd'hui seulement
     if (userRole === 'LIVREUR') {
       const today = formatLocalDate(new Date());
-      const timesheetDate = timesheet.date.split('T')[0]; // Format YYYY-MM-DD
+      // Gérer le cas où timesheet.date est un Date object ou une string
+      const timesheetDate = timesheet.date instanceof Date 
+        ? formatLocalDate(timesheet.date)
+        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
       
       if (timesheetDate !== today) {
         return res.status(403).json({
@@ -803,13 +806,37 @@ const updateStartActivity = async (req, res) => {
       });
     }
 
-    // Vérifier que c'est bien son pointage
-    if (timesheet.user_id !== userId) {
+    // Vérifier les permissions
+    const userRole = req.user.role;
+    const isOwner = timesheet.user_id === userId;
+    const isManager = userRole === 'MANAGER';
+    const isAdmin = userRole === 'ADMIN';
+    
+    if (!isOwner && !isManager && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Vous ne pouvez modifier que vos propres pointages.'
       });
     }
+    
+    // Si manager, vérifier que le pointage a moins de 72h
+    if (isManager && !isOwner) {
+      const timesheetDate = timesheet.date instanceof Date 
+        ? formatLocalDate(timesheet.date)
+        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
+      
+      const pointageTime = new Date(timesheetDate).getTime();
+      const now = new Date().getTime();
+      const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
+      
+      if (hoursDiff > 72) {
+        return res.status(403).json({
+          success: false,
+          message: 'Les managers ne peuvent modifier que les pointages de moins de 72 heures.'
+        });
+      }
+    }
+    // Les admins peuvent modifier sans limite de temps
 
     // Si nouvelle photo, uploader
     let photoPath = timesheet.start_photo_path;
@@ -891,13 +918,37 @@ const updateEndActivity = async (req, res) => {
       });
     }
 
-    // Vérifier que c'est bien son pointage
-    if (timesheet.user_id !== userId) {
+    // Vérifier les permissions
+    const userRole = req.user.role;
+    const isOwner = timesheet.user_id === userId;
+    const isManager = userRole === 'MANAGER';
+    const isAdmin = userRole === 'ADMIN';
+    
+    if (!isOwner && !isManager && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Vous ne pouvez modifier que vos propres pointages.'
       });
     }
+    
+    // Si manager, vérifier que le pointage a moins de 72h
+    if (isManager && !isOwner) {
+      const timesheetDate = timesheet.date instanceof Date 
+        ? formatLocalDate(timesheet.date)
+        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
+      
+      const pointageTime = new Date(timesheetDate).getTime();
+      const now = new Date().getTime();
+      const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
+      
+      if (hoursDiff > 72) {
+        return res.status(403).json({
+          success: false,
+          message: 'Les managers ne peuvent modifier que les pointages de moins de 72 heures.'
+        });
+      }
+    }
+    // Les admins peuvent modifier sans limite de temps
 
     // Vérifier que end_km >= start_km
     if (kmNumber < timesheet.start_km) {

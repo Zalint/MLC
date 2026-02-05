@@ -27,8 +27,12 @@ class AuditManager {
         // Vérifier les permissions (managers et admins uniquement)
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user || (user.role !== 'MANAGER' && user.role !== 'ADMIN')) {
-            alert('Accès refusé. Cette page est réservée aux managers et administrateurs.');
-            window.location.href = 'index.html';
+            if (typeof ToastManager !== 'undefined') {
+                ToastManager.error('Accès refusé. Cette page est réservée aux managers et administrateurs.');
+            }
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1500);
             return;
         }
 
