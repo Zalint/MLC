@@ -13,6 +13,12 @@ const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
  */
 function getTimesheetUploadPath(date) {
   const dateObj = new Date(date);
+  
+  // Valider la date
+  if (isNaN(dateObj.getTime())) {
+    throw new Error(`Invalid date passed to getTimesheetUploadPath: ${date}`);
+  }
+  
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, '0');
   const day = String(dateObj.getDate()).padStart(2, '0');
@@ -134,9 +140,18 @@ async function deleteTimesheetPhoto(filePath) {
   }
 
   try {
-    await fs.access(filePath);
-    await fs.unlink(filePath);
-    console.log('🗑️ Photo supprimée:', filePath);
+    // Sécurité: Valider que le chemin est bien dans le répertoire autorisé
+    const resolvedPath = path.resolve(filePath);
+    const resolvedBasePath = path.resolve(UPLOAD_BASE_PATH);
+    
+    if (!resolvedPath.startsWith(resolvedBasePath + path.sep)) {
+      console.warn('⚠️ Tentative de suppression hors du répertoire autorisé:', filePath);
+      return false;
+    }
+    
+    await fs.access(resolvedPath);
+    await fs.unlink(resolvedPath);
+    console.log('🗑️ Photo supprimée:', resolvedPath);
     return true;
   } catch (error) {
     console.warn('⚠️ Impossible de supprimer la photo:', filePath, error.message);

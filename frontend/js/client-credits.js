@@ -510,15 +510,7 @@ async function saveCredit(phone) {
     if (hasAmount) {
       console.log('🔷 CAS 1: Attribuer un crédit (au moins un champ rempli)');
       
-      // Si un montant ou un délai est fourni, les deux sont requis
-      if (!hasAmount) {
-        console.log('❌ Erreur: Montant manquant');
-        if (window.ToastManager) {
-          ToastManager.error('Le montant du crédit doit être supérieur à 0');
-        }
-        return;
-      }
-
+      // Valider le délai d'expiration
       if (!hasDays) {
         console.log('❌ Erreur: Délai manquant');
         if (window.ToastManager) {

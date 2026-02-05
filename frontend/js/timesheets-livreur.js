@@ -272,17 +272,27 @@ const TimesheetsLivreurManager = (() => {
       }
     });
 
-    // Boutons annuler
+    // Boutons annuler (maintenant des classes au lieu d'IDs dupliqués)
     document.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'btn-cancel-start') {
+      if (e.target && e.target.classList.contains('js-cancel-start')) {
         closeModal(modalStart);
         resetStartForm();
       }
-      if (e.target && e.target.id === 'btn-cancel-end') {
+      if (e.target && e.target.classList.contains('js-cancel-end')) {
         closeModal(modalEnd);
         resetEndForm();
       }
     });
+  }
+
+  /**
+   * Formater une date locale en YYYY-MM-DD
+   */
+  function formatLocalYYYYMMDD(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**
@@ -291,9 +301,9 @@ const TimesheetsLivreurManager = (() => {
   function openStartModal() {
     if (!modalStart) return;
 
-    // Pré-remplir la date en utilisant celle du sélecteur du dashboard
+    // Pré-remplir la date en utilisant celle du sélecteur du dashboard (ou date locale)
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
-    const selectedDate = dashboardDateFilter?.value || new Date().toISOString().split('T')[0];
+    const selectedDate = dashboardDateFilter?.value || formatLocalYYYYMMDD(new Date());
     
     const dateInput = document.getElementById('start-date');
     if (dateInput) {
@@ -310,9 +320,9 @@ const TimesheetsLivreurManager = (() => {
   function openEndModal() {
     if (!modalEnd) return;
 
-    // Pré-remplir la date en utilisant celle du sélecteur du dashboard
+    // Pré-remplir la date en utilisant celle du sélecteur du dashboard (ou date locale)
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
-    const selectedDate = dashboardDateFilter?.value || new Date().toISOString().split('T')[0];
+    const selectedDate = dashboardDateFilter?.value || formatLocalYYYYMMDD(new Date());
     
     const dateInput = document.getElementById('end-date');
     if (dateInput) {

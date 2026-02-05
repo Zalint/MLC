@@ -13,11 +13,21 @@ const TimesheetsManagerView = (() => {
   let photoFile = null;
   
   /**
+   * Formater une date locale en YYYY-MM-DD
+   */
+  function formatLocalYYYYMMDD(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Obtenir la date sélectionnée dans le dashboard
    */
   function getSelectedDashboardDate() {
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
-    return dashboardDateFilter?.value || new Date().toISOString().split('T')[0];
+    return dashboardDateFilter?.value || formatLocalYYYYMMDD(new Date());
   }
   
   // Éléments DOM
@@ -156,7 +166,7 @@ const TimesheetsManagerView = (() => {
     const btnToday = document.getElementById('btn-today');
     if (btnToday) {
       btnToday.addEventListener('click', () => {
-        currentDate = new Date().toISOString().split('T')[0];
+        currentDate = formatLocalYYYYMMDD(new Date());
         document.getElementById('filter-timesheet-date').value = currentDate;
         loadAllTimesheetsForDate();
       });
@@ -167,7 +177,7 @@ const TimesheetsManagerView = (() => {
       btnYesterday.addEventListener('click', () => {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        currentDate = yesterday.toISOString().split('T')[0];
+        currentDate = formatLocalYYYYMMDD(yesterday);
         document.getElementById('filter-timesheet-date').value = currentDate;
         loadAllTimesheetsForDate();
       });
@@ -179,11 +189,10 @@ const TimesheetsManagerView = (() => {
       btnRefresh.addEventListener('click', loadAllTimesheetsForDate);
     }
 
-    // Bouton fermer modal
-    const btnClose = document.getElementById('btn-close-all-timesheets');
-    if (btnClose) {
-      btnClose.addEventListener('click', () => closeModal(modalAllTimesheets));
-    }
+    // Boutons fermer modal (maintenant des classes au lieu d'IDs dupliqués)
+    document.querySelectorAll('.js-close-all-timesheets').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(modalAllTimesheets));
+    });
 
     // Modal "Pointer pour user" - upload photo
     const pointPhotoDropzone = document.getElementById('point-photo-dropzone');
@@ -373,6 +382,12 @@ const TimesheetsManagerView = (() => {
     const statsContainer = document.getElementById('timesheet-stats');
     if (!statsContainer || !stats) return;
 
+    // Calculer les pourcentages en évitant la division par zéro
+    const total = stats.total_livreurs || 0;
+    const completsPercent = total > 0 ? Math.round(stats.complets / total * 100) : 0;
+    const enCoursPercent = total > 0 ? Math.round(stats.en_cours / total * 100) : 0;
+    const nonPointesPercent = total > 0 ? Math.round(stats.non_pointes / total * 100) : 0;
+
     statsContainer.innerHTML = `
       <div class="stats-grid">
         <div class="stat-item">
@@ -381,15 +396,15 @@ const TimesheetsManagerView = (() => {
         </div>
         <div class="stat-item">
           <div class="stat-label">Pointages complets</div>
-          <div class="stat-value stat-success">${stats.complets} (${Math.round(stats.complets / stats.total_livreurs * 100)}%)</div>
+          <div class="stat-value stat-success">${stats.complets} (${completsPercent}%)</div>
         </div>
         <div class="stat-item">
           <div class="stat-label">En cours</div>
-          <div class="stat-value stat-partial">${stats.en_cours} (${Math.round(stats.en_cours / stats.total_livreurs * 100)}%)</div>
+          <div class="stat-value stat-partial">${stats.en_cours} (${enCoursPercent}%)</div>
         </div>
         <div class="stat-item">
           <div class="stat-label">Non pointés</div>
-          <div class="stat-value stat-missing">${stats.non_pointes} (${Math.round(stats.non_pointes / stats.total_livreurs * 100)}%)</div>
+          <div class="stat-value stat-missing">${stats.non_pointes} (${nonPointesPercent}%)</div>
         </div>
         <div class="stat-item">
           <div class="stat-label">Total km parcourus</div>

@@ -127,6 +127,16 @@ class ClientCreditsController {
         });
       }
 
+      // Validation explicite de credit_amount s'il est fourni
+      if (credit_amount !== undefined && credit_amount !== null && credit_amount !== '') {
+        if (typeof credit_amount !== 'number' || credit_amount <= 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'credit_amount doit être un nombre positif'
+          });
+        }
+      }
+
       // Déterminer si c'est une mise à jour de crédit ou juste de tag
       const isUpdatingCredit = credit_amount && credit_amount > 0;
       const isUpdatingTagOnly = !isUpdatingCredit && client_tag;

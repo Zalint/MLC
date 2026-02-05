@@ -50,13 +50,23 @@ const uploadPhotoMiddleware = (req, res, next) => {
 // ============================================
 
 /**
+ * Formater une date en YYYY-MM-DD en utilisant le timezone local (pas UTC)
+ */
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Récupérer le pointage du jour pour le livreur connecté
  * GET /api/timesheets/today
  */
 const getTodayTimesheet = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = formatLocalDate(new Date()); // YYYY-MM-DD en timezone local
     
     const timesheet = await Timesheet.findByUserAndDate(userId, today);
     
@@ -102,7 +112,7 @@ const startActivity = async (req, res) => {
     }
 
     // Valider la date (aujourd'hui uniquement pour livreur)
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDate(new Date());
     if (date !== today && req.user.role === 'LIVREUR') {
       return res.status(400).json({
         success: false,
@@ -276,7 +286,7 @@ const endActivity = async (req, res) => {
 const getAllTimesheetsForDate = async (req, res) => {
   try {
     const { date } = req.query;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || formatLocalDate(new Date());
 
     // Récupérer tous les livreurs avec leur pointage
     const data = await Timesheet.findAllActiveLivreursWithTimesheets(targetDate);
@@ -530,8 +540,23 @@ const downloadPhoto = async (req, res) => {
       });
     }
 
+    // Sécurité: Valider le chemin pour prévenir les attaques par traversée de répertoire
+    const path = require('path');
+    const { UPLOAD_BASE_PATH } = require('../utils/timesheetUploadHelper');
+    
+    const resolvedPhotoPath = path.resolve(photoPath);
+    const resolvedUploadDir = path.resolve(UPLOAD_BASE_PATH);
+    
+    if (!resolvedPhotoPath.startsWith(resolvedUploadDir + path.sep)) {
+      console.error('⚠️ Tentative de path traversal détectée:', photoPath);
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé.'
+      });
+    }
+
     // Vérifier que le fichier existe
-    const exists = await fileExists(photoPath);
+    const exists = await fileExists(resolvedPhotoPath);
     if (!exists) {
       return res.status(404).json({
         success: false,
@@ -540,7 +565,7 @@ const downloadPhoto = async (req, res) => {
     }
 
     // Envoyer le fichier
-    res.download(photoPath, photoName);
+    res.download(resolvedPhotoPath, photoName);
 
   } catch (error) {
     console.error('Erreur downloadPhoto:', error);
@@ -563,10 +588,13 @@ const getTimesheets = async (req, res) => {
     const currentUserId = req.user.id;
     const userRole = req.user.role;
 
-    // Dates par défaut: ce mois
+    // Dates par défaut: ce mois (utiliser des chaînes de dates explicites pour éviter les problèmes de timezone)
     const now = new Date();
-    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const lastDay = new Date(year, month, 0).getDate();
+    const defaultStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    const defaultEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     const startDate = start_date || defaultStart;
     const endDate = end_date || defaultEnd;
@@ -650,7 +678,6 @@ const deleteTimesheet = async (req, res) => {
 const updateTimesheet = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
     const userId = req.user.id;
     const userRole = req.user.role;
 
@@ -675,8 +702,18 @@ const updateTimesheet = async (req, res) => {
       });
     }
 
+    // Whitelist des champs éditables (protection contre mass-assignment)
+    const allowedFields = ['start_km', 'end_km', 'start_photo_path', 'start_photo_name', 'end_photo_path', 'end_photo_name'];
+    const safeUpdates = {};
+    
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        safeUpdates[field] = req.body[field];
+      }
+    }
+
     // Mettre à jour
-    const updatedTimesheet = await Timesheet.update(id, updates);
+    const updatedTimesheet = await Timesheet.update(id, safeUpdates);
 
     console.log(`📝 ${req.user.username} a modifié le pointage ${id}`);
 

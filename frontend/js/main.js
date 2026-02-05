@@ -7022,22 +7022,29 @@ class App {
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
     if (dashboardDateFilter) {
       dashboardDateFilter.addEventListener('change', async () => {
-        console.log('📅 Changement de date dashboard détecté');
-        await DashboardManager.loadDashboard();
-        
-        // Recharger aussi le résumé des pointages si l'utilisateur est manager
-        const isManagerOrAdmin = AppState.user?.role === 'MANAGER' || AppState.user?.role === 'ADMIN';
-        console.log('👤 Est Manager/Admin?', isManagerOrAdmin, '- User:', AppState.user);
-        
-        if (isManagerOrAdmin) {
-          const timesheetWidget = document.getElementById('timesheet-manager-widget');
-          const isWidgetVisible = timesheetWidget && timesheetWidget.style.display !== 'none';
-          console.log('📊 Widget visible?', isWidgetVisible);
+        try {
+          console.log('📅 Changement de date dashboard détecté');
+          await DashboardManager.loadDashboard();
           
-          if (isWidgetVisible && typeof TimesheetsManagerView !== 'undefined' && TimesheetsManagerView.reloadSummary) {
-            console.log('🔄 Rechargement du résumé des pointages...');
-            await TimesheetsManagerView.reloadSummary();
-            console.log('✅ Résumé des pointages rechargé');
+          // Recharger aussi le résumé des pointages si l'utilisateur est manager
+          const isManagerOrAdmin = AppState.user?.role === 'MANAGER' || AppState.user?.role === 'ADMIN';
+          console.log('👤 Est Manager/Admin?', isManagerOrAdmin, '- User:', AppState.user);
+          
+          if (isManagerOrAdmin) {
+            const timesheetWidget = document.getElementById('timesheet-manager-widget');
+            const isWidgetVisible = timesheetWidget && timesheetWidget.style.display !== 'none';
+            console.log('📊 Widget visible?', isWidgetVisible);
+            
+            if (isWidgetVisible && typeof TimesheetsManagerView !== 'undefined' && TimesheetsManagerView.reloadSummary) {
+              console.log('🔄 Rechargement du résumé des pointages...');
+              await TimesheetsManagerView.reloadSummary();
+              console.log('✅ Résumé des pointages rechargé');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Erreur lors du changement de date:', error);
+          if (typeof ToastManager !== 'undefined') {
+            ToastManager.error('Erreur lors du rechargement des données');
           }
         }
       });
