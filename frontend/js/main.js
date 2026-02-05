@@ -24,6 +24,9 @@ const AppState = {
   isLoading: false
 };
 
+// Exposer AppState sur window pour les autres modules
+window.AppState = AppState;
+
 // ===== UTILITAIRES =====
 class Utils {
   // Formater une date
@@ -1574,9 +1577,51 @@ class DashboardManager {
         console.log('🔍 StatsByType data (livreur):', dashboardData.statsByType);
       }
 
+      // Afficher les widgets de pointage selon le rôle
+      this.displayTimesheetWidgets();
+
     } catch (error) {
       console.error('Erreur lors du chargement du tableau de bord:', error);
       ToastManager.error('Erreur lors du chargement du tableau de bord');
+    }
+  }
+
+  static displayTimesheetWidgets() {
+    console.log('📊 displayTimesheetWidgets appelé, user:', AppState.user);
+    
+    const widgetLivreur = document.getElementById('timesheet-widget-livreur');
+    const widgetManager = document.getElementById('timesheet-manager-widget');
+
+    if (AppState.user) {
+      if (AppState.user.role === 'LIVREUR') {
+        // Afficher widget livreur
+        console.log('🚴 Initialisation widget LIVREUR');
+        if (widgetLivreur) widgetLivreur.style.display = 'block';
+        if (widgetManager) widgetManager.style.display = 'none';
+        
+        // Initialiser le manager livreur
+        if (window.TimesheetsLivreurManager) {
+          console.log('🚴 Appel TimesheetsLivreurManager.init()');
+          window.TimesheetsLivreurManager.init();
+        } else {
+          console.error('❌ TimesheetsLivreurManager non disponible');
+        }
+      } else if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN') {
+        // Afficher widget manager
+        console.log('📊 Initialisation widget MANAGER');
+        if (widgetLivreur) widgetLivreur.style.display = 'none';
+        if (widgetManager) widgetManager.style.display = 'block';
+        
+        // Initialiser le manager view
+        if (window.TimesheetsManagerView) {
+          console.log('📊 Appel TimesheetsManagerView.init()');
+          window.TimesheetsManagerView.init();
+        } else {
+          console.error('❌ TimesheetsManagerView non disponible');
+        }
+      }
+    } else {
+      console.warn('⚠️ AppState.user non défini');
     }
   }
 
@@ -6976,8 +7021,25 @@ class App {
     // Nouveau: Event listener pour le filtre de date du dashboard
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
     if (dashboardDateFilter) {
-      dashboardDateFilter.addEventListener('change', () => {
-        DashboardManager.loadDashboard();
+      dashboardDateFilter.addEventListener('change', async () => {
+        console.log('📅 Changement de date dashboard détecté');
+        await DashboardManager.loadDashboard();
+        
+        // Recharger aussi le résumé des pointages si l'utilisateur est manager
+        const isManagerOrAdmin = AppState.user?.role === 'MANAGER' || AppState.user?.role === 'ADMIN';
+        console.log('👤 Est Manager/Admin?', isManagerOrAdmin, '- User:', AppState.user);
+        
+        if (isManagerOrAdmin) {
+          const timesheetWidget = document.getElementById('timesheet-manager-widget');
+          const isWidgetVisible = timesheetWidget && timesheetWidget.style.display !== 'none';
+          console.log('📊 Widget visible?', isWidgetVisible);
+          
+          if (isWidgetVisible && typeof TimesheetsManagerView !== 'undefined' && TimesheetsManagerView.reloadSummary) {
+            console.log('🔄 Rechargement du résumé des pointages...');
+            await TimesheetsManagerView.reloadSummary();
+            console.log('✅ Résumé des pointages rechargé');
+          }
+        }
       });
     }
 

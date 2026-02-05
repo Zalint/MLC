@@ -26,6 +26,7 @@ const attachmentRoutes = require('./routes/attachments');
 const auditRoutes = require('./routes/audit');
 const commandesEnCoursRoutes = require('./routes/commandesEnCours');
 const clientCreditsRoutes = require('./routes/clientCredits');
+const timesheetRoutes = require('./routes/timesheets');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -111,6 +112,7 @@ app.use('/api/v1/salaries', salariesRoutes);
 app.use('/api/v1/gps', gpsRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/clients', clientCreditsRoutes);
+app.use('/api/v1/timesheets', timesheetRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pointages des livreurs - Matix Livreur</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+</head>
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader">
+        <div class="loader-spinner"></div>
+        <p>Chargement...</p>
+    </div>
+
+    <!-- Header -->
+    <header id="header" class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>📊 Pointages des livreurs</h1>
+            </div>
+            <div class="user-info">
+                <span id="username"></span>
+                <span id="user-role" class="role-badge"></span>
+                <button id="btn-retour-dashboard" class="btn btn-secondary btn-sm">
+                    <span class="icon">←</span>
+                    Retour au dashboard
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container" style="margin-top: 100px; padding: 20px;">
+        
+        <!-- Filtres -->
+        <div class="filter-section" style="margin-bottom: 30px;">
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <label style="font-weight: 600; margin-right: 10px;">📅 Date:</label>
+                    <input type="date" id="filter-timesheet-date" style="padding: 8px; border-radius: 6px; border: 1px solid #cbd5e0;" />
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-today">Aujourd'hui</button>
+                <button class="btn btn-secondary btn-sm" id="btn-yesterday">Hier</button>
+                <button class="btn btn-primary btn-sm" id="btn-refresh-timesheets">
+                    <span class="icon">🔄</span>
+                    Rafraîchir
+                </button>
+            </div>
+        </div>
+
+        <!-- Table des pointages -->
+        <div id="timesheets-table-container" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <!-- Table générée dynamiquement -->
+        </div>
+
+        <!-- Statistiques -->
+        <div class="stats-section" style="margin-top: 30px;">
+            <h3>📊 Statistiques du jour</h3>
+            <div id="timesheet-stats" style="margin-top: 15px;">
+                <!-- Stats générées dynamiquement -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Pointer pour un livreur -->
+    <div id="modal-point-for-user" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="point-for-user-title">🟢 Pointer pour: <span id="livreur-name"></span></h2>
+                <button class="modal-close" id="btn-cancel-point-for-user">&times;</button>
+            </div>
+            
+            <div class="alert alert-warning">
+                ⚠️ Vous êtes sur le point de pointer pour un autre utilisateur en tant que manager.
+            </div>
+            
+            <form id="form-point-for-user">
+                <input type="hidden" id="point-user-id" />
+                <input type="hidden" id="point-type" />
+                
+                <div class="form-group">
+                    <label>👤 Livreur</label>
+                    <input type="text" id="point-livreur-display" readonly />
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Date</label>
+                    <input type="date" id="point-date" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>🛵 Kilométrage (km)</label>
+                    <input type="number" step="0.01" id="point-km" placeholder="Ex: 7850" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo du compteur</label>
+                    <div id="point-photo-dropzone" class="dropzone">
+                        📷 Cliquez ou glissez une photo ici
+                        <div class="dropzone-hint">(JPEG, PNG - max 10 Mo)</div>
+                    </div>
+                    <input type="file" id="point-photo-input" accept="image/jpeg,image/png" hidden />
+                    <div id="point-photo-preview"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-point-for-user">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        Valider ✓
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/pointage.js"></script>
+</body>
+</html>

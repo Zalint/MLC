@@ -195,6 +195,27 @@
                     </div>
                 </div>
                 
+                <!-- Widget Pointage Livreur -->
+                <div id="timesheet-widget-livreur" class="timesheet-widget dashboard-card" style="display: none;">
+                    <h3>🚴 Mon pointage du jour</h3>
+                    <div id="timesheet-widget-content">
+                        <!-- Contenu dynamique généré par timesheets-livreur.js -->
+                    </div>
+                </div>
+
+                <!-- Widget Pointage Manager -->
+                <div id="timesheet-manager-widget" class="timesheet-widget dashboard-card" style="display: none;">
+                    <h3>📊 Pointages des livreurs</h3>
+                    <div id="timesheet-manager-summary">
+                        <p id="timesheet-summary-text">Chargement...</p>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                        <button id="btn-view-all-timesheets" class="btn-primary btn-compact">
+                            📊 Voir tous les pointages
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="recent-orders">
                     <h3>Dernières commandes</h3>
                     <div id="recent-orders-list" class="orders-list">
@@ -1771,5 +1792,183 @@
     <script src="js/mlc-table.js"></script>
     <script src="js/commandes-en-cours.js"></script>
     <script src="js/client-credits.js"></script>
+
+    <!-- ==================== MODALS POINTAGES ==================== -->
+    
+    <!-- Modal Début d'activité (Livreur) -->
+    <div id="modal-start-activity" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🟢 Début d'activité</h2>
+                <button class="modal-close" id="btn-cancel-start">&times;</button>
+            </div>
+            
+            <form id="form-start-activity">
+                <div class="form-group">
+                    <label>📅 Date</label>
+                    <input type="date" id="start-date" required readonly />
+                </div>
+                
+                <div class="form-group">
+                    <label>🛵 Kilométrage du scooter (km)</label>
+                    <input type="number" step="0.01" id="start-km" placeholder="Ex: 12345" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo du compteur</label>
+                    <div id="start-photo-dropzone" class="dropzone">
+                        📷 Cliquez ou glissez une photo ici
+                        <div class="dropzone-hint">(JPEG, PNG - max 10 Mo)</div>
+                    </div>
+                    <input type="file" id="start-photo-input" accept="image/jpeg,image/png" hidden />
+                    <div id="start-photo-preview"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-start">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        Valider ✓
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Fin d'activité (Livreur) -->
+    <div id="modal-end-activity" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔴 Fin d'activité</h2>
+                <button class="modal-close" id="btn-cancel-end">&times;</button>
+            </div>
+            
+            <form id="form-end-activity">
+                <div class="alert alert-info">
+                    ℹ️ <span id="end-start-info">Chargement...</span>
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Date</label>
+                    <input type="date" id="end-date" required readonly />
+                </div>
+                
+                <div class="form-group">
+                    <label>🛵 Kilométrage du scooter (km)</label>
+                    <input type="number" step="0.01" id="end-km" placeholder="Ex: 12387" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo du compteur</label>
+                    <div id="end-photo-dropzone" class="dropzone">
+                        📷 Cliquez ou glissez une photo ici
+                        <div class="dropzone-hint">(JPEG, PNG - max 10 Mo)</div>
+                    </div>
+                    <input type="file" id="end-photo-input" accept="image/jpeg,image/png" hidden />
+                    <div id="end-photo-preview"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-end">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        Valider ✓
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Tous les pointages (Manager) -->
+    <div id="modal-all-timesheets" class="modal hidden">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>📊 Pointages des livreurs</h2>
+                <button class="modal-close" id="btn-close-all-timesheets">&times;</button>
+            </div>
+            
+            <div class="filter-section">
+                <label>📅 Date:</label>
+                <input type="date" id="filter-timesheet-date" />
+                <button class="btn-secondary btn-sm" id="btn-today">Aujourd'hui</button>
+                <button class="btn-secondary btn-sm" id="btn-yesterday">Hier</button>
+                <button class="btn-primary btn-sm" id="btn-refresh-timesheets">🔄 Rafraîchir</button>
+            </div>
+            
+            <div id="timesheets-table-container">
+                <!-- Table générée dynamiquement -->
+            </div>
+            
+            <div class="stats-section">
+                <h4>📊 Statistiques</h4>
+                <div id="timesheet-stats">
+                    <!-- Stats générées dynamiquement -->
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn-secondary" id="btn-close-all-timesheets">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pointer pour un livreur (Manager) -->
+    <div id="modal-point-for-user" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="point-for-user-title">🟢 Pointer pour: <span id="livreur-name"></span></h2>
+                <button class="modal-close" id="btn-cancel-point-for-user">&times;</button>
+            </div>
+            
+            <div class="alert alert-warning">
+                ⚠️ Vous êtes sur le point de pointer pour un autre utilisateur en tant que manager.
+            </div>
+            
+            <form id="form-point-for-user">
+                <input type="hidden" id="point-user-id" />
+                <input type="hidden" id="point-type" />
+                
+                <div class="form-group">
+                    <label>👤 Livreur</label>
+                    <input type="text" id="point-livreur-display" readonly />
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Date</label>
+                    <input type="date" id="point-date" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>🛵 Kilométrage (km)</label>
+                    <input type="number" step="0.01" id="point-km" placeholder="Ex: 7850" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo du compteur</label>
+                    <div id="point-photo-dropzone" class="dropzone">
+                        📷 Cliquez ou glissez une photo ici
+                        <div class="dropzone-hint">(JPEG, PNG - max 10 Mo)</div>
+                    </div>
+                    <input type="file" id="point-photo-input" accept="image/jpeg,image/png" hidden />
+                    <div id="point-photo-preview"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-point-for-user">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        Valider ✓
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts Pointages -->
+    <script src="js/timesheets-livreur.js"></script>
+    <script src="js/timesheets-manager.js"></script>
 </body>
 </html> 
