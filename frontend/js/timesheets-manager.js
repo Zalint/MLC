@@ -515,7 +515,7 @@ const TimesheetsManagerView = (() => {
     const livreur = allTimesheets.find(item => item.user_id === userId);
     if (!livreur) return;
     
-    const timesheet = livreur.timesheets.find(t => t.id === parseInt(timesheetId));
+    const timesheet = livreur.timesheets.find(t => t.id === timesheetId);
     if (!timesheet) return;
 
     selectedLivreur = livreur;
@@ -681,7 +681,7 @@ const TimesheetsManagerView = (() => {
     let foundTimesheet = null;
     for (const livreur of allTimesheets) {
       if (livreur.timesheets) {
-        foundTimesheet = livreur.timesheets.find(t => t.id === parseInt(timesheetId));
+        foundTimesheet = livreur.timesheets.find(t => t.id === timesheetId);
         if (foundTimesheet) break;
       }
     }
