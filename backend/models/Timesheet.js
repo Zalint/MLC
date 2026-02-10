@@ -5,6 +5,7 @@ class Timesheet {
   constructor(data) {
     this.id = data.id;
     this.user_id = data.user_id;
+    this.scooter_id = data.scooter_id; // Nouveau champ
     this.date = data.date;
     this.start_time = data.start_time;
     this.start_km = data.start_km;
@@ -22,14 +23,14 @@ class Timesheet {
   /**
    * Créer un nouveau pointage (début d'activité)
    */
-  static async create({ userId, date, startTime, startKm, startPhotoPath, startPhotoName }) {
+  static async create({ userId, scooterId, date, startTime, startKm, startPhotoPath, startPhotoName }) {
     const id = uuidv4();
     
     const query = `
       INSERT INTO delivery_timesheets (
-        id, user_id, date, start_time, start_km, start_photo_path, start_photo_name
+        id, user_id, scooter_id, date, start_time, start_km, start_photo_path, start_photo_name
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
     
@@ -37,6 +38,7 @@ class Timesheet {
       const result = await db.query(query, [
         id,
         userId,
+        scooterId,
         date,
         startTime,
         startKm,
@@ -44,23 +46,61 @@ class Timesheet {
         startPhotoName
       ]);
       
-      console.log('✅ Pointage créé:', result.rows[0].id);
+      console.log('✅ Pointage créé:', result.rows[0].id, scooterId ? `(Scooter: ${scooterId})` : '');
       return new Timesheet(result.rows[0]);
     } catch (error) {
       if (error.code === '23505') { // Violation contrainte unique
-        throw new Error('Un pointage existe déjà pour cette date');
+        throw new Error(`Un pointage existe déjà pour cette date${scooterId ? ' et ce scooter' : ''}`);
       }
       throw error;
     }
   }
 
   /**
-   * Trouver le pointage d'un utilisateur pour une date donnée
+   * Trouver un pointage spécifique par utilisateur, scooter et date
+   */
+  static async findByUserScooterAndDate(userId, scooterId, date) {
+    const query = `
+      SELECT * FROM delivery_timesheets
+      WHERE user_id = $1 
+      AND (scooter_id = $2 OR (scooter_id IS NULL AND $2 IS NULL))
+      AND date = $3
+    `;
+    
+    const result = await db.query(query, [userId, scooterId, date]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    return new Timesheet(result.rows[0]);
+  }
+
+  /**
+   * NOUVEAU: Trouver TOUS les pointages d'un utilisateur pour une date donnée
+   * Retourne un tableau de pointages (peut être vide)
+   */
+  static async findAllByUserAndDate(userId, date) {
+    const query = `
+      SELECT * FROM delivery_timesheets
+      WHERE user_id = $1 AND date = $2
+      ORDER BY start_time ASC
+    `;
+    
+    const result = await db.query(query, [userId, date]);
+    return result.rows.map(row => new Timesheet(row));
+  }
+
+  /**
+   * DEPRECATED: Ancienne méthode pour compatibilité
+   * Retourne le PREMIER pointage trouvé (pour rétrocompatibilité)
    */
   static async findByUserAndDate(userId, date) {
     const query = `
       SELECT * FROM delivery_timesheets
       WHERE user_id = $1 AND date = $2
+      ORDER BY created_at ASC
+      LIMIT 1
     `;
     
     const result = await db.query(query, [userId, date]);
@@ -190,8 +230,9 @@ class Timesheet {
   }
 
   /**
-   * Trouver tous les livreurs actifs avec leur pointage pour une date (MANAGER)
-   * Retourne TOUS les livreurs, même ceux qui n'ont pas pointé (timesheet = null)
+   * NOUVEAU: Trouver tous les livreurs actifs avec TOUS leurs pointages pour une date (MANAGER)
+   * Retourne un tableau avec un élément par livreur, contenant tous ses pointages du jour
+   * Format: [{ user_id, username, timesheets: [...], total_km_journee, status }]
    */
   static async findAllActiveLivreursWithTimesheets(date) {
     const query = `
@@ -199,6 +240,7 @@ class Timesheet {
         u.id as user_id,
         u.username,
         dt.id as timesheet_id,
+        dt.scooter_id,
         dt.date,
         dt.start_time,
         dt.start_km,
@@ -219,32 +261,66 @@ class Timesheet {
       FROM users u
       LEFT JOIN delivery_timesheets dt ON u.id = dt.user_id AND dt.date = $1
       WHERE u.role = 'LIVREUR' AND u.is_active = true
-      ORDER BY u.username
+      ORDER BY u.username, dt.start_time ASC
     `;
     
     const result = await db.query(query, [date]);
     
-    return result.rows.map(row => ({
-      user_id: row.user_id,
-      username: row.username,
-      status: row.status,
-      timesheet: row.timesheet_id ? {
-        id: row.timesheet_id,
-        user_id: row.user_id,
-        date: row.date,
-        start_time: row.start_time,
-        start_km: row.start_km,
-        start_photo_path: row.start_photo_path,
-        start_photo_name: row.start_photo_name,
-        end_time: row.end_time,
-        end_km: row.end_km,
-        end_photo_path: row.end_photo_path,
-        end_photo_name: row.end_photo_name,
-        total_km: row.total_km,
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      } : null
-    }));
+    // Grouper les résultats par livreur
+    const livreurMap = new Map();
+    
+    result.rows.forEach(row => {
+      if (!livreurMap.has(row.user_id)) {
+        livreurMap.set(row.user_id, {
+          user_id: row.user_id,
+          username: row.username,
+          timesheets: [],
+          total_km_journee: 0,
+          nb_pointages: 0,
+          status: 'missing' // Par défaut
+        });
+      }
+      
+      const livreur = livreurMap.get(row.user_id);
+      
+      // Si le livreur a un pointage pour cette date
+      if (row.timesheet_id) {
+        livreur.timesheets.push({
+          id: row.timesheet_id,
+          user_id: row.user_id,
+          scooter_id: row.scooter_id,
+          date: row.date,
+          start_time: row.start_time,
+          start_km: row.start_km,
+          start_photo_path: row.start_photo_path,
+          start_photo_name: row.start_photo_name,
+          end_time: row.end_time,
+          end_km: row.end_km,
+          end_photo_path: row.end_photo_path,
+          end_photo_name: row.end_photo_name,
+          total_km: row.total_km,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          status: row.status
+        });
+        
+        // Cumuler les km
+        if (row.total_km) {
+          livreur.total_km_journee += parseFloat(row.total_km);
+        }
+        
+        livreur.nb_pointages++;
+        
+        // Déterminer le statut global du livreur
+        if (livreur.timesheets.some(t => t.status === 'partial')) {
+          livreur.status = 'partial';
+        } else if (livreur.timesheets.every(t => t.status === 'complete')) {
+          livreur.status = 'complete';
+        }
+      }
+    });
+    
+    return Array.from(livreurMap.values());
   }
 
   /**
@@ -309,18 +385,31 @@ class Timesheet {
 
   /**
    * Obtenir les statistiques pour une date (MANAGER)
+   * Prend en compte plusieurs pointages par livreur
    */
   static async getStatsForDate(date) {
     const query = `
+      WITH livreur_status AS (
+        SELECT 
+          u.id as user_id,
+          CASE 
+            WHEN COUNT(dt.id) = 0 THEN 'missing'
+            WHEN COUNT(dt.id) FILTER (WHERE dt.end_time IS NULL) > 0 THEN 'partial'
+            ELSE 'complete'
+          END as status,
+          COALESCE(SUM(dt.total_km), 0) as total_km
+        FROM users u
+        LEFT JOIN delivery_timesheets dt ON u.id = dt.user_id AND dt.date = $1
+        WHERE u.role = 'LIVREUR' AND u.is_active = true
+        GROUP BY u.id
+      )
       SELECT 
-        COUNT(DISTINCT u.id) as total_livreurs,
-        COUNT(DISTINCT CASE WHEN dt.start_time IS NOT NULL AND dt.end_time IS NOT NULL THEN dt.user_id END) as complets,
-        COUNT(DISTINCT CASE WHEN dt.start_time IS NOT NULL AND dt.end_time IS NULL THEN dt.user_id END) as en_cours,
-        COUNT(DISTINCT CASE WHEN dt.start_time IS NULL THEN u.id END) as non_pointes,
-        COALESCE(SUM(dt.total_km), 0) as total_km
-      FROM users u
-      LEFT JOIN delivery_timesheets dt ON u.id = dt.user_id AND dt.date = $1
-      WHERE u.role = 'LIVREUR' AND u.is_active = true
+        COUNT(*) as total_livreurs,
+        COUNT(*) FILTER (WHERE status = 'complete') as complets,
+        COUNT(*) FILTER (WHERE status = 'partial') as en_cours,
+        COUNT(*) FILTER (WHERE status = 'missing') as non_pointes,
+        SUM(total_km) as total_km
+      FROM livreur_status
     `;
     
     const result = await db.query(query, [date]);

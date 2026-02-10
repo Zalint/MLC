@@ -66,8 +66,14 @@ const TimesheetsLivreurManager = (() => {
       const data = await response.json();
 
       if (response.ok) {
-        todayTimesheet = data.data;
+        // NOUVEAU: Le backend retourne maintenant un tableau
+        // Pour compatibilité temporaire, on prend le premier pointage
+        const timesheets = data.data || [];
+        todayTimesheet = timesheets.length > 0 ? timesheets[0] : null;
+        
         console.log('📊 Pointage chargé pour', data.date, ':', todayTimesheet);
+        console.log('📊 Nombre de pointages:', timesheets.length);
+        console.log('📊 Total km journée:', data.total_km_journee);
       } else {
         console.error('Erreur chargement pointage:', data.message);
       }
@@ -106,8 +112,13 @@ const TimesheetsLivreurManager = (() => {
         minute: '2-digit' 
       });
       
+      const scooterBadge = todayTimesheet.scooter_id 
+        ? `<div class="scooter-badge">🛵 ${todayTimesheet.scooter_id}</div>` 
+        : '';
+      
       html = `
         <div class="timesheet-partial">
+          ${scooterBadge}
           <div class="timesheet-info">
             <div class="info-item">
               <span class="icon">🟢</span>
@@ -147,8 +158,13 @@ const TimesheetsLivreurManager = (() => {
         minute: '2-digit' 
       });
       
+      const scooterBadge = todayTimesheet.scooter_id 
+        ? `<div class="scooter-badge">🛵 ${todayTimesheet.scooter_id}</div>` 
+        : '';
+      
       html = `
         <div class="timesheet-complete">
+          ${scooterBadge}
           <div class="success-badge">Activité du jour complétée</div>
           
           <div class="timesheet-summary">
@@ -430,6 +446,7 @@ const TimesheetsLivreurManager = (() => {
   async function submitStartActivity() {
     const date = document.getElementById('start-date').value;
     const km = document.getElementById('start-km').value;
+    const scooterId = document.getElementById('start-scooter-id')?.value || '';
     const isEditMode = modalStart.dataset.mode === 'edit';
     const timesheetId = modalStart.dataset.timesheetId;
 
@@ -454,6 +471,9 @@ const TimesheetsLivreurManager = (() => {
     // Préparer FormData
     const formData = new FormData();
     formData.append('km', km);
+    if (scooterId) {
+      formData.append('scooter_id', scooterId.trim());
+    }
     if (startPhotoFile) {
       formData.append('photo', startPhotoFile);
     }
@@ -545,8 +565,19 @@ const TimesheetsLivreurManager = (() => {
     }
     
     if (!isEditMode) {
-      formData.append('date', date);
+      // NOUVEAU: Utiliser timesheet_id au lieu de date
+      if (!todayTimesheet || !todayTimesheet.id) {
+        showNotification('Erreur: impossible de trouver le pointage à terminer', 'error');
+        return;
+      }
+      formData.append('timesheet_id', todayTimesheet.id);
     }
+
+    // Désactiver le bouton pour éviter les double-clics
+    const submitBtn = modalEnd.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Envoi en cours...';
 
     showNotification(isEditMode ? 'Modification en cours...' : 'Enregistrement en cours...', 'info');
 
@@ -569,9 +600,10 @@ const TimesheetsLivreurManager = (() => {
 
       if (response.ok) {
         const totalKm = data.data.total_km;
+        const scooterInfo = data.data.scooter_id ? ` avec le scooter ${data.data.scooter_id}` : '';
         const message = isEditMode 
           ? `✅ Fin d'activité modifiée ! Total: ${totalKm} km.`
-          : `✅ Fin d'activité enregistrée ! Vous avez parcouru ${totalKm} km aujourd'hui.`;
+          : `✅ Fin d'activité enregistrée ! Vous avez parcouru ${totalKm} km${scooterInfo}.`;
         showNotification(message, 'success');
         closeModal(modalEnd);
         resetEndForm();
@@ -584,11 +616,19 @@ const TimesheetsLivreurManager = (() => {
         await loadTodayTimesheet();
         renderTimesheetWidget();
       } else {
-        showNotification(data.message || 'Erreur lors de l\'enregistrement', 'error');
+        // Afficher le message d'erreur détaillé du serveur
+        const errorMsg = data.message || 'Erreur lors de l\'enregistrement';
+        showNotification(errorMsg, 'error');
       }
     } catch (error) {
       console.error('Erreur submitEndActivity:', error);
-      showNotification('Erreur de connexion', 'error');
+      showNotification('Erreur de connexion au serveur', 'error');
+    } finally {
+      // Réactiver le bouton
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
     }
   }
 

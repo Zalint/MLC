@@ -60,8 +60,35 @@ function formatLocalDate(date) {
 }
 
 /**
- * Récupérer le pointage du jour pour le livreur connecté
+ * Vérifier si un pointage peut être modifié par un livreur
+ * Règle: Les livreurs ne peuvent modifier que dans les 15 minutes après création
+ * Les managers peuvent modifier à tout moment
+ */
+function canLivreurModifyTimesheet(timesheet, userRole) {
+  if (userRole === 'MANAGER' || userRole === 'ADMIN') {
+    return { allowed: true };
+  }
+  
+  // Pour les livreurs: vérifier le délai de 15 minutes
+  const DELAY_MINUTES = 15;
+  const now = new Date();
+  const createdAt = new Date(timesheet.created_at);
+  const minutesSinceCreation = (now - createdAt) / (1000 * 60);
+  
+  if (minutesSinceCreation > DELAY_MINUTES) {
+    return {
+      allowed: false,
+      message: `Vous ne pouvez plus modifier ce pointage. Délai de ${DELAY_MINUTES} minutes écoulé (créé il y a ${Math.floor(minutesSinceCreation)} minutes).`
+    };
+  }
+  
+  return { allowed: true };
+}
+
+/**
+ * Récupérer les pointages du jour pour le livreur connecté
  * GET /api/timesheets/today?date=YYYY-MM-DD (date optionnelle)
+ * Retourne TOUS les pointages du jour (plusieurs scooters possibles)
  */
 const getTodayTimesheet = async (req, res) => {
   try {
@@ -69,18 +96,26 @@ const getTodayTimesheet = async (req, res) => {
     // Accepter une date en paramètre, sinon utiliser aujourd'hui
     const targetDate = req.query.date || formatLocalDate(new Date());
     
-    const timesheet = await Timesheet.findByUserAndDate(userId, targetDate);
+    // Récupérer TOUS les pointages du jour
+    const timesheets = await Timesheet.findAllByUserAndDate(userId, targetDate);
+    
+    // Calculer le total km de la journée
+    const totalKmJournee = timesheets.reduce((sum, t) => {
+      return sum + (t.total_km ? parseFloat(t.total_km) : 0);
+    }, 0);
     
     res.json({
       success: true,
-      data: timesheet,
-      date: targetDate // Retourner la date utilisée
+      data: timesheets, // Tableau de pointages
+      total_km_journee: totalKmJournee,
+      nb_pointages: timesheets.length,
+      date: targetDate
     });
   } catch (error) {
     console.error('Erreur getTodayTimesheet:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la récupération du pointage.'
+      message: 'Erreur lors de la récupération des pointages.'
     });
   }
 };
@@ -88,12 +123,12 @@ const getTodayTimesheet = async (req, res) => {
 /**
  * Pointer le début d'activité (pour soi-même)
  * POST /api/timesheets/start
- * Body: FormData { date, km, photo }
+ * Body: FormData { date, km, scooter_id (optionnel), photo }
  */
 const startActivity = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { date, km } = req.body;
+    const { date, km, scooter_id } = req.body;
     const photo = req.file;
 
     // Validations
@@ -122,12 +157,15 @@ const startActivity = async (req, res) => {
       });
     }
 
-    // Vérifier qu'il n'existe pas déjà un pointage
-    const existing = await Timesheet.findByUserAndDate(userId, date);
+    // Vérifier qu'il n'existe pas déjà un pointage pour ce scooter
+    const scooterIdOrNull = scooter_id || null;
+    const existing = await Timesheet.findByUserScooterAndDate(userId, scooterIdOrNull, date);
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'Vous avez déjà pointé le début pour cette date.'
+        message: scooter_id 
+          ? `Vous avez déjà pointé le début pour cette date avec le scooter ${scooter_id}.`
+          : 'Vous avez déjà pointé le début pour cette date.'
       });
     }
 
@@ -137,6 +175,7 @@ const startActivity = async (req, res) => {
     // Créer le pointage
     const timesheet = await Timesheet.create({
       userId,
+      scooterId: scooterIdOrNull,
       date,
       startTime: new Date(),
       startKm: kmNumber,
@@ -144,7 +183,7 @@ const startActivity = async (req, res) => {
       startPhotoName: fileName
     });
 
-    console.log(`✅ ${req.user.username} a pointé le début: ${kmNumber} km`);
+    console.log(`✅ ${req.user.username} a pointé le début: ${kmNumber} km${scooter_id ? ` (Scooter: ${scooter_id})` : ''}`);
 
     res.status(201).json({
       success: true,
@@ -164,17 +203,17 @@ const startActivity = async (req, res) => {
 /**
  * Pointer la fin d'activité (pour soi-même)
  * POST /api/timesheets/end
- * Body: FormData { date, km, photo }
+ * Body: FormData { timesheet_id, km, photo }
  */
 const endActivity = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { date, km } = req.body;
+    const { timesheet_id, km } = req.body;
     const photo = req.file;
 
     console.log('🔍 endActivity - Données reçues:', {
       userId,
-      date,
+      timesheet_id,
       km,
       hasPhoto: !!photo,
       photoDetails: photo ? { 
@@ -187,15 +226,15 @@ const endActivity = async (req, res) => {
     });
 
     // Validations
-    if (!date || !km || !photo) {
+    if (!timesheet_id || !km || !photo) {
       console.log('❌ Validation échouée:', { 
-        hasDate: !!date, 
+        hasTimesheetId: !!timesheet_id, 
         hasKm: !!km, 
         hasPhoto: !!photo 
       });
       return res.status(400).json({
         success: false,
-        message: 'Date, kilométrage et photo sont requis.'
+        message: 'ID du pointage, kilométrage et photo sont requis.'
       });
     }
 
@@ -208,21 +247,31 @@ const endActivity = async (req, res) => {
       });
     }
 
-    // Récupérer le pointage existant
-    console.log('🔍 Recherche timesheet pour:', { userId, date });
-    const timesheet = await Timesheet.findByUserAndDate(userId, date);
+    // Récupérer le pointage existant par ID
+    console.log('🔍 Recherche timesheet ID:', timesheet_id);
+    const timesheet = await Timesheet.findById(timesheet_id);
     console.log('🔍 Timesheet trouvé:', timesheet ? {
       id: timesheet.id,
+      user_id: timesheet.user_id,
+      scooter_id: timesheet.scooter_id,
       hasEndTime: !!timesheet.end_time,
       startKm: timesheet.start_km,
       endKm: timesheet.end_km
     } : null);
     
     if (!timesheet) {
-      console.log('❌ Aucun timesheet trouvé pour cette date');
+      console.log('❌ Aucun timesheet trouvé avec cet ID');
       return res.status(404).json({
         success: false,
-        message: 'Aucun début d\'activité trouvé pour cette date. Veuillez d\'abord pointer le début.'
+        message: 'Pointage introuvable.'
+      });
+    }
+
+    // Vérifier que c'est bien le pointage de l'utilisateur connecté
+    if (timesheet.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vous ne pouvez pointer la fin que pour vos propres pointages.'
       });
     }
 
@@ -249,8 +298,8 @@ const endActivity = async (req, res) => {
       });
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, date, 'end');
+    // Upload de la photo (utiliser timesheet.date au lieu de date)
+    const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, timesheet.date, 'end');
 
     // Mettre à jour le pointage
     const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
@@ -260,11 +309,11 @@ const endActivity = async (req, res) => {
       endPhotoName: fileName
     });
 
-    console.log(`✅ ${req.user.username} a pointé la fin: ${kmNumber} km (Total: ${updatedTimesheet.total_km} km)`);
+    console.log(`✅ ${req.user.username} a pointé la fin: ${kmNumber} km (Total: ${updatedTimesheet.total_km} km)${timesheet.scooter_id ? ` Scooter: ${timesheet.scooter_id}` : ''}`);
 
     res.json({
       success: true,
-      message: `Fin d'activité enregistrée. Vous avez parcouru ${updatedTimesheet.total_km} km aujourd'hui.`,
+      message: `Fin d'activité enregistrée. Vous avez parcouru ${updatedTimesheet.total_km} km${timesheet.scooter_id ? ` avec le scooter ${timesheet.scooter_id}` : ''}.`,
       data: updatedTimesheet
     });
 
@@ -315,13 +364,13 @@ const getAllTimesheetsForDate = async (req, res) => {
 /**
  * Pointer le début pour UN livreur (manager uniquement)
  * POST /api/timesheets/start-for-user
- * Body: FormData { user_id, date, km, photo }
+ * Body: FormData { user_id, date, km, scooter_id (optionnel), photo }
  */
 const startActivityForUser = async (req, res) => {
   try {
     const managerId = req.user.id;
     const managerUsername = req.user.username;
-    const { user_id, date, km } = req.body;
+    const { user_id, date, km, scooter_id } = req.body;
     const photo = req.file;
 
     // Validations
@@ -357,12 +406,15 @@ const startActivityForUser = async (req, res) => {
       });
     }
 
-    // Vérifier qu'il n'existe pas déjà un pointage
-    const existing = await Timesheet.findByUserAndDate(user_id, date);
+    // Vérifier qu'il n'existe pas déjà un pointage pour ce scooter
+    const scooterIdOrNull = scooter_id || null;
+    const existing = await Timesheet.findByUserScooterAndDate(user_id, scooterIdOrNull, date);
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `${targetUser.username} a déjà pointé le début pour cette date.`
+        message: scooter_id 
+          ? `${targetUser.username} a déjà pointé le début pour cette date avec le scooter ${scooter_id}.`
+          : `${targetUser.username} a déjà pointé le début pour cette date.`
       });
     }
 
@@ -372,6 +424,7 @@ const startActivityForUser = async (req, res) => {
     // Créer le pointage
     const timesheet = await Timesheet.create({
       userId: user_id,
+      scooterId: scooterIdOrNull,
       date,
       startTime: new Date(),
       startKm: kmNumber,
@@ -380,7 +433,7 @@ const startActivityForUser = async (req, res) => {
     });
 
     // Log d'audit
-    console.log(`📝 AUDIT: Manager ${managerUsername} a pointé le début pour ${targetUser.username} le ${date} (${kmNumber} km)`);
+    console.log(`📝 AUDIT: Manager ${managerUsername} a pointé le début pour ${targetUser.username} le ${date} (${kmNumber} km)${scooter_id ? ` Scooter: ${scooter_id}` : ''}`);
 
     res.status(201).json({
       success: true,
@@ -400,29 +453,20 @@ const startActivityForUser = async (req, res) => {
 /**
  * Pointer la fin pour UN livreur (manager uniquement)
  * POST /api/timesheets/end-for-user
- * Body: FormData { user_id, date, km, photo }
+ * Body: FormData { timesheet_id, km, photo }
  */
 const endActivityForUser = async (req, res) => {
   try {
     const managerId = req.user.id;
     const managerUsername = req.user.username;
-    const { user_id, date, km } = req.body;
+    const { timesheet_id, km } = req.body;
     const photo = req.file;
 
     // Validations
-    if (!user_id || !date || !km || !photo) {
+    if (!timesheet_id || !km || !photo) {
       return res.status(400).json({
         success: false,
-        message: 'ID utilisateur, date, kilométrage et photo sont requis.'
-      });
-    }
-
-    // Vérifier que l'utilisateur cible existe
-    const targetUser = await User.findById(user_id);
-    if (!targetUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utilisateur introuvable.'
+        message: 'ID du pointage, kilométrage et photo sont requis.'
       });
     }
 
@@ -435,13 +479,22 @@ const endActivityForUser = async (req, res) => {
       });
     }
 
-    // Récupérer le pointage existant
-    const timesheet = await Timesheet.findByUserAndDate(user_id, date);
+    // Récupérer le pointage existant par ID
+    const timesheet = await Timesheet.findById(timesheet_id);
     
     if (!timesheet) {
       return res.status(404).json({
         success: false,
-        message: `Aucun début d'activité trouvé pour ${targetUser.username} à cette date.`
+        message: 'Pointage introuvable.'
+      });
+    }
+
+    // Vérifier que l'utilisateur cible existe
+    const targetUser = await User.findById(timesheet.user_id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur introuvable.'
       });
     }
 
@@ -461,7 +514,7 @@ const endActivityForUser = async (req, res) => {
     }
 
     // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, user_id, date, 'end');
+    const { filePath, fileName } = await uploadTimesheetPhoto(photo, timesheet.user_id, timesheet.date, 'end');
 
     // Mettre à jour le pointage
     const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
@@ -472,7 +525,7 @@ const endActivityForUser = async (req, res) => {
     });
 
     // Log d'audit
-    console.log(`📝 AUDIT: Manager ${managerUsername} a pointé la fin pour ${targetUser.username} le ${date} (${kmNumber} km, Total: ${updatedTimesheet.total_km} km)`);
+    console.log(`📝 AUDIT: Manager ${managerUsername} a pointé la fin pour ${targetUser.username} le ${timesheet.date} (${kmNumber} km, Total: ${updatedTimesheet.total_km} km)${timesheet.scooter_id ? ` Scooter: ${timesheet.scooter_id}` : ''}`);
 
     res.json({
       success: true,
@@ -662,18 +715,13 @@ const deleteTimesheet = async (req, res) => {
       });
     }
 
-    // Si c'est un livreur, vérifier que c'est pour aujourd'hui seulement
+    // Si c'est un livreur, vérifier les 15 minutes
     if (userRole === 'LIVREUR') {
-      const today = formatLocalDate(new Date());
-      // Gérer le cas où timesheet.date est un Date object ou une string
-      const timesheetDate = timesheet.date instanceof Date 
-        ? formatLocalDate(timesheet.date)
-        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
-      
-      if (timesheetDate !== today) {
+      const modifyCheck = canLivreurModifyTimesheet(timesheet, userRole);
+      if (!modifyCheck.allowed) {
         return res.status(403).json({
           success: false,
-          message: 'Vous ne pouvez supprimer que le pointage du jour même.'
+          message: `Impossible de supprimer. ${modifyCheck.message}`
         });
       }
     }
@@ -819,26 +867,18 @@ const updateStartActivity = async (req, res) => {
       });
     }
     
-    // Si manager, vérifier que le pointage a moins de 72h
-    if (isManager && !isOwner) {
-      const timesheetDate = timesheet.date instanceof Date 
-        ? formatLocalDate(timesheet.date)
-        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
-      
-      // Parse la date du pointage en local midnight (pas UTC)
-      const [year, month, day] = timesheetDate.split('-').map(Number);
-      const pointageTime = new Date(year, month - 1, day).getTime();
-      const now = new Date().getTime();
-      const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
-      
-      if (hoursDiff > 72) {
+    // Vérifier le délai de 15 minutes pour les livreurs
+    if (isOwner && userRole === 'LIVREUR') {
+      const modifyCheck = canLivreurModifyTimesheet(timesheet, userRole);
+      if (!modifyCheck.allowed) {
         return res.status(403).json({
           success: false,
-          message: 'Les managers ne peuvent modifier que les pointages de moins de 72 heures.'
+          message: modifyCheck.message
         });
       }
     }
-    // Les admins peuvent modifier sans limite de temps
+    
+    // Les managers et admins peuvent modifier à tout moment
 
     // Si nouvelle photo, uploader
     let photoPath = timesheet.start_photo_path;
@@ -933,26 +973,19 @@ const updateEndActivity = async (req, res) => {
       });
     }
     
-    // Si manager, vérifier que le pointage a moins de 72h
-    if (isManager && !isOwner) {
-      const timesheetDate = timesheet.date instanceof Date 
-        ? formatLocalDate(timesheet.date)
-        : (typeof timesheet.date === 'string' ? timesheet.date.split('T')[0] : timesheet.date);
-      
-      // Parse la date du pointage en local midnight (pas UTC)
-      const [year, month, day] = timesheetDate.split('-').map(Number);
-      const pointageTime = new Date(year, month - 1, day).getTime();
-      const now = new Date().getTime();
-      const hoursDiff = (now - pointageTime) / (1000 * 60 * 60);
-      
-      if (hoursDiff > 72) {
+    // Vérifier le délai de 15 minutes pour les livreurs (règle anti-tricherie)
+    // IMPORTANT: Cette règle s'applique uniquement lors de la MODIFICATION
+    if (isOwner && userRole === 'LIVREUR') {
+      const modifyCheck = canLivreurModifyTimesheet(timesheet, userRole);
+      if (!modifyCheck.allowed) {
         return res.status(403).json({
           success: false,
-          message: 'Les managers ne peuvent modifier que les pointages de moins de 72 heures.'
+          message: modifyCheck.message
         });
       }
     }
-    // Les admins peuvent modifier sans limite de temps
+    
+    // Les managers et admins peuvent modifier à tout moment
 
     // Vérifier que end_km >= start_km
     if (kmNumber < timesheet.start_km) {

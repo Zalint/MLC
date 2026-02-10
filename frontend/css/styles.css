@@ -5374,6 +5374,28 @@ input[type="tel"]:focus {
   font-size: 1.1rem;
 }
 
+/* Badge scooter */
+.scooter-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Texte d'aide dans les formulaires */
+.form-text {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .timesheet-actions {
