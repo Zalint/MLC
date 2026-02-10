@@ -5,9 +5,13 @@
 
 const TimesheetsLivreurManager = (() => {
   // Variables globales
-  let todayTimesheet = null;
+  let todayTimesheets = []; // Tableau de tous les pointages du jour
+  let todayTimesheet = null; // Premier pointage (pour compatibilité)
+  let totalKmJournee = 0;
+  let nbPointages = 0;
   let startPhotoFile = null;
   let endPhotoFile = null;
+  let selectedTimesheetForEnd = null; // Pointage sélectionné pour pointer la fin
   
   // Éléments DOM
   let widgetContainer;
@@ -66,14 +70,17 @@ const TimesheetsLivreurManager = (() => {
       const data = await response.json();
 
       if (response.ok) {
-        // NOUVEAU: Le backend retourne maintenant un tableau
-        // Pour compatibilité temporaire, on prend le premier pointage
-        const timesheets = data.data || [];
-        todayTimesheet = timesheets.length > 0 ? timesheets[0] : null;
+        // Le backend retourne maintenant un tableau de pointages
+        todayTimesheets = data.data || [];
+        totalKmJournee = data.total_km_journee || 0;
+        nbPointages = data.nb_pointages || 0;
         
-        console.log('📊 Pointage chargé pour', data.date, ':', todayTimesheet);
-        console.log('📊 Nombre de pointages:', timesheets.length);
-        console.log('📊 Total km journée:', data.total_km_journee);
+        // Pour compatibilité avec le code existant, garder todayTimesheet
+        todayTimesheet = todayTimesheets.length > 0 ? todayTimesheets[0] : null;
+        
+        console.log('📊 Pointage(s) chargé(s) pour', data.date);
+        console.log('📊 Nombre de pointages:', nbPointages);
+        console.log('📊 Total km journée:', totalKmJournee);
       } else {
         console.error('Erreur chargement pointage:', data.message);
       }
@@ -90,7 +97,7 @@ const TimesheetsLivreurManager = (() => {
 
     let html = '';
 
-    if (!todayTimesheet) {
+    if (todayTimesheets.length === 0) {
       // Aucun pointage
       html = `
         <div class="timesheet-empty">
@@ -100,104 +107,89 @@ const TimesheetsLivreurManager = (() => {
           <button id="btn-start-activity" class="btn-start-activity">
             🟢 Pointer le début
           </button>
-          <button class="btn-end-activity" disabled>
-            🔴 Pointer la fin
-          </button>
         </div>
       `;
-    } else if (todayTimesheet.start_time && !todayTimesheet.end_time) {
-      // Début pointé, en attente de fin
-      const startTime = new Date(todayTimesheet.start_time).toLocaleTimeString('fr-FR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+    } else {
+      // Afficher tous les pointages
+      html = '<div class="timesheets-list">';
       
-      const scooterBadge = todayTimesheet.scooter_id 
-        ? `<div class="scooter-badge">🛵 ${todayTimesheet.scooter_id}</div>` 
-        : '';
-      
-      html = `
-        <div class="timesheet-partial">
-          ${scooterBadge}
-          <div class="timesheet-info">
-            <div class="info-item">
-              <span class="icon">🟢</span>
-              <span class="label">Début:</span>
-              <span class="value">${startTime} - ${todayTimesheet.start_km} km</span>
-              <button class="btn-view-photo-small" data-timesheet-id="${todayTimesheet.id}" data-photo-type="start" title="Agrandir la photo de début">
-                🔍
+      todayTimesheets.forEach((timesheet, index) => {
+        const scooterBadge = timesheet.scooter_id 
+          ? `<div class="scooter-badge">🛵 ${timesheet.scooter_id}</div>` 
+          : `<div class="scooter-badge" style="background: #gray;">🛵 Sans N°</div>`;
+        
+        const startTime = new Date(timesheet.start_time).toLocaleTimeString('fr-FR', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        
+        if (timesheet.end_time) {
+          // Pointage complet
+          const endTime = new Date(timesheet.end_time).toLocaleTimeString('fr-FR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          
+          html += `
+            <div class="timesheet-item complete">
+              ${scooterBadge}
+              <div class="timesheet-info">
+                <div class="info-row">
+                  <span class="icon">🟢</span>
+                  <span class="label">Début:</span>
+                  <span class="value">${startTime} - ${timesheet.start_km} km</span>
+                </div>
+                <div class="info-row">
+                  <span class="icon">🔴</span>
+                  <span class="label">Fin:</span>
+                  <span class="value">${endTime} - ${timesheet.end_km} km</span>
+                </div>
+                <div class="km-badge">📊 ${timesheet.total_km} km</div>
+              </div>
+            </div>
+          `;
+        } else {
+          // En attente de fin
+          html += `
+            <div class="timesheet-item partial">
+              ${scooterBadge}
+              <div class="timesheet-info">
+                <div class="info-row">
+                  <span class="icon">🟢</span>
+                  <span class="label">Début:</span>
+                  <span class="value">${startTime} - ${timesheet.start_km} km</span>
+                </div>
+                <div class="info-row">
+                  <span class="icon">⏳</span>
+                  <span class="label">En attente de fin...</span>
+                </div>
+              </div>
+              <button class="btn-end-for-timesheet" data-timesheet-id="${timesheet.id}">
+                🔴 Pointer la fin
               </button>
             </div>
+          `;
+        }
+      });
+      
+      html += '</div>';
+      
+      // Afficher le total
+      if (nbPointages > 0) {
+        html += `
+          <div class="total-journee">
+            <strong>📊 Total journée: ${totalKmJournee} km</strong>
+            <small>(${nbPointages} pointage${nbPointages > 1 ? 's' : ''})</small>
           </div>
-          <div class="timesheet-actions-inline">
-            <button class="btn-modify-start" data-timesheet-id="${todayTimesheet.id}" title="Modifier le début">
-              ✏️ Modifier
-            </button>
-            <button class="btn-delete-timesheet" data-timesheet-id="${todayTimesheet.id}" title="Supprimer le pointage">
-              🗑️ Supprimer
-            </button>
-          </div>
-        </div>
-        <div class="timesheet-actions">
-          <button class="btn-start-activity" disabled>
-            🟢 Pointer le début
+        `;
+      }
+      
+      // Bouton pour ajouter un nouveau pointage
+      html += `
+        <div class="timesheet-actions" style="margin-top: 15px;">
+          <button id="btn-add-new-pointage" class="btn-start-activity">
+            ➕ Nouveau pointage
           </button>
-          <button id="btn-end-activity" class="btn-end-activity">
-            🔴 Pointer la fin
-          </button>
-        </div>
-      `;
-    } else if (todayTimesheet.start_time && todayTimesheet.end_time) {
-      // Pointage complet
-      const startTime = new Date(todayTimesheet.start_time).toLocaleTimeString('fr-FR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      const endTime = new Date(todayTimesheet.end_time).toLocaleTimeString('fr-FR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      
-      const scooterBadge = todayTimesheet.scooter_id 
-        ? `<div class="scooter-badge">🛵 ${todayTimesheet.scooter_id}</div>` 
-        : '';
-      
-      html = `
-        <div class="timesheet-complete">
-          ${scooterBadge}
-          <div class="success-badge">Activité du jour complétée</div>
-          
-          <div class="timesheet-summary">
-            <div class="info-row">
-              <span class="icon">🟢</span>
-              <span class="label">Début:</span>
-              <span class="value">${startTime} - ${todayTimesheet.start_km} km</span>
-              <button class="btn-view-photo-small" data-timesheet-id="${todayTimesheet.id}" data-photo-type="start" title="Agrandir la photo de début">
-                🔍
-              </button>
-            </div>
-            <div class="info-row">
-              <span class="icon">🔴</span>
-              <span class="label">Fin:</span>
-              <span class="value">${endTime} - ${todayTimesheet.end_km} km</span>
-              <button class="btn-view-photo-small" data-timesheet-id="${todayTimesheet.id}" data-photo-type="end" title="Agrandir la photo de fin">
-                🔍
-              </button>
-            </div>
-          </div>
-          
-          <div class="km-counter">
-            📊 ${todayTimesheet.total_km} KM parcourus
-          </div>
-          
-          <div class="timesheet-actions-inline">
-            <button class="btn-modify-timesheet" data-timesheet-id="${todayTimesheet.id}" title="Modifier le pointage">
-              ✏️ Modifier
-            </button>
-            <button class="btn-delete-timesheet" data-timesheet-id="${todayTimesheet.id}" title="Supprimer le pointage">
-              🗑️ Supprimer
-            </button>
-          </div>
         </div>
       `;
     }
@@ -209,17 +201,23 @@ const TimesheetsLivreurManager = (() => {
    * Attacher les événements
    */
   function attachEvents() {
-    // Bouton "Pointer le début"
+    // Bouton "Pointer le début" ou "Nouveau pointage"
     document.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'btn-start-activity') {
+      if (e.target && (e.target.id === 'btn-start-activity' || e.target.id === 'btn-add-new-pointage')) {
         openStartModal();
       }
     });
 
-    // Bouton "Pointer la fin"
+    // Bouton "Pointer la fin" pour un pointage spécifique
     document.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'btn-end-activity') {
-        openEndModal();
+      if (e.target && e.target.classList.contains('btn-end-for-timesheet')) {
+        const timesheetId = e.target.dataset.timesheetId;
+        const timesheet = todayTimesheets.find(t => t.id === timesheetId);
+        if (timesheet) {
+          selectedTimesheetForEnd = timesheet;
+          todayTimesheet = timesheet; // Pour compatibilité
+          openEndModal();
+        }
       }
     });
 
@@ -482,8 +480,11 @@ const TimesheetsLivreurManager = (() => {
       formData.append('date', date);
     }
 
-    // Loader
-    showNotification(isEditMode ? 'Modification en cours...' : 'Enregistrement en cours...', 'info');
+    // Désactiver le bouton pour éviter les double-clics
+    const submitBtn = modalStart.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Envoi en cours...';
 
     try {
       const url = isEditMode 
@@ -516,11 +517,21 @@ const TimesheetsLivreurManager = (() => {
         await loadTodayTimesheet();
         renderTimesheetWidget();
       } else {
-        showNotification(data.message || 'Erreur lors de l\'enregistrement', 'error');
+        const errorMsg = data.message || 'Erreur lors de l\'enregistrement';
+        
+        // Si c'est un message "déjà pointé", afficher en warning au lieu d'error
+        const notifType = errorMsg.toLowerCase().includes('déjà pointé') ? 'warning' : 'error';
+        showNotification(errorMsg, notifType);
       }
     } catch (error) {
       console.error('Erreur submitStartActivity:', error);
-      showNotification('Erreur de connexion', 'error');
+      showNotification('Erreur de connexion au serveur', 'error');
+    } finally {
+      // Réactiver le bouton
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
     }
   }
 
@@ -579,8 +590,6 @@ const TimesheetsLivreurManager = (() => {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '⏳ Envoi en cours...';
 
-    showNotification(isEditMode ? 'Modification en cours...' : 'Enregistrement en cours...', 'info');
-
     try {
       const url = isEditMode 
         ? `${window.API_BASE_URL}/timesheets/${timesheetId}/end`
@@ -618,7 +627,10 @@ const TimesheetsLivreurManager = (() => {
       } else {
         // Afficher le message d'erreur détaillé du serveur
         const errorMsg = data.message || 'Erreur lors de l\'enregistrement';
-        showNotification(errorMsg, 'error');
+        
+        // Si c'est un message "déjà pointé", afficher en warning au lieu d'error
+        const notifType = errorMsg.toLowerCase().includes('déjà pointé') ? 'warning' : 'error';
+        showNotification(errorMsg, notifType);
       }
     } catch (error) {
       console.error('Erreur submitEndActivity:', error);
