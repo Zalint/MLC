@@ -1935,6 +1935,7 @@
             <form id="form-point-for-user">
                 <input type="hidden" id="point-user-id" />
                 <input type="hidden" id="point-type" />
+                <input type="hidden" id="point-timesheet-id" />
                 
                 <div class="form-group">
                     <label>👤 Livreur</label>
@@ -1944,6 +1945,12 @@
                 <div class="form-group">
                     <label>📅 Date</label>
                     <input type="date" id="point-date" required />
+                </div>
+                
+                <div class="form-group" id="point-scooter-id-container">
+                    <label>🛵 N° Scooter (facultatif)</label>
+                    <input type="text" id="point-scooter-id" placeholder="Ex: 01, 02, 03..." />
+                    <small class="form-text">Numéro du scooter utilisé</small>
                 </div>
                 
                 <div class="form-group">

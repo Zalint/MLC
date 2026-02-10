@@ -166,18 +166,12 @@ function renderAllTimesheetsTable() {
     return;
   }
 
-  // Trier par KM parcourus (décroissant)
-  const sortedTimesheets = [...allTimesheets].sort((a, b) => {
-    const kmA = a.timesheet?.total_km || 0;
-    const kmB = b.timesheet?.total_km || 0;
-    return kmB - kmA; // Décroissant (plus grand en premier)
-  });
-
   let html = `
     <table class="timesheets-table">
       <thead>
         <tr>
           <th>Livreur</th>
+          <th>Scooter</th>
           <th>Début</th>
           <th>Fin</th>
           <th>Km parcourus</th>
@@ -188,60 +182,111 @@ function renderAllTimesheetsTable() {
       <tbody>
   `;
 
-  sortedTimesheets.forEach(item => {
-    const timesheet = item.timesheet;
-    const status = item.status;
+  allTimesheets.forEach((livreur) => {
+    const timesheets = livreur.timesheets || [];
+    const nbPointages = timesheets.length;
     
-    let startCell = '<span class="status-missing">❌ Pas pointé</span>';
-    let endCell = '--';
-    let kmCell = '--';
-    let statusBadge = '<span class="timesheet-status status-missing">Manquant</span>';
-    let actions = `<button class="btn-icon btn-point-start" data-user-id="${item.user_id}" title="Pointer le début">➕</button>`;
-
-    if (timesheet) {
-      if (timesheet.start_time) {
-        const startTime = new Date(timesheet.start_time).toLocaleTimeString('fr-FR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
-        startCell = `<div>✅ ${startTime}</div><div class="small-text">${timesheet.start_km} km</div>`;
-      }
-
-      if (timesheet.end_time) {
-        const endTime = new Date(timesheet.end_time).toLocaleTimeString('fr-FR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
-        endCell = `<div>✅ ${endTime}</div><div class="small-text">${timesheet.end_km} km</div>`;
-        kmCell = `<strong>${timesheet.total_km} km</strong>`;
-        statusBadge = '<span class="timesheet-status status-complete">Complet</span>';
-        actions = `
-          <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir les photos">🔍</button>
-          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Modifier le pointage">✏️</button>
-          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Supprimer le pointage">🗑️</button>
-        `;
-      } else if (timesheet.start_time) {
-        endCell = '<span class="status-partial">⏳ En cours</span>';
-        statusBadge = '<span class="timesheet-status status-partial">En cours</span>';
-        actions = `
-          <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir photo début">🔍</button>
-          <button class="btn-icon btn-point-end" data-user-id="${item.user_id}" title="Pointer la fin">➕</button>
-          <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Modifier le pointage">✏️</button>
-          <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(item.username)}" title="Supprimer le pointage">🗑️</button>
-        `;
-      }
+    if (nbPointages === 0) {
+      // Livreur sans pointage
+      html += `
+        <tr>
+          <td><strong>👤 ${escapeHtml(livreur.username)}</strong></td>
+          <td colspan="4" style="text-align: center;">
+            <span class="status-missing">❌ Pas pointé</span>
+          </td>
+          <td><span class="timesheet-status status-missing">Manquant</span></td>
+          <td class="actions-cell">
+            <button class="btn-icon btn-point-start" data-user-id="${livreur.user_id}" title="Pointer le début">➕</button>
+          </td>
+        </tr>
+      `;
+    } else {
+      // Afficher tous les pointages du livreur
+      timesheets.forEach((timesheet, index) => {
+        const startTime = timesheet.start_time 
+          ? new Date(timesheet.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : '--';
+        
+        const endTime = timesheet.end_time 
+          ? new Date(timesheet.end_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : '--';
+        
+        const scooterBadge = timesheet.scooter_id 
+          ? `<span class="scooter-badge-small">🛵 ${timesheet.scooter_id}</span>`
+          : '<span class="scooter-badge-small" style="background: #gray;">Sans N°</span>';
+        
+        let statusBadge = '';
+        let actions = '';
+        
+        if (timesheet.end_time) {
+          statusBadge = '<span class="timesheet-status status-complete">✅ Complet</span>';
+          actions = `
+            <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir les photos">🔍</button>
+            <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(livreur.username)}" title="Modifier le pointage">✏️</button>
+            <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(livreur.username)}" title="Supprimer le pointage">🗑️</button>
+          `;
+        } else {
+          statusBadge = '<span class="timesheet-status status-partial">⏳ En cours</span>';
+          actions = `
+            <button class="btn-icon btn-view-photos" data-timesheet-id="${timesheet.id}" title="Agrandir photo début">🔍</button>
+            <button class="btn-icon btn-point-end-for-timesheet" data-timesheet-id="${timesheet.id}" data-user-id="${livreur.user_id}" title="Pointer la fin">➕</button>
+            <button class="btn-icon btn-edit-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(livreur.username)}" title="Modifier le pointage">✏️</button>
+            <button class="btn-icon btn-delete-timesheet" data-timesheet-id="${timesheet.id}" data-username="${escapeHtml(livreur.username)}" title="Supprimer le pointage">🗑️</button>
+          `;
+        }
+        
+        // Première ligne du livreur : afficher le nom avec rowspan
+        if (index === 0) {
+          html += `
+            <tr class="livreur-row">
+              <td rowspan="${nbPointages + 1}">
+                <strong>👤 ${escapeHtml(livreur.username)}</strong><br/>
+                <small style="color: #667eea;">Total: ${livreur.total_km_journee} km (${nbPointages} pointage${nbPointages > 1 ? 's' : ''})</small>
+              </td>
+              <td>${scooterBadge}</td>
+              <td>
+                <div>${startTime}</div>
+                <div class="small-text">${timesheet.start_km} km</div>
+              </td>
+              <td>
+                ${timesheet.end_time ? `<div>${endTime}</div><div class="small-text">${timesheet.end_km} km</div>` : '<span class="status-partial">⏳ En cours</span>'}
+              </td>
+              <td>${timesheet.total_km ? `<strong>${timesheet.total_km} km</strong>` : '--'}</td>
+              <td>${statusBadge}</td>
+              <td class="actions-cell">${actions}</td>
+            </tr>
+          `;
+        } else {
+          // Lignes suivantes : sans le nom du livreur
+          html += `
+            <tr class="pointage-row">
+              <td>${scooterBadge}</td>
+              <td>
+                <div>${startTime}</div>
+                <div class="small-text">${timesheet.start_km} km</div>
+              </td>
+              <td>
+                ${timesheet.end_time ? `<div>${endTime}</div><div class="small-text">${timesheet.end_km} km</div>` : '<span class="status-partial">⏳ En cours</span>'}
+              </td>
+              <td>${timesheet.total_km ? `<strong>${timesheet.total_km} km</strong>` : '--'}</td>
+              <td>${statusBadge}</td>
+              <td class="actions-cell">${actions}</td>
+            </tr>
+          `;
+        }
+      });
+      
+      // Ligne vide pour bouton "Ajouter pointage"
+      html += `
+        <tr class="add-pointage-row">
+          <td colspan="6" style="text-align: center; padding: 5px;">
+            <button class="btn-add-pointage-for-user" data-user-id="${livreur.user_id}" style="font-size: 0.85rem; padding: 4px 12px;">
+              ➕ Nouveau pointage pour ${escapeHtml(livreur.username)}
+            </button>
+          </td>
+        </tr>
+      `;
     }
-
-    html += `
-      <tr>
-        <td><strong>👤 ${escapeHtml(item.username)}</strong></td>
-        <td>${startCell}</td>
-        <td>${endCell}</td>
-        <td>${kmCell}</td>
-        <td>${statusBadge}</td>
-        <td class="actions-cell">${actions}</td>
-      </tr>
-    `;
   });
 
   html += `
@@ -252,17 +297,18 @@ function renderAllTimesheetsTable() {
   container.innerHTML = html;
   
   // Attacher les event listeners sur les boutons d'action
-  container.querySelectorAll('.btn-point-start').forEach(btn => {
+  container.querySelectorAll('.btn-point-start, .btn-add-pointage-for-user').forEach(btn => {
     btn.addEventListener('click', () => {
       const userId = btn.getAttribute('data-user-id');
       openPointForUserModal(userId, 'start');
     });
   });
   
-  container.querySelectorAll('.btn-point-end').forEach(btn => {
+  container.querySelectorAll('.btn-point-end-for-timesheet').forEach(btn => {
     btn.addEventListener('click', () => {
+      const timesheetId = btn.getAttribute('data-timesheet-id');
       const userId = btn.getAttribute('data-user-id');
-      openPointForUserModal(userId, 'end');
+      openPointEndForTimesheetModal(timesheetId, userId);
     });
   });
   
@@ -366,6 +412,44 @@ function openPointForUserModal(userId, type) {
 }
 
 /**
+ * Ouvrir le modal pour pointer la fin d'un timesheet spécifique
+ */
+function openPointEndForTimesheetModal(timesheetId, userId) {
+  const modal = document.getElementById('modal-point-for-user');
+  if (!modal) return;
+
+  // Trouver le livreur et le timesheet
+  const livreur = allTimesheets.find(item => item.user_id === userId);
+  if (!livreur) return;
+  
+  const timesheet = livreur.timesheets.find(t => t.id === parseInt(timesheetId));
+  if (!timesheet) return;
+
+  selectedLivreur = livreur;
+  pointType = 'end';
+
+  // Remplir le modal
+  const title = document.getElementById('point-for-user-title');
+  const livreurDisplay = document.getElementById('point-livreur-display');
+  const dateInput = document.getElementById('point-date');
+  const userIdInput = document.getElementById('point-user-id');
+  const typeInput = document.getElementById('point-type');
+
+  if (title) {
+    const scooterInfo = timesheet.scooter_id ? ` (Scooter ${timesheet.scooter_id})` : '';
+    title.innerHTML = `🔴 Pointer la fin pour: <span id="livreur-name">${escapeHtml(livreur.username)}${scooterInfo}</span>`;
+  }
+  
+  if (livreurDisplay) livreurDisplay.value = livreur.username;
+  if (dateInput) dateInput.value = currentDate;
+  if (userIdInput) userIdInput.value = userId;
+  if (typeInput) typeInput.value = 'end';
+
+  modal.classList.remove('hidden');
+  modal.classList.add('active');
+}
+
+/**
  * Voir les photos d'un pointage
  */
 async function viewPhotos(timesheetId) {
@@ -397,9 +481,17 @@ async function viewPhotos(timesheetId) {
       </div>
     `;
     
+    // Trouver le timesheet dans tous les livreurs
+    let foundTimesheet = null;
+    for (const livreur of allTimesheets) {
+      if (livreur.timesheets) {
+        foundTimesheet = livreur.timesheets.find(t => t.id === parseInt(timesheetId));
+        if (foundTimesheet) break;
+      }
+    }
+    
     // Vérifier s'il y a une photo de fin
-    const timesheet = allTimesheets.find(item => item.timesheet && item.timesheet.id === timesheetId);
-    if (timesheet && timesheet.timesheet.end_photo_path) {
+    if (foundTimesheet && foundTimesheet.end_photo_path) {
       const endResponse = await fetch(`${API_BASE_URL}/timesheets/${timesheetId}/photo/end`, {
         method: 'GET',
         headers: {
@@ -681,7 +773,14 @@ function hideLoader() {
  * Afficher le modal de modification de pointage
  */
 function showEditTimesheetModal(timesheetId, username) {
-  const timesheet = allTimesheets.find(item => item.timesheet && item.timesheet.id == timesheetId)?.timesheet;
+  // Trouver le timesheet dans tous les livreurs
+  let timesheet = null;
+  for (const livreur of allTimesheets) {
+    if (livreur.timesheets) {
+      timesheet = livreur.timesheets.find(t => t.id == timesheetId);
+      if (timesheet) break;
+    }
+  }
   
   if (!timesheet) {
     showNotification('Pointage introuvable', 'error');

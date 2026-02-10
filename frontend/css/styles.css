@@ -5387,6 +5387,151 @@ input[type="tel"]:focus {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Badge scooter petit (dans tableaux manager) */
+.scooter-badge-small {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles pour les lignes de pointage dans la vue manager */
+.livreur-row {
+  background-color: #f7fafc;
+  border-top: 2px solid #667eea;
+}
+
+.pointage-row {
+  background-color: #ffffff;
+}
+
+.add-pointage-row {
+  background-color: #f7fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.btn-add-pointage-for-user {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-add-pointage-for-user:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(72, 187, 120, 0.3);
+}
+
+.small-text {
+  color: #718096;
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+/* Liste des pointages */
+.timesheets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.timesheet-item {
+  background: var(--gray-50);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  transition: all 0.3s;
+}
+
+.timesheet-item.complete {
+  border-color: #48bb78;
+  background: linear-gradient(to right, #f0fff4, #c6f6d5);
+}
+
+.timesheet-item.partial {
+  border-color: #ed8936;
+  background: linear-gradient(to right, #fffaf0, #feebc8);
+}
+
+.timesheet-item .info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  font-size: 0.95rem;
+}
+
+.timesheet-item .icon {
+  font-size: 1.2rem;
+}
+
+.timesheet-item .label {
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.timesheet-item .km-badge {
+  background: #667eea;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.btn-end-for-timesheet {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  background: #f56565;
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-end-for-timesheet:hover {
+  background: #e53e3e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+}
+
+.total-journee {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px;
+  border-radius: var(--border-radius);
+  text-align: center;
+  margin: 15px 0;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.total-journee strong {
+  display: block;
+  font-size: 1.3rem;
+  margin-bottom: 5px;
+}
+
+.total-journee small {
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
 /* Texte d'aide dans les formulaires */
 .form-text {
   display: block;
