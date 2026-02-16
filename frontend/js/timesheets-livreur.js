@@ -394,7 +394,6 @@ const TimesheetsLivreurManager = (() => {
     
     // Mettre à jour les options de scooter avant d'ouvrir le modal
     updateScooterSelectOptions();
-    }
 
     showModal(modalStart);
   }
