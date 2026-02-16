@@ -1914,13 +1914,6 @@ class OrderController {
             rating_percentage: 0
           },
           average_ratings: null,
-          satisfaction_distribution: {
-            excellent: 0,
-            tres_content: 0,
-            content: 0,
-            mecontent: 0,
-            tres_mecontent: 0
-          },
           ai_analysis: {
             sentiment_global: 'NEUTRE',
             sentiment_score: 50,
@@ -2021,34 +2014,6 @@ class OrderController {
         // Ajouter le montant de la commande pour calculer le panier moyen et l'écart-type
         if (order.montant_commande) {
           bySourceConnaissance[source].amounts.push(parseFloat(order.montant_commande));
-        }
-      });
-
-      // Distribution de satisfaction (5 niveaux)
-      const satisfactionDistribution = {
-        excellent: 0,      // 9-10
-        tres_content: 0,   // 7.5-8.9
-        content: 0,        // 6-7.4
-        mecontent: 0,      // 4-5.9
-        tres_mecontent: 0  // 0-3.9
-      };
-      
-      // Calculer la distribution basée sur la moyenne globale par commande
-      orders.forEach(order => {
-        const orderRatings = [];
-        if (order.service_rating) orderRatings.push(parseFloat(order.service_rating));
-        if (order.quality_rating) orderRatings.push(parseFloat(order.quality_rating));
-        if (order.price_rating) orderRatings.push(parseFloat(order.price_rating));
-        if (order.commercial_service_rating) orderRatings.push(parseFloat(order.commercial_service_rating));
-        
-        if (orderRatings.length > 0) {
-          const orderAvg = orderRatings.reduce((a, b) => a + b, 0) / orderRatings.length;
-          
-          if (orderAvg >= 9) satisfactionDistribution.excellent++;
-          else if (orderAvg >= 7.5) satisfactionDistribution.tres_content++;
-          else if (orderAvg >= 6) satisfactionDistribution.content++;
-          else if (orderAvg >= 4) satisfactionDistribution.mecontent++;
-          else satisfactionDistribution.tres_mecontent++;
         }
       });
 
@@ -2233,7 +2198,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
           rating_percentage: ((ordersWithRatings / totalOrders) * 100).toFixed(1)
         },
         average_ratings: avgRatings,
-        satisfaction_distribution: satisfactionDistribution,
         ai_analysis: aiAnalysis,
         by_point_vente: byPointVenteArray,
         by_source_connaissance: bySourceConnaissanceArray

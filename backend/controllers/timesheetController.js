@@ -169,6 +169,17 @@ const startActivity = async (req, res) => {
       });
     }
 
+    // Vérifier si le scooter est déjà utilisé par un autre livreur
+    if (scooter_id) {
+      const scooterCheck = await Timesheet.isScooterUsedByOthers(scooter_id, date, userId);
+      if (scooterCheck.isUsed) {
+        return res.status(400).json({
+          success: false,
+          message: `Le scooter ${scooter_id} est déjà utilisé par ${scooterCheck.username} aujourd'hui.`
+        });
+      }
+    }
+
     // Upload de la photo
     const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, date, 'start');
 
@@ -416,6 +427,17 @@ const startActivityForUser = async (req, res) => {
           ? `${targetUser.username} a déjà pointé le début pour cette date avec le scooter ${scooter_id}.`
           : `${targetUser.username} a déjà pointé le début pour cette date.`
       });
+    }
+
+    // Vérifier si le scooter est déjà utilisé par un autre livreur
+    if (scooter_id) {
+      const scooterCheck = await Timesheet.isScooterUsedByOthers(scooter_id, date, user_id);
+      if (scooterCheck.isUsed) {
+        return res.status(400).json({
+          success: false,
+          message: `Le scooter ${scooter_id} est déjà utilisé par ${scooterCheck.username} pour cette date.`
+        });
+      }
     }
 
     // Upload de la photo
@@ -1035,6 +1057,37 @@ const updateEndActivity = async (req, res) => {
   }
 };
 
+/**
+ * Obtenir les scooters utilisés pour une date
+ * GET /api/timesheets/used-scooters?date=YYYY-MM-DD
+ */
+const getUsedScooters = async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date requise.'
+      });
+    }
+
+    const usedScooters = await Timesheet.getUsedScootersForDate(date);
+
+    res.status(200).json({
+      success: true,
+      data: usedScooters
+    });
+
+  } catch (error) {
+    console.error('Erreur getUsedScooters:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur lors de la récupération des scooters utilisés.'
+    });
+  }
+};
+
 module.exports = {
   uploadPhotoMiddleware,
   getTodayTimesheet,
@@ -1048,5 +1101,6 @@ module.exports = {
   deleteTimesheet,
   updateTimesheet,
   updateStartActivity,
-  updateEndActivity
+  updateEndActivity,
+  getUsedScooters
 };

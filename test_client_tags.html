@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Système de Tags Clients</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .badge-vvip {
+            background: #FF1493;
+            color: white;
+        }
+
+        .badge-vip {
+            background: #FFD700;
+            color: black;
+        }
+
+        .badge-standard {
+            background: #E0E0E0;
+            color: #666;
+        }
+
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .client-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .client-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .client-phone {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .client-stats {
+            font-size: 13px;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .config {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .config-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏷️ Test Système de Tags Clients</h1>
+            <p>Testez les fonctionnalités du système de tags VIP/VVIP</p>
+        </div>
+
+        <!-- Configuration -->
+        <div class="config">
+            <div class="config-title">⚙️ Configuration</div>
+            <div class="form-group">
+                <label>URL Backend:</label>
+                <input type="text" id="backendUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+            </div>
+            <div class="form-group">
+                <label>JWT Token (pour les routes protégées):</label>
+                <input type="text" id="jwtToken" placeholder="Collez votre token JWT ici">
+            </div>
+            <div class="form-group">
+                <label>API Key (pour les routes externes):</label>
+                <input type="text" id="apiKey" placeholder="Collez votre API key ici">
+            </div>
+        </div>
+
+        <!-- Test 1: Attribuer un crédit avec tag -->
+        <div class="card">
+            <h2>1️⃣ Attribuer un crédit avec tag</h2>
+            <div class="form-group">
+                <label>Numéro de téléphone:</label>
+                <input type="text" id="phone1" placeholder="773289936">
+            </div>
+            <div class="form-group">
+                <label>Montant du crédit (FCFA):</label>
+                <input type="number" id="creditAmount" placeholder="50000">
+            </div>
+            <div class="form-group">
+                <label>Jours d'expiration:</label>
+                <input type="number" id="expirationDays" placeholder="30">
+            </div>
+            <div class="form-group">
+                <label>Tag Client:</label>
+                <select id="clientTag">
+                    <option value="STANDARD">STANDARD</option>
+                    <option value="VIP">VIP ⭐</option>
+                    <option value="VVIP">VVIP 👑</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notes (optionnel):</label>
+                <textarea id="notes" rows="2" placeholder="Client fidèle..."></textarea>
+            </div>
+            <button onclick="setCredit()">Attribuer Crédit</button>
+            <div id="result1" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Test 2: Récupérer l'audit client -->
+        <div class="card">
+            <h2>2️⃣ Récupérer l'audit client avec tag</h2>
+            <div class="form-group">
+                <label>Numéro de téléphone:</label>
+                <input type="text" id="phone2" placeholder="773289936">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="skipSentiment" checked>
+                    Ignorer l'analyse de sentiment (plus rapide)
+                </label>
+            </div>
+            <button onclick="getAudit()">Récupérer Audit</button>
+            <div id="result2" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Test 3: Liste des clients MATA -->
+        <div class="card">
+            <h2>3️⃣ Liste des clients MATA avec tags</h2>
+            <button onclick="getClientsList()">Récupérer Liste</button>
+            <button class="btn-secondary" onclick="filterVIP()">Filtrer VIP/VVIP uniquement</button>
+            <div id="result3" class="result" style="display:none;"></div>
+            <div id="clientsGrid" class="clients-grid"></div>
+        </div>
+
+        <!-- Test 4: Statistiques des tags -->
+        <div class="card">
+            <h2>4️⃣ Statistiques des tags</h2>
+            <button onclick="getTagStats()">Obtenir Statistiques</button>
+            <div id="result4" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let allClients = [];
+
+        // Test 1: Attribuer un crédit avec tag
+        async function setCredit() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const jwtToken = document.getElementById('jwtToken').value;
+            const phone = document.getElementById('phone1').value;
+            const creditAmount = document.getElementById('creditAmount').value;
+            const expirationDays = document.getElementById('expirationDays').value;
+            const clientTag = document.getElementById('clientTag').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!jwtToken) {
+                showResult('result1', 'Erreur: JWT Token requis', 'error');
+                return;
+            }
+
+            if (!phone || !creditAmount || !expirationDays) {
+                showResult('result1', 'Erreur: Tous les champs sont requis', 'error');
+                return;
+            }
+
+            showResult('result1', '⏳ Envoi de la requête...', '');
+
+            try {
+                const response = await fetch(`${backendUrl}/api/v1/clients/credits`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}`
+                    },
+                    body: JSON.stringify({
+                        phone_number: phone,
+                        credit_amount: parseFloat(creditAmount),
+                        expiration_days: parseInt(expirationDays),
+                        client_tag: clientTag,
+                        notes: notes || null
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('result1', JSON.stringify(data, null, 2), 'success');
+                } else {
+                    showResult('result1', `Erreur ${response.status}:\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('result1', `Erreur réseau: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Récupérer l'audit client
+        async function getAudit() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const phone = document.getElementById('phone2').value;
+            const skipSentiment = document.getElementById('skipSentiment').checked;
+
+            if (!apiKey) {
+                showResult('result2', 'Erreur: API Key requise', 'error');
+                return;
+            }
+
+            if (!phone) {
+                showResult('result2', 'Erreur: Numéro de téléphone requis', 'error');
+                return;
+            }
+
+            showResult('result2', '⏳ Récupération de l\'audit...', '');
+
+            try {
+                const url = `${backendUrl}/api/external/mata/audit/client?phone_number=${phone}&skip_sentiment=${skipSentiment}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const tagBadge = getTagBadge(data.client_info.client_tag);
+                    const summary = `
+🏷️ TAG CLIENT: ${tagBadge}
+
+👤 CLIENT:
+   Nom: ${data.client_info.name}
+   Téléphone: ${data.client_info.phone_number}
+   Tag: ${data.client_info.client_tag}
+   Première commande: ${data.client_info.first_order}
+   Dernière commande: ${data.client_info.last_order}
+   Total commandes: ${data.client_info.total_orders}
+
+💰 CRÉDIT:
+   ${data.client_info.credit ? `
+   Montant: ${data.client_info.credit.amount} FCFA
+   Solde actuel: ${data.client_info.credit.current_balance} FCFA
+   Expire le: ${new Date(data.client_info.credit.expires_at).toLocaleDateString('fr-FR')}
+   Jours restants: ${data.client_info.credit.days_remaining}
+   Tag: ${data.client_info.credit.client_tag}
+   ` : 'Aucun crédit'}
+
+📊 STATISTIQUES:
+   Total commandes: ${data.statistics.total_orders}
+   Montant total: ${data.statistics.total_amount.toFixed(0)} FCFA
+   Montant moyen: ${data.statistics.avg_amount.toFixed(0)} FCFA
+   Note moyenne: ${data.statistics.avg_rating || 'N/A'}
+
+⚡ PERFORMANCE:
+   Temps de réponse: ${data.performance.total_time_ms}ms
+   Cache size: ${data.performance.cache_size}
+                    `;
+                    showResult('result2', summary + '\n\n' + JSON.stringify(data, null, 2), 'success');
+                } else {
+                    showResult('result2', `Erreur ${response.status}:\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('result2', `Erreur réseau: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: Liste des clients
+        async function getClientsList() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const jwtToken = document.getElementById('jwtToken').value;
+
+            if (!jwtToken) {
+                showResult('result3', 'Erreur: JWT Token requis', 'error');
+                return;
+            }
+
+            showResult('result3', '⏳ Récupération de la liste...', '');
+
+            try {
+                const response = await fetch(`${backendUrl}/api/v1/clients/mata-list`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    allClients = data.clients;
+                    displayClients(allClients);
+                    
+                    const summary = `
+✅ ${data.count} clients trouvés
+
+Tags:
+${countTags(allClients)}
+                    `;
+                    showResult('result3', summary, 'success');
+                } else {
+                    showResult('result3', `Erreur ${response.status}:\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('result3', `Erreur réseau: ${error.message}`, 'error');
+            }
+        }
+
+        function displayClients(clients) {
+            const grid = document.getElementById('clientsGrid');
+            grid.innerHTML = '';
+
+            clients.slice(0, 50).forEach(client => {
+                const card = document.createElement('div');
+                card.className = 'client-card';
+                
+                const tagBadge = client.client_tag ? getTagBadgeHTML(client.client_tag) : getTagBadgeHTML('STANDARD');
+                
+                card.innerHTML = `
+                    <div class="client-name">${client.primary_name || 'N/A'} ${tagBadge}</div>
+                    <div class="client-phone">📞 ${client.phone_number}</div>
+                    <div class="client-stats">
+                        📦 ${client.total_orders || 0} commandes<br>
+                        💰 ${(client.total_spent || 0).toFixed(0)} FCFA<br>
+                        ${client.current_credit > 0 ? `🎫 Crédit: ${client.current_credit} FCFA (${client.days_remaining}j)` : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+
+            if (clients.length > 50) {
+                const more = document.createElement('div');
+                more.style.gridColumn = '1 / -1';
+                more.style.textAlign = 'center';
+                more.style.padding = '20px';
+                more.style.color = '#666';
+                more.innerHTML = `... et ${clients.length - 50} clients de plus`;
+                grid.appendChild(more);
+            }
+        }
+
+        function filterVIP() {
+            if (allClients.length === 0) {
+                alert('Veuillez d\'abord récupérer la liste des clients');
+                return;
+            }
+
+            const vipClients = allClients.filter(c => c.client_tag === 'VIP' || c.client_tag === 'VVIP');
+            displayClients(vipClients);
+            showResult('result3', `🌟 ${vipClients.length} clients VIP/VVIP trouvés`, 'success');
+        }
+
+        function countTags(clients) {
+            const counts = {
+                STANDARD: 0,
+                VIP: 0,
+                VVIP: 0
+            };
+
+            clients.forEach(c => {
+                const tag = c.client_tag || 'STANDARD';
+                counts[tag] = (counts[tag] || 0) + 1;
+            });
+
+            return `
+  👑 VVIP: ${counts.VVIP}
+  ⭐ VIP: ${counts.VIP}
+  👤 STANDARD: ${counts.STANDARD}
+            `;
+        }
+
+        function getTagBadge(tag) {
+            const badges = {
+                'VVIP': '👑 VVIP',
+                'VIP': '⭐ VIP',
+                'STANDARD': '👤 STANDARD'
+            };
+            return badges[tag] || badges['STANDARD'];
+        }
+
+        function getTagBadgeHTML(tag) {
+            const classes = {
+                'VVIP': 'badge-vvip',
+                'VIP': 'badge-vip',
+                'STANDARD': 'badge-standard'
+            };
+            return `<span class="badge ${classes[tag] || classes['STANDARD']}">${getTagBadge(tag)}</span>`;
+        }
+
+        // Test 4: Statistiques des tags
+        async function getTagStats() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            
+            showResult('result4', '⏳ Récupération des statistiques...', '');
+
+            try {
+                // Note: Cette requête nécessite un accès direct à la DB
+                // Pour une vraie implémentation, créez une route API dédiée
+                showResult('result4', `
+Pour obtenir les statistiques des tags, exécutez cette requête SQL:
+
+SELECT 
+  COALESCE(client_tag, 'STANDARD') as tag,
+  COUNT(*) as nombre_clients,
+  SUM(credit_amount) as total_credits,
+  AVG(credit_amount) as credit_moyen
+FROM client_credits
+GROUP BY client_tag
+ORDER BY 
+  CASE client_tag
+    WHEN 'VVIP' THEN 1
+    WHEN 'VIP' THEN 2
+    WHEN 'STANDARD' THEN 3
+  END;
+
+Ou ajoutez une route API dédiée dans le backend.
+                `, '');
+            } catch (error) {
+                showResult('result4', `Erreur: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            element.className = 'result ' + type;
+        }
+    </script>
+</body>
+</html>

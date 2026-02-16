@@ -92,6 +92,37 @@ class Timesheet {
   }
 
   /**
+   * Vérifier si un scooter est déjà utilisé par un autre livreur pour une date donnée
+   * Retourne { isUsed: boolean, username: string | null }
+   */
+  static async isScooterUsedByOthers(scooterId, date, excludeUserId) {
+    if (!scooterId) {
+      return { isUsed: false, username: null };
+    }
+
+    const query = `
+      SELECT dt.*, u.username
+      FROM delivery_timesheets dt
+      JOIN users u ON dt.user_id = u.id
+      WHERE dt.scooter_id = $1 
+        AND dt.date = $2 
+        AND dt.user_id != $3
+      LIMIT 1
+    `;
+    
+    const result = await db.query(query, [scooterId, date, excludeUserId]);
+    
+    if (result.rows.length > 0) {
+      return { 
+        isUsed: true, 
+        username: result.rows[0].username 
+      };
+    }
+    
+    return { isUsed: false, username: null };
+  }
+
+  /**
    * DEPRECATED: Ancienne méthode pour compatibilité
    * Retourne le PREMIER pointage trouvé (pour rétrocompatibilité)
    */
@@ -414,6 +445,26 @@ class Timesheet {
     
     const result = await db.query(query, [date]);
     return result.rows[0];
+  }
+  /**
+   * Obtenir tous les scooters utilisés pour une date donnée avec le nom du livreur
+   * Retourne un tableau de { scooterId, username }
+   */
+  static async getUsedScootersForDate(date) {
+    const query = `
+      SELECT DISTINCT dt.scooter_id, u.username
+      FROM delivery_timesheets dt
+      JOIN users u ON dt.user_id = u.id
+      WHERE dt.scooter_id IS NOT NULL 
+        AND dt.date = $1
+      ORDER BY dt.scooter_id
+    `;
+    
+    const result = await db.query(query, [date]);
+    return result.rows.map(row => ({
+      scooterId: row.scooter_id,
+      username: row.username
+    }));
   }
 }
 

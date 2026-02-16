@@ -419,7 +419,7 @@ class MataSentimentManager {
     // Stocker les données pour l'export
     this.currentAnalysisData = data;
     
-    const { month, statistics, average_ratings, satisfaction_distribution, ai_analysis, by_point_vente, by_source_connaissance } = data;
+    const { month, statistics, average_ratings, ai_analysis, by_point_vente, by_source_connaissance } = data;
     
     // Vérifier si on a des données
     if (statistics.total_orders === 0) {
@@ -523,43 +523,6 @@ class MataSentimentManager {
                   </div>
                 </div>
                 ` : ''}
-              </div>
-            </div>
-            ` : ''}
-
-            <!-- Distribution de satisfaction (5 niveaux) -->
-            ${satisfaction_distribution ? `
-            <div class="sentiment-section">
-              <h3>😊 Satisfaction Clients (5 Niveaux)</h3>
-              <div class="satisfaction-levels">
-                <div class="satisfaction-level">
-                  <div class="level-emoji" style="font-size: 2rem;">💚</div>
-                  <div class="level-label">Excellent</div>
-                  <div class="level-count">${satisfaction_distribution.excellent}</div>
-                </div>
-                <div class="satisfaction-level">
-                  <div class="level-emoji" style="font-size: 2rem;">😊</div>
-                  <div class="level-label">Très content</div>
-                  <div class="level-count">${satisfaction_distribution.tres_content}</div>
-                </div>
-                <div class="satisfaction-level">
-                  <div class="level-emoji" style="font-size: 2rem;">😐</div>
-                  <div class="level-label">Content</div>
-                  <div class="level-count">${satisfaction_distribution.content}</div>
-                </div>
-                <div class="satisfaction-level">
-                  <div class="level-emoji" style="font-size: 2rem;">😠</div>
-                  <div class="level-label">Mécontent</div>
-                  <div class="level-count">${satisfaction_distribution.mecontent}</div>
-                </div>
-                <div class="satisfaction-level">
-                  <div class="level-emoji" style="font-size: 2rem;">😡</div>
-                  <div class="level-label">Très mécontent</div>
-                  <div class="level-count">${satisfaction_distribution.tres_mecontent}</div>
-                </div>
-              </div>
-              <div style="text-align: center; margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">
-                ${satisfaction_distribution.excellent + satisfaction_distribution.tres_content + satisfaction_distribution.content + satisfaction_distribution.mecontent + satisfaction_distribution.tres_mecontent} client${(satisfaction_distribution.excellent + satisfaction_distribution.tres_content + satisfaction_distribution.content + satisfaction_distribution.mecontent + satisfaction_distribution.tres_mecontent) > 1 ? 's' : ''} avec note
               </div>
             </div>
             ` : ''}

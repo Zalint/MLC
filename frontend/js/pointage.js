@@ -21,6 +21,7 @@ let currentUser = null;
 let selectedLivreur = null;
 let pointType = null;
 let photoFile = null;
+let usedScooters = []; // Liste des scooters utilisés { scooterId, username }
 
 /**
  * Formater une date locale en YYYY-MM-DD
@@ -141,6 +142,10 @@ async function loadAllTimesheetsForDate() {
     if (response.ok) {
       allTimesheets = data.data;
       stats = data.stats;
+      
+      // Charger les scooters utilisés pour cette date
+      await loadUsedScooters(currentDate);
+      
       renderAllTimesheetsTable();
       renderStats();
     } else {
@@ -376,6 +381,58 @@ function renderStats() {
 }
 
 /**
+ * Charger les scooters utilisés pour une date
+ */
+async function loadUsedScooters(date) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/timesheets/used-scooters?date=${date}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      usedScooters = data.data || [];
+      updateScooterSelectOptions();
+    }
+  } catch (error) {
+    console.error('Erreur loadUsedScooters:', error);
+  }
+}
+
+/**
+ * Mettre à jour les options du select scooter (griser ceux utilisés)
+ */
+function updateScooterSelectOptions() {
+  const scooterSelect = document.getElementById('point-scooter-id');
+  if (!scooterSelect) return;
+
+  // Récupérer toutes les options sauf la première (placeholder)
+  const options = scooterSelect.querySelectorAll('option:not(:first-child)');
+  
+  options.forEach(option => {
+    const scooterId = option.value;
+    const usedScooter = usedScooters.find(s => s.scooterId === scooterId);
+    
+    if (usedScooter) {
+      option.disabled = true;
+      option.textContent = `${scooterId} (utilisé par ${usedScooter.username})`;
+      option.style.color = '#999';
+      option.style.fontStyle = 'italic';
+    } else {
+      option.disabled = false;
+      option.textContent = scooterId;
+      option.style.color = '';
+      option.style.fontStyle = '';
+    }
+  });
+}
+
+/**
  * Ouvrir le modal pour pointer pour un livreur
  */
 function openPointForUserModal(userId, type) {
@@ -417,6 +474,11 @@ function openPointForUserModal(userId, type) {
       scooterContainer.style.display = type === 'start' ? 'block' : 'none';
     }
     scooterIdSelect.value = '';
+    
+    // Mettre à jour les options disponibles
+    if (type === 'start') {
+      updateScooterSelectOptions();
+    }
   }
 
   modal.classList.remove('hidden');

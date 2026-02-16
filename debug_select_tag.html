@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Sélecteur Tag Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .test-container {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .client-tag-select {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            position: relative !important;
+            z-index: 1 !important;
+            background-color: white !important;
+        }
+
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnostic - Sélecteur Tag Client</h1>
+
+    <!-- Test 1: Select basique -->
+    <div class="test-container">
+        <h2>Test 1: Select HTML basique</h2>
+        <select id="test1" class="form-control">
+            <option value="STANDARD">👤 STANDARD</option>
+            <option value="VIP" selected>⭐ VIP</option>
+            <option value="VVIP">👑 VVIP</option>
+        </select>
+        <div id="status1" class="status">Statut: En attente...</div>
+    </div>
+
+    <!-- Test 2: Select avec styles inline -->
+    <div class="test-container">
+        <h2>Test 2: Select avec styles inline (comme dans votre app)</h2>
+        <select 
+            id="test2" 
+            class="form-control"
+            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; pointer-events: auto;">
+            <option value="STANDARD">👤 STANDARD</option>
+            <option value="VIP" selected>⭐ VIP</option>
+            <option value="VVIP">👑 VVIP</option>
+        </select>
+        <div id="status2" class="status">Statut: En attente...</div>
+    </div>
+
+    <!-- Test 3: Select avec classe client-tag-select -->
+    <div class="test-container">
+        <h2>Test 3: Select avec classe client-tag-select</h2>
+        <select 
+            id="test3" 
+            class="form-control client-tag-select"
+            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; pointer-events: auto;">
+            <option value="STANDARD">👤 STANDARD</option>
+            <option value="VIP" selected>⭐ VIP</option>
+            <option value="VVIP">👑 VVIP</option>
+        </select>
+        <div id="status3" class="status">Statut: En attente...</div>
+    </div>
+
+    <!-- Test 4: Vérifier les styles computed -->
+    <div class="test-container">
+        <h2>Test 4: Analyse des styles</h2>
+        <select id="test4" class="form-control client-tag-select">
+            <option value="VIP" selected>⭐ VIP</option>
+        </select>
+        <button onclick="analyzeStyles()">Analyser les styles</button>
+        <div id="status4" class="status">Cliquez sur "Analyser les styles"</div>
+    </div>
+
+    <!-- Test 5: Test manuel -->
+    <div class="test-container">
+        <h2>Test 5: Test interactif</h2>
+        <p>Essayez de changer la valeur:</p>
+        <select id="test5" class="form-control client-tag-select">
+            <option value="STANDARD">👤 STANDARD</option>
+            <option value="VIP" selected>⭐ VIP</option>
+            <option value="VVIP">👑 VVIP</option>
+        </select>
+        <button onclick="getValue()">Obtenir la valeur</button>
+        <button onclick="setValue('VVIP')">Forcer VVIP</button>
+        <div id="status5" class="status">Valeur actuelle: VIP</div>
+    </div>
+
+    <!-- Diagnostic global -->
+    <div class="test-container">
+        <h2>🔧 Diagnostic Complet</h2>
+        <button onclick="runFullDiagnostic()">Lancer le diagnostic complet</button>
+        <div id="diagnostic-results" style="margin-top: 15px;"></div>
+    </div>
+
+    <script>
+        // Ajouter des listeners sur tous les selects
+        document.querySelectorAll('select').forEach((select, index) => {
+            select.addEventListener('change', (e) => {
+                const statusDiv = document.getElementById(`status${index + 1}`);
+                if (statusDiv) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = `✅ Changement détecté! Nouvelle valeur: ${e.target.value}`;
+                }
+                console.log(`Select ${index + 1} changed to:`, e.target.value);
+            });
+
+            select.addEventListener('focus', (e) => {
+                console.log(`Select ${index + 1} focused`);
+            });
+
+            select.addEventListener('click', (e) => {
+                console.log(`Select ${index + 1} clicked`);
+            });
+        });
+
+        function analyzeStyles() {
+            const select = document.getElementById('test4');
+            const computed = window.getComputedStyle(select);
+            
+            const important = {
+                'cursor': computed.cursor,
+                'pointer-events': computed.pointerEvents,
+                'z-index': computed.zIndex,
+                'position': computed.position,
+                'display': computed.display,
+                'visibility': computed.visibility,
+                'opacity': computed.opacity
+            };
+
+            const statusDiv = document.getElementById('status4');
+            statusDiv.className = 'status success';
+            statusDiv.innerHTML = '<strong>Styles computed:</strong><br>' + 
+                Object.entries(important).map(([key, value]) => 
+                    `${key}: ${value}`
+                ).join('<br>');
+        }
+
+        function getValue() {
+            const select = document.getElementById('test5');
+            const statusDiv = document.getElementById('status5');
+            statusDiv.className = 'status success';
+            statusDiv.textContent = `Valeur actuelle: ${select.value}`;
+        }
+
+        function setValue(value) {
+            const select = document.getElementById('test5');
+            select.value = value;
+            const statusDiv = document.getElementById('status5');
+            statusDiv.className = 'status success';
+            statusDiv.textContent = `Valeur forcée à: ${value}`;
+        }
+
+        function runFullDiagnostic() {
+            const results = [];
+            
+            // Test 1: Vérifier que les selects existent
+            const selects = document.querySelectorAll('select');
+            results.push(`✅ ${selects.length} selects trouvés`);
+
+            // Test 2: Vérifier les event listeners
+            selects.forEach((select, i) => {
+                try {
+                    select.click();
+                    results.push(`✅ Select ${i + 1} est cliquable`);
+                } catch (error) {
+                    results.push(`❌ Select ${i + 1} - Erreur: ${error.message}`);
+                }
+            });
+
+            // Test 3: Vérifier les styles
+            const testSelect = document.getElementById('test4');
+            const computed = window.getComputedStyle(testSelect);
+            
+            if (computed.pointerEvents === 'auto' || computed.pointerEvents === 'all') {
+                results.push(`✅ pointer-events: ${computed.pointerEvents}`);
+            } else {
+                results.push(`⚠️ pointer-events: ${computed.pointerEvents} (devrait être auto)`);
+            }
+
+            if (computed.cursor === 'pointer') {
+                results.push(`✅ cursor: ${computed.cursor}`);
+            } else {
+                results.push(`⚠️ cursor: ${computed.cursor} (devrait être pointer)`);
+            }
+
+            // Test 4: Vérifier si disabled
+            const disabled = Array.from(selects).filter(s => s.disabled);
+            if (disabled.length === 0) {
+                results.push(`✅ Aucun select désactivé`);
+            } else {
+                results.push(`❌ ${disabled.length} select(s) désactivé(s)`);
+            }
+
+            // Afficher les résultats
+            const resultsDiv = document.getElementById('diagnostic-results');
+            resultsDiv.innerHTML = results.map(r => `<div style="padding: 5px;">${r}</div>`).join('');
+        }
+
+        // Vérifier au chargement
+        window.addEventListener('load', () => {
+            console.log('✅ Page chargée, selects prêts');
+            console.log('Nombre de selects:', document.querySelectorAll('select').length);
+        });
+    </script>
+</body>
+</html>

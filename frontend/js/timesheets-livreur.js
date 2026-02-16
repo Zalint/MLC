@@ -12,6 +12,7 @@ const TimesheetsLivreurManager = (() => {
   let startPhotoFile = null;
   let endPhotoFile = null;
   let selectedTimesheetForEnd = null; // Pointage sélectionné pour pointer la fin
+  let usedScooters = []; // Liste des scooters utilisés { scooterId, username }
   
   // Éléments DOM
   let widgetContainer;
@@ -74,6 +75,9 @@ const TimesheetsLivreurManager = (() => {
         todayTimesheets = data.data || [];
         totalKmJournee = data.total_km_journee || 0;
         nbPointages = data.nb_pointages || 0;
+
+        // Charger les scooters utilisés pour cette date
+        await loadUsedScooters(selectedDate);
         
         // Pour compatibilité avec le code existant, garder todayTimesheet
         todayTimesheet = todayTimesheets.length > 0 ? todayTimesheets[0] : null;
@@ -87,6 +91,58 @@ const TimesheetsLivreurManager = (() => {
     } catch (error) {
       console.error('Erreur loadTodayTimesheet:', error);
     }
+  }
+
+  /**
+   * Charger les scooters utilisés pour une date
+   */
+  async function loadUsedScooters(date) {
+    try {
+      const response = await fetch(`${window.API_BASE_URL}/timesheets/used-scooters?date=${date}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        usedScooters = data.data || [];
+        updateScooterSelectOptions();
+      }
+    } catch (error) {
+      console.error('Erreur loadUsedScooters:', error);
+    }
+  }
+
+  /**
+   * Mettre à jour les options du select scooter (griser ceux utilisés)
+   */
+  function updateScooterSelectOptions() {
+    const scooterSelect = document.getElementById('start-scooter-id');
+    if (!scooterSelect) return;
+
+    // Récupérer toutes les options sauf la première (placeholder)
+    const options = scooterSelect.querySelectorAll('option:not(:first-child)');
+    
+    options.forEach(option => {
+      const scooterId = option.value;
+      const usedScooter = usedScooters.find(s => s.scooterId === scooterId);
+      
+      if (usedScooter) {
+        option.disabled = true;
+        option.textContent = `${scooterId} (utilisé par ${usedScooter.username})`;
+        option.style.color = '#999';
+        option.style.fontStyle = 'italic';
+      } else {
+        option.disabled = false;
+        option.textContent = scooterId;
+        option.style.color = '';
+        option.style.fontStyle = '';
+      }
+    });
   }
 
   /**
@@ -334,6 +390,10 @@ const TimesheetsLivreurManager = (() => {
     if (dateInput) {
       dateInput.value = selectedDate;
       dateInput.setAttribute('readonly', 'true'); // Livreur ne peut changer la date
+    }
+    
+    // Mettre à jour les options de scooter avant d'ouvrir le modal
+    updateScooterSelectOptions();
     }
 
     showModal(modalStart);
