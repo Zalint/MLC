@@ -395,6 +395,8 @@ function openPointForUserModal(userId, type) {
   const dateInput = document.getElementById('point-date');
   const userIdInput = document.getElementById('point-user-id');
   const typeInput = document.getElementById('point-type');
+  const timesheetIdInput = document.getElementById('point-timesheet-id');
+  const scooterIdSelect = document.getElementById('point-scooter-id');
 
   if (title) {
     const emoji = type === 'start' ? '🟢' : '🔴';
@@ -406,6 +408,16 @@ function openPointForUserModal(userId, type) {
   if (dateInput) dateInput.value = currentDate;
   if (userIdInput) userIdInput.value = userId;
   if (typeInput) typeInput.value = type;
+  if (timesheetIdInput) timesheetIdInput.value = '';
+  
+  // Afficher/masquer le champ scooter selon le type
+  if (scooterIdSelect) {
+    const scooterContainer = scooterIdSelect.closest('.form-group');
+    if (scooterContainer) {
+      scooterContainer.style.display = type === 'start' ? 'block' : 'none';
+    }
+    scooterIdSelect.value = '';
+  }
 
   modal.classList.remove('hidden');
   modal.classList.add('active');
@@ -434,6 +446,8 @@ function openPointEndForTimesheetModal(timesheetId, userId) {
   const dateInput = document.getElementById('point-date');
   const userIdInput = document.getElementById('point-user-id');
   const typeInput = document.getElementById('point-type');
+  const timesheetIdInput = document.getElementById('point-timesheet-id');
+  const scooterIdSelect = document.getElementById('point-scooter-id');
 
   if (title) {
     const scooterInfo = timesheet.scooter_id ? ` (Scooter ${timesheet.scooter_id})` : '';
@@ -444,6 +458,15 @@ function openPointEndForTimesheetModal(timesheetId, userId) {
   if (dateInput) dateInput.value = currentDate;
   if (userIdInput) userIdInput.value = userId;
   if (typeInput) typeInput.value = 'end';
+  if (timesheetIdInput) timesheetIdInput.value = timesheetId;
+  
+  // Masquer le champ scooter pour la fin
+  if (scooterIdSelect) {
+    const scooterContainer = scooterIdSelect.closest('.form-group');
+    if (scooterContainer) {
+      scooterContainer.style.display = 'none';
+    }
+  }
 
   modal.classList.remove('hidden');
   modal.classList.add('active');
@@ -579,6 +602,8 @@ async function submitPointForUser(e) {
   const date = document.getElementById('point-date').value;
   const km = document.getElementById('point-km').value;
   const type = document.getElementById('point-type').value;
+  const timesheetId = document.getElementById('point-timesheet-id')?.value;
+  const scooterId = document.getElementById('point-scooter-id')?.value;
 
   if (!userId || !date || !km || !photoFile) {
     showNotification('Veuillez remplir tous les champs et ajouter une photo', 'error');
@@ -596,6 +621,15 @@ async function submitPointForUser(e) {
   formData.append('date', date);
   formData.append('km', km);
   formData.append('photo', photoFile);
+  
+  // Ajouter scooter_id pour le début, timesheet_id pour la fin
+  if (type === 'start' && scooterId) {
+    formData.append('scooter_id', scooterId.trim());
+  }
+  
+  if (type === 'end' && timesheetId) {
+    formData.append('timesheet_id', timesheetId);
+  }
 
   const endpoint = type === 'start' ? 'start-for-user' : 'end-for-user';
 

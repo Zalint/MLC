@@ -80,6 +80,7 @@
             <form id="form-point-for-user">
                 <input type="hidden" id="point-user-id" />
                 <input type="hidden" id="point-type" />
+                <input type="hidden" id="point-timesheet-id" />
                 
                 <div class="form-group">
                     <label>👤 Livreur</label>
@@ -89,6 +90,26 @@
                 <div class="form-group">
                     <label>📅 Date</label>
                     <input type="date" id="point-date" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>🛵 N° Scooter (facultatif)</label>
+                    <select id="point-scooter-id">
+                        <option value="">-- Sélectionner un scooter --</option>
+                        <option value="CH120600">CH120600</option>
+                        <option value="CH120599">CH120599</option>
+                        <option value="110276">110276</option>
+                        <option value="110202">110202</option>
+                        <option value="CH120453">CH120453</option>
+                        <option value="CH120482">CH120482</option>
+                        <option value="110154">110154</option>
+                        <option value="XXYYZZ">XXYYZZ</option>
+                        <option value="CH120592">CH120592</option>
+                        <option value="110164">110164</option>
+                        <option value="CH120439">CH120439</option>
+                        <option value="110157">110157</option>
+                    </select>
+                    <small class="form-text">Numéro du scooter utilisé</small>
                 </div>
                 
                 <div class="form-group">
