@@ -130,7 +130,7 @@ const TimesheetsLivreurManager = (() => {
     // Récupérer les scooters que vous avez déjà utilisés aujourd'hui
     const myUsedScooters = todayTimesheets
       .filter(ts => ts.scooter_id !== null)
-      .map(ts => ts.scooter_id);
+      .map(ts => String(ts.scooter_id));
     
     options.forEach(option => {
       const scooterId = option.value;

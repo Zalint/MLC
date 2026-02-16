@@ -1111,9 +1111,14 @@ const getUsedScooters = async (req, res) => {
       });
     }
 
-    // Additional validation: check if it's a valid date
-    const parsedDate = new Date(date);
-    if (isNaN(parsedDate.getTime())) {
+    // Additional validation: check if it's a valid date and reject overflowed dates
+    const [year, month, day] = date.split('-').map(Number);
+    const parsedDate = new Date(year, month - 1, day);
+    
+    if (isNaN(parsedDate.getTime()) || 
+        parsedDate.getFullYear() !== year || 
+        parsedDate.getMonth() !== month - 1 || 
+        parsedDate.getDate() !== day) {
       return res.status(400).json({
         success: false,
         message: 'Date invalide.'
