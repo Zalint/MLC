@@ -35,6 +35,10 @@ router.use(authenticateToken);
 // GET /api/timesheets/today
 router.get('/today', timesheetController.getTodayTimesheet);
 
+// Récupérer les scooters utilisés pour une date
+// GET /api/timesheets/used-scooters?date=2026-02-05
+router.get('/used-scooters', timesheetController.getUsedScooters);
+
 // Pointer le début d'activité (pour soi-même)
 // POST /api/timesheets/start (avec FormData: date, km, photo)
 router.post(
@@ -74,10 +78,6 @@ router.put(
 // Récupérer TOUS les pointages d'une date (manager uniquement)
 // GET /api/timesheets/all?date=2026-02-05
 router.get('/all', requireManagerOrAdmin, timesheetController.getAllTimesheetsForDate);
-
-// Récupérer les scooters utilisés pour une date
-// GET /api/timesheets/used-scooters?date=2026-02-05
-router.get('/used-scooters', timesheetController.getUsedScooters);
 
 // Pointer le début pour UN livreur spécifique (manager uniquement)
 // POST /api/timesheets/start-for-user (FormData: user_id, date, km, photo)

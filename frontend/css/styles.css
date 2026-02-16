@@ -5575,6 +5575,22 @@ input[type="tel"]:focus {
   }
 }
 
+/* Styles pour boutons désactivés */
+.timesheet-actions-inline button.disabled,
+.timesheet-actions-inline button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #cbd5e0;
+  color: #718096;
+}
+
+.timesheet-actions-inline button.disabled:hover,
+.timesheet-actions-inline button:disabled:hover {
+  background: #cbd5e0;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 @media (min-width: 769px) and (max-width: 1024px) {
   .timesheet-widget {
     max-width: 700px;

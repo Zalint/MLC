@@ -393,14 +393,27 @@ async function loadUsedScooters(date) {
       }
     });
 
+    if (!response.ok) {
+      console.error('Erreur loadUsedScooters: HTTP', response.status);
+      usedScooters = [];
+      updateScooterSelectOptions();
+      return;
+    }
+
     const data = await response.json();
 
-    if (response.ok) {
+    if (data.success) {
       usedScooters = data.data || [];
+      updateScooterSelectOptions();
+    } else {
+      console.error('Erreur loadUsedScooters:', data.message);
+      usedScooters = [];
       updateScooterSelectOptions();
     }
   } catch (error) {
     console.error('Erreur loadUsedScooters:', error);
+    usedScooters = [];
+    updateScooterSelectOptions();
   }
 }
 
@@ -416,7 +429,8 @@ function updateScooterSelectOptions() {
   
   options.forEach(option => {
     const scooterId = option.value;
-    const usedScooter = usedScooters.find(s => s.scooterId === scooterId);
+    // Normalize types: convert both to strings for reliable comparison
+    const usedScooter = usedScooters.find(s => String(s.scooterId) === String(scooterId));
     
     if (usedScooter) {
       option.disabled = true;

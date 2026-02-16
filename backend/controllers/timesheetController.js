@@ -184,15 +184,30 @@ const startActivity = async (req, res) => {
     const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, date, 'start');
 
     // Créer le pointage
-    const timesheet = await Timesheet.create({
-      userId,
-      scooterId: scooterIdOrNull,
-      date,
-      startTime: new Date(),
-      startKm: kmNumber,
-      startPhotoPath: filePath,
-      startPhotoName: fileName
-    });
+    let timesheet;
+    try {
+      timesheet = await Timesheet.create({
+        userId,
+        scooterId: scooterIdOrNull,
+        date,
+        startTime: new Date(),
+        startKm: kmNumber,
+        startPhotoPath: filePath,
+        startPhotoName: fileName
+      });
+    } catch (error) {
+      // Catch DB unique constraint violation (race condition)
+      // The constraint is (user_id, scooter_id, date)
+      if (error.code === '23505' && error.constraint === 'unique_user_scooter_date') {
+        return res.status(409).json({
+          success: false,
+          message: scooter_id 
+            ? `Vous avez déjà un pointage pour cette date avec le scooter ${scooter_id}.`
+            : 'Vous avez déjà un pointage pour cette date.'
+        });
+      }
+      throw error;
+    }
 
     console.log(`✅ ${req.user.username} a pointé le début: ${kmNumber} km${scooter_id ? ` (Scooter: ${scooter_id})` : ''}`);
 
@@ -444,15 +459,30 @@ const startActivityForUser = async (req, res) => {
     const { filePath, fileName } = await uploadTimesheetPhoto(photo, user_id, date, 'start');
 
     // Créer le pointage
-    const timesheet = await Timesheet.create({
-      userId: user_id,
-      scooterId: scooterIdOrNull,
-      date,
-      startTime: new Date(),
-      startKm: kmNumber,
-      startPhotoPath: filePath,
-      startPhotoName: fileName
-    });
+    let timesheet;
+    try {
+      timesheet = await Timesheet.create({
+        userId: user_id,
+        scooterId: scooterIdOrNull,
+        date,
+        startTime: new Date(),
+        startKm: kmNumber,
+        startPhotoPath: filePath,
+        startPhotoName: fileName
+      });
+    } catch (error) {
+      // Catch DB unique constraint violation (race condition)
+      // The constraint is (user_id, scooter_id, date)
+      if (error.code === '23505' && error.constraint === 'unique_user_scooter_date') {
+        return res.status(409).json({
+          success: false,
+          message: scooter_id 
+            ? `${targetUser.username} a déjà un pointage pour cette date avec le scooter ${scooter_id}.`
+            : `${targetUser.username} a déjà un pointage pour cette date.`
+        });
+      }
+      throw error;
+    }
 
     // Log d'audit
     console.log(`📝 AUDIT: Manager ${managerUsername} a pointé le début pour ${targetUser.username} le ${date} (${kmNumber} km)${scooter_id ? ` Scooter: ${scooter_id}` : ''}`);
@@ -1069,6 +1099,24 @@ const getUsedScooters = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Date requise.'
+      });
+    }
+
+    // Strict date validation (YYYY-MM-DD format)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format de date invalide. Utilisez YYYY-MM-DD.'
+      });
+    }
+
+    // Additional validation: check if it's a valid date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date invalide.'
       });
     }
 

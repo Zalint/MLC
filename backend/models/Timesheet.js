@@ -50,7 +50,11 @@ class Timesheet {
       return new Timesheet(result.rows[0]);
     } catch (error) {
       if (error.code === '23505') { // Violation contrainte unique
-        throw new Error(`Un pointage existe déjà pour cette date${scooterId ? ' et ce scooter' : ''}`);
+        // Preserve the error code for controller to handle
+        const constraintError = new Error(`Un pointage existe déjà pour cette date${scooterId ? ' et ce scooter' : ''}`);
+        constraintError.code = '23505';
+        constraintError.constraint = error.constraint;
+        throw constraintError;
       }
       throw error;
     }

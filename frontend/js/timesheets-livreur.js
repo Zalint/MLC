@@ -127,16 +127,34 @@ const TimesheetsLivreurManager = (() => {
     // Récupérer toutes les options sauf la première (placeholder)
     const options = scooterSelect.querySelectorAll('option:not(:first-child)');
     
+    // Récupérer les scooters que vous avez déjà utilisés aujourd'hui
+    const myUsedScooters = todayTimesheets
+      .filter(ts => ts.scooter_id !== null)
+      .map(ts => ts.scooter_id);
+    
     options.forEach(option => {
       const scooterId = option.value;
-      const usedScooter = usedScooters.find(s => s.scooterId === scooterId);
+      
+      // Vérifier si ce scooter est utilisé par quelqu'un d'autre
+      const usedScooter = usedScooters.find(s => String(s.scooterId) === String(scooterId));
+      
+      // Vérifier si vous avez déjà utilisé ce scooter aujourd'hui
+      const usedByMe = myUsedScooters.includes(scooterId);
       
       if (usedScooter) {
+        // Utilisé par quelqu'un d'autre
         option.disabled = true;
         option.textContent = `${scooterId} (utilisé par ${usedScooter.username})`;
         option.style.color = '#999';
         option.style.fontStyle = 'italic';
+      } else if (usedByMe) {
+        // Déjà utilisé par vous aujourd'hui
+        option.disabled = true;
+        option.textContent = `${scooterId} (déjà pointé)`;
+        option.style.color = '#999';
+        option.style.fontStyle = 'italic';
       } else {
+        // Disponible
         option.disabled = false;
         option.textContent = scooterId;
         option.style.color = '';
@@ -186,6 +204,21 @@ const TimesheetsLivreurManager = (() => {
             minute: '2-digit' 
           });
           
+          // Calculer les délais séparément pour début et fin
+          const now = new Date();
+          const startTime_date = new Date(timesheet.start_time);
+          const endTime_date = new Date(timesheet.end_time);
+          
+          const minutesSinceStart = (now - startTime_date) / (1000 * 60);
+          const minutesSinceEnd = (now - endTime_date) / (1000 * 60);
+          
+          const canModifyStart = minutesSinceStart <= 15;
+          const canModifyEnd = minutesSinceEnd <= 15;
+          const canDelete = minutesSinceStart <= 15; // Suppression basée sur la création
+          
+          const minutesRemainingStart = Math.max(0, Math.ceil(15 - minutesSinceStart));
+          const minutesRemainingEnd = Math.max(0, Math.ceil(15 - minutesSinceEnd));
+          
           html += `
             <div class="timesheet-item complete">
               ${scooterBadge}
@@ -202,10 +235,31 @@ const TimesheetsLivreurManager = (() => {
                 </div>
                 <div class="km-badge">📊 ${timesheet.total_km} km</div>
               </div>
+              <div class="timesheet-actions-inline">
+                <button class="btn-modify-start ${!canModifyStart ? 'disabled' : ''}" 
+                        data-timesheet-id="${timesheet.id}" 
+                        ${!canModifyStart ? 'disabled' : ''}
+                        title="${canModifyStart ? `Modifier le début (${minutesRemainingStart} min restantes)` : 'Délai de modification dépassé (15 min après pointage début)'}">
+                  ✏️ Modifier début
+                </button>
+                <button class="btn-modify-end ${!canModifyEnd ? 'disabled' : ''}" 
+                        data-timesheet-id="${timesheet.id}" 
+                        ${!canModifyEnd ? 'disabled' : ''}
+                        title="${canModifyEnd ? `Modifier la fin (${minutesRemainingEnd} min restantes)` : 'Délai de modification dépassé (15 min après pointage fin)'}">
+                  ✏️ Modifier fin
+                </button>
+              </div>
             </div>
           `;
         } else {
           // En attente de fin
+          // Calculer si on peut modifier/supprimer (15 minutes)
+          const now = new Date();
+          const createdAt = new Date(timesheet.created_at);
+          const minutesSinceCreation = (now - createdAt) / (1000 * 60);
+          const canModify = minutesSinceCreation <= 15;
+          const minutesRemaining = Math.max(0, Math.ceil(15 - minutesSinceCreation));
+          
           html += `
             <div class="timesheet-item partial">
               ${scooterBadge}
@@ -220,9 +274,17 @@ const TimesheetsLivreurManager = (() => {
                   <span class="label">En attente de fin...</span>
                 </div>
               </div>
-              <button class="btn-end-for-timesheet" data-timesheet-id="${timesheet.id}">
-                🔴 Pointer la fin
-              </button>
+              <div class="timesheet-actions-inline">
+                <button class="btn-end-for-timesheet" data-timesheet-id="${timesheet.id}">
+                  🔴 Pointer la fin
+                </button>
+                <button class="btn-modify-start ${!canModify ? 'disabled' : ''}" 
+                        data-timesheet-id="${timesheet.id}" 
+                        ${!canModify ? 'disabled' : ''}
+                        title="${canModify ? `Modifier (${minutesRemaining} min restantes)` : 'Délai de modification dépassé (15 min)'}">
+                  ✏️ Modifier
+                </button>
+              </div>
             </div>
           `;
         }
@@ -337,6 +399,14 @@ const TimesheetsLivreurManager = (() => {
       }
     });
 
+    // Boutons modifier fin
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.classList.contains('btn-modify-end')) {
+        const timesheetId = e.target.dataset.timesheetId;
+        openModifyEndModal(timesheetId);
+      }
+    });
+
     // Boutons modifier (quand début ET fin sont pointés - affiche menu de choix)
     document.addEventListener('click', (e) => {
       if (e.target && e.target.classList.contains('btn-modify-timesheet')) {
@@ -382,6 +452,10 @@ const TimesheetsLivreurManager = (() => {
   function openStartModal() {
     if (!modalStart) return;
 
+    // IMPORTANT : Nettoyer le mode pour s'assurer qu'on est en mode création
+    delete modalStart.dataset.mode;
+    delete modalStart.dataset.timesheetId;
+
     // Pré-remplir la date en utilisant celle du sélecteur du dashboard (ou date locale)
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
     const selectedDate = dashboardDateFilter?.value || formatLocalYYYYMMDD(new Date());
@@ -403,6 +477,10 @@ const TimesheetsLivreurManager = (() => {
    */
   function openEndModal() {
     if (!modalEnd) return;
+
+    // IMPORTANT : Nettoyer le mode pour s'assurer qu'on est en mode création
+    delete modalEnd.dataset.mode;
+    delete modalEnd.dataset.timesheetId;
 
     // Pré-remplir la date en utilisant celle du sélecteur du dashboard (ou date locale)
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
@@ -500,7 +578,16 @@ const TimesheetsLivreurManager = (() => {
   /**
    * Soumettre le début d'activité
    */
+  let isSubmittingStart = false; // Protection contre double-soumission
+  
   async function submitStartActivity() {
+    // Protection contre double-clic/double-soumission
+    if (isSubmittingStart) {
+      console.log('⚠️ Soumission déjà en cours, ignorée');
+      return;
+    }
+    
+    isSubmittingStart = true;
     const date = document.getElementById('start-date').value;
     const km = document.getElementById('start-km').value;
     const scooterId = document.getElementById('start-scooter-id')?.value || '';
@@ -586,7 +673,8 @@ const TimesheetsLivreurManager = (() => {
       console.error('Erreur submitStartActivity:', error);
       showNotification('Erreur de connexion au serveur', 'error');
     } finally {
-      // Réactiver le bouton
+      // Réactiver le bouton et le flag
+      isSubmittingStart = false;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
@@ -597,7 +685,17 @@ const TimesheetsLivreurManager = (() => {
   /**
    * Soumettre la fin d'activité
    */
+  let isSubmittingEnd = false; // Protection contre double-soumission
+  
   async function submitEndActivity() {
+    // Protection contre double-clic/double-soumission
+    if (isSubmittingEnd) {
+      console.log('⚠️ Soumission déjà en cours, ignorée');
+      return;
+    }
+    
+    isSubmittingEnd = true;
+    
     const date = document.getElementById('end-date').value;
     const km = document.getElementById('end-km').value;
     const isEditMode = modalEnd.dataset.mode === 'edit';
@@ -617,13 +715,25 @@ const TimesheetsLivreurManager = (() => {
 
     const kmNumber = parseFloat(km);
     if (isNaN(kmNumber) || kmNumber < 0) {
+      isSubmittingEnd = false;
       showNotification('Kilométrage invalide', 'error');
       return;
     }
 
+    // Trouver le timesheet concerné
+    let currentTimesheet = null;
+    if (isEditMode) {
+      // En mode édition, chercher par ID
+      currentTimesheet = todayTimesheets.find(t => t.id === timesheetId);
+    } else {
+      // En mode création, utiliser todayTimesheet ou le dernier pointage sans fin
+      currentTimesheet = todayTimesheets.find(t => !t.end_time) || todayTimesheet;
+    }
+
     // Vérifier que end_km >= start_km
-    if (todayTimesheet && kmNumber < todayTimesheet.start_km) {
-      showNotification(`Le km de fin (${kmNumber}) doit être >= au km de début (${todayTimesheet.start_km})`, 'error');
+    if (currentTimesheet && kmNumber < currentTimesheet.start_km) {
+      isSubmittingEnd = false;
+      showNotification(`Le km de fin (${kmNumber}) doit être >= au km de début (${currentTimesheet.start_km})`, 'error');
       return;
     }
 
@@ -695,7 +805,8 @@ const TimesheetsLivreurManager = (() => {
       console.error('Erreur submitEndActivity:', error);
       showNotification('Erreur de connexion au serveur', 'error');
     } finally {
-      // Réactiver le bouton
+      // Réactiver le bouton et le flag
+      isSubmittingEnd = false;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
