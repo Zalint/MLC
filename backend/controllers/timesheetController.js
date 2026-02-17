@@ -158,15 +158,24 @@ const startActivity = async (req, res) => {
       });
     }
 
-    // Vérifier qu'il n'existe pas déjà un pointage pour ce scooter
+    // Vérifier qu'il n'y a pas de pointage en cours (sans fin) pour cette date
+    const hasOngoing = await Timesheet.hasOngoingPointage(userId, date);
+    if (hasOngoing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vous avez un pointage en cours. Veuillez pointer la fin avant de commencer un nouveau.'
+      });
+    }
+
+    // Vérifier qu'il n'y a pas de pointage en cours pour ce scooter (permet réutilisation après pointage fin)
     const scooterIdOrNull = scooter_id || null;
-    const existing = await Timesheet.findByUserScooterAndDate(userId, scooterIdOrNull, date);
+    const existing = await Timesheet.findByUserScooterAndDate(userId, scooterIdOrNull, date, true);
     if (existing) {
       return res.status(400).json({
         success: false,
         message: scooter_id 
-          ? `Vous avez déjà pointé le début pour cette date avec le scooter ${scooter_id}.`
-          : 'Vous avez déjà pointé le début pour cette date.'
+          ? `Vous avez déjà un pointage en cours avec le scooter ${scooter_id}. Pointez la fin avant d'en commencer un nouveau.`
+          : 'Vous avez déjà un pointage en cours. Pointez la fin avant d\'en commencer un nouveau.'
       });
     }
 
@@ -197,14 +206,13 @@ const startActivity = async (req, res) => {
         startPhotoName: fileName
       });
     } catch (error) {
-      // Catch DB unique constraint violation (race condition)
-      // The constraint is (user_id, scooter_id, date)
-      if (error.code === '23505' && error.constraint === 'unique_user_scooter_date') {
+      // Catch DB unique constraint violation (pointage en cours pour ce scooter)
+      if (error.code === '23505' && (error.constraint === 'unique_user_scooter_date' || error.constraint === 'idx_unique_user_scooter_date_ongoing')) {
         return res.status(409).json({
           success: false,
           message: scooter_id 
-            ? `Vous avez déjà un pointage pour cette date avec le scooter ${scooter_id}.`
-            : 'Vous avez déjà un pointage pour cette date.'
+            ? `Vous avez déjà un pointage en cours avec le scooter ${scooter_id}.`
+            : 'Vous avez déjà un pointage en cours.'
         });
       }
       throw error;
@@ -424,6 +432,15 @@ const startActivityForUser = async (req, res) => {
       });
     }
 
+    // Vérifier que le livreur n'a pas de pointage en cours (sans fin) pour cette date
+    const hasOngoing = await Timesheet.hasOngoingPointage(user_id, date);
+    if (hasOngoing) {
+      return res.status(400).json({
+        success: false,
+        message: `${targetUser.username} a un pointage en cours. Veuillez pointer la fin avant de commencer un nouveau.`
+      });
+    }
+
     // Valider le km
     const kmNumber = parseFloat(km);
     if (isNaN(kmNumber) || kmNumber < 0) {
@@ -433,15 +450,15 @@ const startActivityForUser = async (req, res) => {
       });
     }
 
-    // Vérifier qu'il n'existe pas déjà un pointage pour ce scooter
+    // Vérifier qu'il n'y a pas de pointage en cours pour ce scooter (permet réutilisation après pointage fin)
     const scooterIdOrNull = scooter_id || null;
-    const existing = await Timesheet.findByUserScooterAndDate(user_id, scooterIdOrNull, date);
+    const existing = await Timesheet.findByUserScooterAndDate(user_id, scooterIdOrNull, date, true);
     if (existing) {
       return res.status(400).json({
         success: false,
         message: scooter_id 
-          ? `${targetUser.username} a déjà pointé le début pour cette date avec le scooter ${scooter_id}.`
-          : `${targetUser.username} a déjà pointé le début pour cette date.`
+          ? `${targetUser.username} a déjà un pointage en cours avec le scooter ${scooter_id}.`
+          : `${targetUser.username} a déjà un pointage en cours.`
       });
     }
 
@@ -472,14 +489,13 @@ const startActivityForUser = async (req, res) => {
         startPhotoName: fileName
       });
     } catch (error) {
-      // Catch DB unique constraint violation (race condition)
-      // The constraint is (user_id, scooter_id, date)
-      if (error.code === '23505' && error.constraint === 'unique_user_scooter_date') {
+      // Catch DB unique constraint violation (pointage en cours pour ce scooter)
+      if (error.code === '23505' && (error.constraint === 'unique_user_scooter_date' || error.constraint === 'idx_unique_user_scooter_date_ongoing')) {
         return res.status(409).json({
           success: false,
           message: scooter_id 
-            ? `${targetUser.username} a déjà un pointage pour cette date avec le scooter ${scooter_id}.`
-            : `${targetUser.username} a déjà un pointage pour cette date.`
+            ? `${targetUser.username} a déjà un pointage en cours avec le scooter ${scooter_id}.`
+            : `${targetUser.username} a déjà un pointage en cours.`
         });
       }
       throw error;

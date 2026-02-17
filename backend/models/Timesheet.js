@@ -61,22 +61,28 @@ class Timesheet {
   }
 
   /**
-   * Trouver un pointage spécifique par utilisateur, scooter et date
+   * Trouver un pointage par utilisateur, scooter et date
+   * @param {boolean} ongoingOnly - si true, ne retourne que les pointages en cours (sans end_time)
+   *   Permet de réutiliser un scooter après avoir pointé la fin
    */
-  static async findByUserScooterAndDate(userId, scooterId, date) {
-    const query = `
+  static async findByUserScooterAndDate(userId, scooterId, date, ongoingOnly = false) {
+    let query = `
       SELECT * FROM delivery_timesheets
       WHERE user_id = $1 
       AND (scooter_id = $2 OR (scooter_id IS NULL AND $2 IS NULL))
       AND date = $3
     `;
-    
+    if (ongoingOnly) {
+      query += ` AND end_time IS NULL`;
+    }
+    query += ` ORDER BY created_at DESC LIMIT 1`;
+
     const result = await db.query(query, [userId, scooterId, date]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     return new Timesheet(result.rows[0]);
   }
 
@@ -93,6 +99,20 @@ class Timesheet {
     
     const result = await db.query(query, [userId, date]);
     return result.rows.map(row => new Timesheet(row));
+  }
+
+  /**
+   * Vérifier si l'utilisateur a un pointage en cours (sans fin) pour une date
+   * Retourne true si au moins un pointage n'a pas end_time
+   */
+  static async hasOngoingPointage(userId, date) {
+    const query = `
+      SELECT 1 FROM delivery_timesheets
+      WHERE user_id = $1 AND date = $2 AND end_time IS NULL
+      LIMIT 1
+    `;
+    const result = await db.query(query, [userId, date]);
+    return result.rows.length > 0;
   }
 
   /**
@@ -451,8 +471,9 @@ class Timesheet {
     return result.rows[0];
   }
   /**
-   * Obtenir tous les scooters utilisés pour une date donnée avec le nom du livreur
+   * Obtenir les scooters actuellement utilisés (pointage en cours, sans fin) pour une date
    * Retourne un tableau de { scooterId, username }
+   * Un scooter est "libre" dès que le livreur a pointé la fin.
    */
   static async getUsedScootersForDate(date) {
     const query = `
@@ -461,6 +482,7 @@ class Timesheet {
       JOIN users u ON dt.user_id = u.id
       WHERE dt.scooter_id IS NOT NULL 
         AND dt.date = $1
+        AND dt.end_time IS NULL
       ORDER BY dt.scooter_id
     `;
     

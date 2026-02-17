@@ -127,9 +127,9 @@ const TimesheetsLivreurManager = (() => {
     // Récupérer toutes les options sauf la première (placeholder)
     const options = scooterSelect.querySelectorAll('option:not(:first-child)');
     
-    // Récupérer les scooters que vous avez déjà utilisés aujourd'hui
+    // Récupérer les scooters que vous avez en cours (sans fin) - une fois la fin pointée, le scooter redevient disponible
     const myUsedScooters = todayTimesheets
-      .filter(ts => ts.scooter_id !== null)
+      .filter(ts => ts.scooter_id !== null && !ts.end_time)
       .map(ts => String(ts.scooter_id));
     
     options.forEach(option => {
@@ -148,9 +148,9 @@ const TimesheetsLivreurManager = (() => {
         option.style.color = '#999';
         option.style.fontStyle = 'italic';
       } else if (usedByMe) {
-        // Déjà utilisé par vous aujourd'hui
+        // En cours par vous (pointage sans fin)
         option.disabled = true;
-        option.textContent = `${scooterId} (déjà pointé)`;
+        option.textContent = `${scooterId} (en cours)`;
         option.style.color = '#999';
         option.style.fontStyle = 'italic';
       } else {
@@ -302,14 +302,17 @@ const TimesheetsLivreurManager = (() => {
         `;
       }
       
-      // Bouton pour ajouter un nouveau pointage
-      html += `
-        <div class="timesheet-actions" style="margin-top: 15px;">
-          <button id="btn-add-new-pointage" class="btn-start-activity">
-            ➕ Nouveau pointage
-          </button>
-        </div>
-      `;
+      // Bouton "Nouveau pointage" uniquement si aucun pointage en cours (sans fin)
+      const hasOngoingPointage = todayTimesheets.some(t => !t.end_time);
+      if (!hasOngoingPointage) {
+        html += `
+          <div class="timesheet-actions" style="margin-top: 15px;">
+            <button id="btn-add-new-pointage" class="btn-start-activity">
+              ➕ Nouveau pointage
+            </button>
+          </div>
+        `;
+      }
     }
 
     widgetContainer.innerHTML = html;
