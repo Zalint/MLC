@@ -15,7 +15,11 @@ const API_BASE_URL = isLocalHost
 
 // Variables globales
 let currentDate = getInitialDate(); // YYYY-MM-DD
+let currentStartDate = getFirstDayOfMonth();
+let currentEndDate = getInitialDate();
+let viewMode = 'daily'; // 'daily' ou 'range'
 let allTimesheets = [];
+let rangeData = []; // Données pour la vue par période
 let stats = null;
 let currentUser = null;
 let selectedLivreur = null;
@@ -53,6 +57,40 @@ function getInitialDate() {
 }
 
 /**
+ * Obtenir le premier jour du mois en cours
+ */
+function getFirstDayOfMonth() {
+  const date = new Date();
+  date.setDate(1);
+  return formatLocalYYYYMMDD(date);
+}
+
+/**
+ * Obtenir le premier jour de la semaine en cours (lundi)
+ */
+function getFirstDayOfWeek() {
+  const date = new Date();
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Lundi
+  date.setDate(diff);
+  return formatLocalYYYYMMDD(date);
+}
+
+/**
+ * Obtenir le premier et dernier jour du mois dernier
+ */
+function getLastMonthRange() {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 1);
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return {
+    start: formatLocalYYYYMMDD(firstDay),
+    end: formatLocalYYYYMMDD(lastDay)
+  };
+}
+
+/**
  * Initialisation de la page
  */
 async function init() {
@@ -77,16 +115,66 @@ async function init() {
   document.getElementById('username').textContent = currentUser.username;
   document.getElementById('user-role').textContent = currentUser.role;
   
-  // Initialiser la date
+  // Initialiser les dates
   document.getElementById('filter-timesheet-date').value = currentDate;
+  document.getElementById('filter-start-date').value = currentStartDate;
+  document.getElementById('filter-end-date').value = currentEndDate;
   
-  // Charger les données
-  await loadAllTimesheetsForDate();
+  // Charger les données selon le mode
+  await loadDataForCurrentMode();
   
   // Attacher les événements
   attachEvents();
   
   console.log('✅ Page pointage initialisée');
+}
+
+/**
+ * Charger les données selon le mode actuel
+ */
+async function loadDataForCurrentMode() {
+  if (viewMode === 'daily') {
+    await loadAllTimesheetsForDate();
+  } else {
+    await loadTimesheetsForDateRange();
+  }
+}
+
+/**
+ * Changer de mode de vue
+ */
+function switchToMode(mode) {
+  viewMode = mode;
+
+  // Mettre à jour les boutons
+  const btnDaily = document.getElementById('btn-mode-daily');
+  const btnRange = document.getElementById('btn-mode-range');
+
+  if (mode === 'daily') {
+    btnDaily.classList.remove('btn-secondary');
+    btnDaily.classList.add('btn-primary');
+    btnRange.classList.remove('btn-primary');
+    btnRange.classList.add('btn-secondary');
+
+    // Afficher/masquer les filtres
+    document.getElementById('daily-view-filters').style.display = 'flex';
+    document.getElementById('range-view-filters').style.display = 'none';
+
+    // Charger les données
+    loadAllTimesheetsForDate();
+  } else {
+    btnRange.classList.remove('btn-secondary');
+    btnRange.classList.add('btn-primary');
+    btnDaily.classList.remove('btn-primary');
+    btnDaily.classList.add('btn-secondary');
+
+    // Afficher/masquer les filtres
+    document.getElementById('daily-view-filters').style.display = 'none';
+    document.getElementById('range-view-filters').style.display = 'flex';
+
+    // Charger les données
+    loadTimesheetsForDateRange();
+  }
 }
 
 /**
@@ -154,6 +242,434 @@ async function loadAllTimesheetsForDate() {
   } catch (error) {
     console.error('Erreur loadAllTimesheetsForDate:', error);
     showNotification('Erreur de connexion', 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+/**
+ * Charger les pointages pour une plage de dates
+ */
+async function loadTimesheetsForDateRange() {
+  try {
+    showLoader();
+    
+    const response = await fetch(`${API_BASE_URL}/timesheets/date-range?start_date=${currentStartDate}&end_date=${currentEndDate}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      rangeData = data.data;
+      stats = data.stats;
+      renderRangeView();
+      renderRangeStats();
+    } else {
+      showNotification(data.message || 'Erreur lors de la récupération des données', 'error');
+    }
+  } catch (error) {
+    console.error('Erreur loadTimesheetsForDateRange:', error);
+    showNotification('Erreur de connexion', 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+/**
+ * Afficher la vue groupée par livreur avec résumé
+ */
+function renderRangeView() {
+  const container = document.getElementById('timesheets-table-container');
+  if (!container) return;
+
+  if (rangeData.length === 0) {
+    container.innerHTML = '<div class="no-data" style="text-align: center; padding: 40px; color: #a0aec0;">Aucun livreur actif</div>';
+    return;
+  }
+
+  let html = `
+    <div style="margin-bottom: 20px;">
+      <h3 style="margin: 0;">📊 Résumé par livreur (${currentStartDate} → ${currentEndDate})</h3>
+    </div>
+    <table class="timesheets-table">
+      <thead>
+        <tr>
+          <th>Livreur</th>
+          <th>Jours</th>
+          <th>Complets</th>
+          <th>Partiels</th>
+          <th>Manquants</th>
+          <th>Total KM</th>
+          <th>Moy. KM/jour</th>
+          <th>Taux présence</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  rangeData.forEach(livreur => {
+    const presenceRate = livreur.total_days > 0 
+      ? ((livreur.days_complete + livreur.days_partial) / livreur.total_days * 100).toFixed(1)
+      : 0;
+
+    html += `
+      <tr>
+        <td><strong>${escapeHtml(livreur.username)}</strong></td>
+        <td>${livreur.total_days}</td>
+        <td><span class="badge badge-success">${livreur.days_complete}</span></td>
+        <td><span class="badge badge-warning">${livreur.days_partial}</span></td>
+        <td><span class="badge badge-danger">${livreur.days_missing}</span></td>
+        <td>${livreur.total_km} km</td>
+        <td>${livreur.avg_km_per_day} km</td>
+        <td>${presenceRate}%</td>
+        <td>
+          <button class="btn-icon" onclick="toggleLivreurDetails('${livreur.user_id}')" title="Voir détails">
+            <span id="toggle-icon-${livreur.user_id}">▼</span>
+          </button>
+        </td>
+      </tr>
+      <tr id="details-${livreur.user_id}" style="display: none;">
+        <td colspan="9">
+          <div style="padding: 20px; background: #f7fafc;">
+            <h4 style="margin-top: 0;">Détails pour ${escapeHtml(livreur.username)}</h4>
+            <table class="timesheets-table" style="margin-top: 10px;">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Scooter</th>
+                  <th>Début</th>
+                  <th>KM Début</th>
+                  <th>Fin</th>
+                  <th>KM Fin</th>
+                  <th>KM parcourus</th>
+                  <th>Durée</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+    `;
+
+    livreur.timesheets.forEach(ts => {
+      const statusBadge = ts.status === 'complete' ? 'badge-success' :
+                         ts.status === 'partial' ? 'badge-warning' : 'badge-danger';
+      const statusText = ts.status === 'complete' ? '✓ Complet' :
+                        ts.status === 'partial' ? '⏳ En cours' : '✗ Non pointé';
+
+      const duration = ts.start_time && ts.end_time 
+        ? calculateDuration(ts.start_time, ts.end_time)
+        : '-';
+
+      html += `
+        <tr>
+          <td>${formatDateFr(ts.date)}</td>
+          <td>${ts.scooter_id || '-'}</td>
+          <td>${ts.start_time ? formatTimeFr(ts.start_time) : '-'}</td>
+          <td>${ts.start_km !== null ? ts.start_km : '-'}</td>
+          <td>${ts.end_time ? formatTimeFr(ts.end_time) : '-'}</td>
+          <td>${ts.end_km !== null ? ts.end_km : '-'}</td>
+          <td>${ts.total_km !== null ? ts.total_km + ' km' : '-'}</td>
+          <td>${duration}</td>
+          <td><span class="badge ${statusBadge}">${statusText}</span></td>
+        </tr>
+      `;
+    });
+
+    html += `
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  // --- Tableau détaillé par date (kilométrage par date sur toute la période) ---
+  const flatByDate = [];
+  rangeData.forEach(livreur => {
+    livreur.timesheets.forEach(ts => {
+      flatByDate.push({
+        date: ts.date,
+        username: livreur.username,
+        scooter_id: ts.scooter_id,
+        start_time: ts.start_time,
+        start_km: ts.start_km,
+        end_time: ts.end_time,
+        end_km: ts.end_km,
+        total_km: ts.total_km,
+        status: ts.status
+      });
+    });
+  });
+  flatByDate.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  html += `
+    <div style="margin-top: 40px; padding-top: 24px; border-top: 2px solid #e2e8f0;">
+      <h3 style="margin: 0 0 16px 0;">📅 Tableau détaillé par date – Kilométrage sur la période</h3>
+      <p style="margin: 0 0 12px 0; color: #64748b; font-size: 0.95rem;">Tous les pointages du ${currentStartDate} au ${currentEndDate}, triés par date.</p>
+      <div style="overflow-x: auto;">
+        <table class="timesheets-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Livreur</th>
+              <th>Scooter</th>
+              <th>Début</th>
+              <th>KM Début</th>
+              <th>Fin</th>
+              <th>KM Fin</th>
+              <th>KM parcourus</th>
+              <th>Durée</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  flatByDate.forEach(row => {
+    const statusBadge = row.status === 'complete' ? 'badge-success' :
+                       row.status === 'partial' ? 'badge-warning' : 'badge-danger';
+    const statusText = row.status === 'complete' ? '✓ Complet' :
+                      row.status === 'partial' ? '⏳ En cours' : '✗ Non pointé';
+    const duration = row.start_time && row.end_time
+      ? calculateDuration(row.start_time, row.end_time)
+      : '-';
+
+    html += `
+      <tr>
+        <td><strong>${formatDateFr(row.date)}</strong></td>
+        <td>${escapeHtml(row.username)}</td>
+        <td>${row.scooter_id || '-'}</td>
+        <td>${row.start_time ? formatTimeFr(row.start_time) : '-'}</td>
+        <td>${row.start_km !== null ? row.start_km : '-'}</td>
+        <td>${row.end_time ? formatTimeFr(row.end_time) : '-'}</td>
+        <td>${row.end_km !== null ? row.end_km : '-'}</td>
+        <td>${row.total_km !== null ? row.total_km + ' km' : '-'}</td>
+        <td>${duration}</td>
+        <td><span class="badge ${statusBadge}">${statusText}</span></td>
+      </tr>
+    `;
+  });
+
+  html += `
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+/**
+ * Basculer l'affichage des détails d'un livreur
+ */
+function toggleLivreurDetails(userId) {
+  const detailsRow = document.getElementById(`details-${userId}`);
+  const icon = document.getElementById(`toggle-icon-${userId}`);
+  
+  if (detailsRow.style.display === 'none') {
+    detailsRow.style.display = 'table-row';
+    icon.textContent = '▲';
+  } else {
+    detailsRow.style.display = 'none';
+    icon.textContent = '▼';
+  }
+}
+
+/**
+ * Afficher les statistiques pour la plage de dates
+ */
+function renderRangeStats() {
+  const container = document.getElementById('timesheet-stats');
+  if (!container || !stats) return;
+
+  const html = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Pointages attendus</div>
+        <div class="stat-value">${stats.total_expected}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pointages effectués</div>
+        <div class="stat-value">${stats.total_timesheets}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Complets</div>
+        <div class="stat-value" style="color: var(--success);">${stats.complete_timesheets}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Partiels</div>
+        <div class="stat-value" style="color: var(--warning);">${stats.partial_timesheets}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Manquants</div>
+        <div class="stat-value" style="color: var(--danger);">${stats.missing_timesheets}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Taux de pointage</div>
+        <div class="stat-value">${stats.pointage_rate}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total KM</div>
+        <div class="stat-value">${stats.total_km} km</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Moyenne KM/pointage</div>
+        <div class="stat-value">${stats.avg_km} km</div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+/**
+ * Formater la date en français (JJ/MM/AAAA)
+ */
+function formatDateFr(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR');
+}
+
+/**
+ * Formater l'heure en français (HH:MM)
+ */
+function formatTimeFr(dateTimeString) {
+  if (!dateTimeString) return '-';
+  const date = new Date(dateTimeString);
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Calculer la durée entre deux dates
+ */
+function calculateDuration(startTime, endTime) {
+  if (!startTime || !endTime) return '-';
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diff = end - start;
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h${minutes.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Exporter les pointages du jour en Excel
+ */
+async function exportToDailyExcel() {
+  try {
+    showLoader();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+      return;
+    }
+    
+    // Créer l'URL avec la date
+    const url = `${API_BASE_URL}/timesheets/export?date=${currentDate}`;
+    
+    // Faire la requête avec fetch
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      showNotification(errorData.message || 'Erreur lors de l\'export', 'error');
+      return;
+    }
+    
+    // Récupérer le blob
+    const blob = await response.blob();
+    
+    // Créer un lien de téléchargement
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `Pointages_${currentDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Nettoyer
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(a);
+    
+    showNotification('Export Excel réussi !', 'success');
+    
+  } catch (error) {
+    console.error('Erreur exportToDailyExcel:', error);
+    showNotification('Erreur lors de l\'export Excel', 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+/**
+ * Exporter les pointages de la plage de dates en Excel
+ */
+async function exportToRangeExcel() {
+  try {
+    showLoader();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      showNotification('Session expirée. Veuillez vous reconnecter.', 'error');
+      return;
+    }
+    
+    // Créer l'URL avec les dates
+    const url = `${API_BASE_URL}/timesheets/export-range?start_date=${currentStartDate}&end_date=${currentEndDate}`;
+    
+    // Faire la requête avec fetch
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      showNotification(errorData.message || 'Erreur lors de l\'export', 'error');
+      return;
+    }
+    
+    // Récupérer le blob
+    const blob = await response.blob();
+    
+    // Créer un lien de téléchargement
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `Pointages_${currentStartDate}_au_${currentEndDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Nettoyer
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(a);
+    
+    showNotification('Export Excel réussi !', 'success');
+    
+  } catch (error) {
+    console.error('Erreur exportToRangeExcel:', error);
+    showNotification('Erreur lors de l\'export Excel', 'error');
   } finally {
     hideLoader();
   }
@@ -746,7 +1262,17 @@ function attachEvents() {
   document.getElementById('btn-retour-dashboard').addEventListener('click', () => {
     window.location.href = 'index.html';
   });
-  
+
+  // ============ Boutons de mode ============
+  document.getElementById('btn-mode-daily').addEventListener('click', () => {
+    switchToMode('daily');
+  });
+
+  document.getElementById('btn-mode-range').addEventListener('click', () => {
+    switchToMode('range');
+  });
+
+  // ============ Vue journalière ============
   // Filtre date
   document.getElementById('filter-timesheet-date').addEventListener('change', (e) => {
     currentDate = e.target.value;
@@ -771,6 +1297,55 @@ function attachEvents() {
   
   // Bouton rafraîchir
   document.getElementById('btn-refresh-timesheets').addEventListener('click', loadAllTimesheetsForDate);
+  
+  // Bouton export Excel journalier
+  document.getElementById('btn-export-excel-daily').addEventListener('click', exportToDailyExcel);
+
+  // ============ Vue par période ============
+  // Filtre dates
+  document.getElementById('filter-start-date').addEventListener('change', (e) => {
+    currentStartDate = e.target.value;
+    loadTimesheetsForDateRange();
+  });
+
+  document.getElementById('filter-end-date').addEventListener('change', (e) => {
+    currentEndDate = e.target.value;
+    loadTimesheetsForDateRange();
+  });
+
+  // Bouton cette semaine
+  document.getElementById('btn-this-week').addEventListener('click', () => {
+    currentStartDate = getFirstDayOfWeek();
+    currentEndDate = formatLocalYYYYMMDD(new Date());
+    document.getElementById('filter-start-date').value = currentStartDate;
+    document.getElementById('filter-end-date').value = currentEndDate;
+    loadTimesheetsForDateRange();
+  });
+
+  // Bouton ce mois
+  document.getElementById('btn-this-month').addEventListener('click', () => {
+    currentStartDate = getFirstDayOfMonth();
+    currentEndDate = formatLocalYYYYMMDD(new Date());
+    document.getElementById('filter-start-date').value = currentStartDate;
+    document.getElementById('filter-end-date').value = currentEndDate;
+    loadTimesheetsForDateRange();
+  });
+
+  // Bouton mois dernier
+  document.getElementById('btn-last-month').addEventListener('click', () => {
+    const lastMonth = getLastMonthRange();
+    currentStartDate = lastMonth.start;
+    currentEndDate = lastMonth.end;
+    document.getElementById('filter-start-date').value = currentStartDate;
+    document.getElementById('filter-end-date').value = currentEndDate;
+    loadTimesheetsForDateRange();
+  });
+
+  // Bouton rafraîchir période
+  document.getElementById('btn-refresh-range').addEventListener('click', loadTimesheetsForDateRange);
+
+  // Bouton export Excel période
+  document.getElementById('btn-export-excel-range').addEventListener('click', exportToRangeExcel);
   
   // Modal photo
   const pointPhotoDropzone = document.getElementById('point-photo-dropzone');
@@ -1369,6 +1944,9 @@ function escapeHtml(text) {
 function showNotification(message, type = 'info') {
   ToastManager.show(message, type);
 }
+
+// Exposer toggleLivreurDetails au scope global pour l'utiliser dans le HTML
+window.toggleLivreurDetails = toggleLivreurDetails;
 
 // Initialiser au chargement
 if (document.readyState === 'loading') {

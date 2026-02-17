@@ -470,6 +470,117 @@ class Timesheet {
       username: row.username
     }));
   }
+
+  /**
+   * Obtenir les pointages pour une plage de dates avec statistiques par livreur
+   * Retourne des données groupées par livreur avec leurs pointages
+   */
+  static async getTimesheetsForDateRange(startDate, endDate) {
+    const query = `
+      WITH date_range AS (
+        SELECT generate_series($1::date, $2::date, '1 day'::interval)::date AS date
+      ),
+      active_livreurs AS (
+        SELECT id, username
+        FROM users
+        WHERE role = 'LIVREUR' AND is_active = true
+      ),
+      timesheets_data AS (
+        SELECT 
+          al.id as user_id,
+          al.username,
+          dr.date,
+          dt.id as timesheet_id,
+          dt.scooter_id,
+          dt.start_time,
+          dt.start_km,
+          dt.end_time,
+          dt.end_km,
+          dt.total_km,
+          CASE 
+            WHEN dt.start_time IS NOT NULL AND dt.end_time IS NOT NULL THEN 'complete'
+            WHEN dt.start_time IS NOT NULL THEN 'partial'
+            ELSE 'missing'
+          END as status
+        FROM active_livreurs al
+        CROSS JOIN date_range dr
+        LEFT JOIN delivery_timesheets dt ON al.id = dt.user_id AND dr.date = dt.date
+      )
+      SELECT 
+        user_id,
+        username,
+        json_agg(
+          json_build_object(
+            'timesheet_id', timesheet_id,
+            'date', date,
+            'scooter_id', scooter_id,
+            'start_time', start_time,
+            'start_km', start_km,
+            'end_time', end_time,
+            'end_km', end_km,
+            'total_km', total_km,
+            'status', status
+          ) ORDER BY date ASC
+        ) as timesheets,
+        COUNT(*) as total_days,
+        COUNT(*) FILTER (WHERE status = 'complete') as days_complete,
+        COUNT(*) FILTER (WHERE status = 'partial') as days_partial,
+        COUNT(*) FILTER (WHERE status = 'missing') as days_missing,
+        COALESCE(SUM(total_km), 0) as total_km,
+        COALESCE(ROUND(AVG(total_km) FILTER (WHERE total_km IS NOT NULL), 2), 0) as avg_km_per_day
+      FROM timesheets_data
+      GROUP BY user_id, username
+      ORDER BY username
+    `;
+    
+    const result = await db.query(query, [startDate, endDate]);
+    return result.rows;
+  }
+
+  /**
+   * Obtenir les statistiques globales pour une plage de dates
+   */
+  static async getStatsForDateRange(startDate, endDate) {
+    const query = `
+      WITH date_range AS (
+        SELECT generate_series($1::date, $2::date, '1 day'::interval)::date AS date
+      ),
+      active_livreurs AS (
+        SELECT id FROM users WHERE role = 'LIVREUR' AND is_active = true
+      ),
+      all_expected AS (
+        SELECT COUNT(*) as total_expected
+        FROM active_livreurs al
+        CROSS JOIN date_range dr
+      ),
+      timesheets_stats AS (
+        SELECT 
+          COUNT(*) as total_timesheets,
+          COUNT(*) FILTER (WHERE dt.end_time IS NOT NULL) as complete_timesheets,
+          COUNT(*) FILTER (WHERE dt.start_time IS NOT NULL AND dt.end_time IS NULL) as partial_timesheets,
+          COALESCE(SUM(dt.total_km), 0) as total_km,
+          COALESCE(ROUND(AVG(dt.total_km) FILTER (WHERE dt.total_km IS NOT NULL), 2), 0) as avg_km
+        FROM active_livreurs al
+        CROSS JOIN date_range dr
+        LEFT JOIN delivery_timesheets dt ON al.id = dt.user_id AND dr.date = dt.date
+        WHERE dt.id IS NOT NULL
+      )
+      SELECT 
+        ae.total_expected,
+        COALESCE(ts.total_timesheets, 0) as total_timesheets,
+        COALESCE(ts.complete_timesheets, 0) as complete_timesheets,
+        COALESCE(ts.partial_timesheets, 0) as partial_timesheets,
+        (ae.total_expected - COALESCE(ts.total_timesheets, 0)) as missing_timesheets,
+        COALESCE(ts.total_km, 0) as total_km,
+        COALESCE(ts.avg_km, 0) as avg_km,
+        ROUND((COALESCE(ts.total_timesheets, 0)::numeric / NULLIF(ae.total_expected, 0) * 100), 2) as pointage_rate
+      FROM all_expected ae
+      CROSS JOIN timesheets_stats ts
+    `;
+    
+    const result = await db.query(query, [startDate, endDate]);
+    return result.rows[0];
+  }
 }
 
 module.exports = Timesheet;

@@ -1,6 +1,7 @@
 const Timesheet = require('../models/Timesheet');
 const User = require('../models/User');
 const multer = require('multer');
+const ExcelJS = require('exceljs');
 const {
   uploadTimesheetPhoto,
   deleteTimesheetPhoto,
@@ -1141,6 +1142,431 @@ const getUsedScooters = async (req, res) => {
   }
 };
 
+/**
+ * Obtenir les pointages pour une plage de dates
+ * GET /api/timesheets/date-range?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+ */
+const getTimesheetsForDateRange = async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date de début et date de fin requises.'
+      });
+    }
+
+    // Valider le format des dates
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Format de date invalide. Utilisez YYYY-MM-DD.'
+      });
+    }
+
+    // Vérifier que start_date <= end_date
+    if (new Date(start_date) > new Date(end_date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'La date de début doit être antérieure ou égale à la date de fin.'
+      });
+    }
+
+    // Récupérer les données groupées par livreur
+    const data = await Timesheet.getTimesheetsForDateRange(start_date, end_date);
+    
+    // Récupérer les statistiques globales
+    const stats = await Timesheet.getStatsForDateRange(start_date, end_date);
+
+    res.json({
+      success: true,
+      data: data,
+      stats: stats,
+      start_date: start_date,
+      end_date: end_date
+    });
+
+  } catch (error) {
+    console.error('Erreur getTimesheetsForDateRange:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des pointages.'
+    });
+  }
+};
+
+/**
+ * Exporter les pointages du jour en Excel
+ * GET /api/timesheets/export?date=YYYY-MM-DD
+ */
+const exportTimesheetsToExcel = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date || formatLocalDate(new Date());
+
+    // Récupérer tous les livreurs avec leur pointage
+    const data = await Timesheet.findAllActiveLivreursWithTimesheets(targetDate);
+    
+    // Récupérer les statistiques
+    const stats = await Timesheet.getStatsForDate(targetDate);
+
+    // Créer un nouveau classeur Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Pointages');
+
+    // Définir les colonnes
+    worksheet.columns = [
+      { header: 'Livreur', key: 'username', width: 20 },
+      { header: 'Scooter', key: 'scooter_id', width: 15 },
+      { header: 'Début', key: 'start_time', width: 20 },
+      { header: 'KM Début', key: 'start_km', width: 12 },
+      { header: 'Fin', key: 'end_time', width: 20 },
+      { header: 'KM Fin', key: 'end_km', width: 12 },
+      { header: 'Kms parcourus', key: 'total_km', width: 15 },
+      { header: 'Durée', key: 'duration', width: 15 },
+      { header: 'Statut', key: 'status', width: 15 }
+    ];
+
+    // Styliser l'en-tête
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4A90E2' }
+    };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Fonction pour formater la date/heure
+    const formatDateTime = (dateTimeString) => {
+      if (!dateTimeString) return '-';
+      const dt = new Date(dateTimeString);
+      return dt.toLocaleString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    };
+
+    // Fonction pour calculer la durée
+    const calculateDuration = (startTime, endTime) => {
+      if (!startTime || !endTime) return '-';
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diff = end - start;
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      return `${hours}h ${minutes}min`;
+    };
+
+    // Fonction pour formater le statut
+    const formatStatus = (status) => {
+      switch (status) {
+        case 'complete': return 'Complet';
+        case 'partial': return 'En cours';
+        case 'missing': return 'Non pointé';
+        default: return status;
+      }
+    };
+
+    // Ajouter les données
+    data.forEach(row => {
+      worksheet.addRow({
+        username: row.username,
+        scooter_id: row.scooter_id || '-',
+        start_time: formatDateTime(row.start_time),
+        start_km: row.start_km !== null ? row.start_km : '-',
+        end_time: formatDateTime(row.end_time),
+        end_km: row.end_km !== null ? row.end_km : '-',
+        total_km: row.total_km !== null ? `${row.total_km} km` : '-',
+        duration: calculateDuration(row.start_time, row.end_time),
+        status: formatStatus(row.status)
+      });
+    });
+
+    // Appliquer des bordures à toutes les cellules
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    });
+
+    // Ajouter les statistiques en bas
+    const lastRow = worksheet.lastRow.number;
+    worksheet.addRow([]);
+    worksheet.addRow(['Statistiques du jour']);
+    worksheet.getRow(lastRow + 2).font = { bold: true, size: 14 };
+    worksheet.addRow([]);
+    worksheet.addRow(['Total pointages:', stats.totalTimesheets]);
+    worksheet.addRow(['Patrouille couverte:', `${stats.percentageCovered}%`]);
+    worksheet.addRow(['Km moyen:', stats.averageKm ? `${stats.averageKm} km` : '-']);
+    worksheet.addRow(['Non-pointés:', stats.notPointedCount]);
+    worksheet.addRow(['Taux de pointage:', `${stats.pointageRate}%`]);
+
+    // Définir le nom du fichier
+    const filename = `Pointages_${targetDate}.xlsx`;
+
+    // Envoyer le fichier
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Erreur exportTimesheetsToExcel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'export Excel.'
+    });
+  }
+};
+
+/**
+ * Exporter les pointages d'une plage de dates en Excel (avec 3 onglets)
+ * GET /api/timesheets/export-range?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+ */
+const exportTimesheetsRangeToExcel = async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date de début et date de fin requises.'
+      });
+    }
+
+    // Récupérer les données groupées par livreur
+    const data = await Timesheet.getTimesheetsForDateRange(start_date, end_date);
+    
+    // Récupérer les statistiques globales
+    const stats = await Timesheet.getStatsForDateRange(start_date, end_date);
+
+    // Créer un nouveau classeur Excel
+    const workbook = new ExcelJS.Workbook();
+
+    // ==================== ONGLET 1 : RÉSUMÉ PAR LIVREUR ====================
+    const summarySheet = workbook.addWorksheet('Résumé');
+
+    summarySheet.columns = [
+      { header: 'Livreur', key: 'username', width: 20 },
+      { header: 'Total jours', key: 'total_days', width: 12 },
+      { header: 'Jours complets', key: 'days_complete', width: 15 },
+      { header: 'Jours partiels', key: 'days_partial', width: 15 },
+      { header: 'Jours manquants', key: 'days_missing', width: 18 },
+      { header: 'Total KM', key: 'total_km', width: 12 },
+      { header: 'Moy. KM/jour', key: 'avg_km_per_day', width: 15 },
+      { header: 'Taux présence', key: 'presence_rate', width: 15 }
+    ];
+
+    // Styliser l'en-tête
+    summarySheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2C5282' }
+    };
+    summarySheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Ajouter les données
+    data.forEach(livreur => {
+      const presenceRate = livreur.total_days > 0 
+        ? ((livreur.days_complete + livreur.days_partial) / livreur.total_days * 100).toFixed(1)
+        : 0;
+
+      summarySheet.addRow({
+        username: livreur.username,
+        total_days: livreur.total_days,
+        days_complete: livreur.days_complete,
+        days_partial: livreur.days_partial,
+        days_missing: livreur.days_missing,
+        total_km: `${livreur.total_km} km`,
+        avg_km_per_day: `${livreur.avg_km_per_day} km`,
+        presence_rate: `${presenceRate}%`
+      });
+    });
+
+    // Bordures
+    summarySheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    });
+
+    // ==================== ONGLET 2 : DÉTAILS JOUR PAR JOUR ====================
+    const detailsSheet = workbook.addWorksheet('Détails');
+
+    detailsSheet.columns = [
+      { header: 'Livreur', key: 'username', width: 20 },
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Scooter', key: 'scooter_id', width: 12 },
+      { header: 'Début', key: 'start_time', width: 18 },
+      { header: 'KM Début', key: 'start_km', width: 12 },
+      { header: 'Fin', key: 'end_time', width: 18 },
+      { header: 'KM Fin', key: 'end_km', width: 12 },
+      { header: 'KM parcourus', key: 'total_km', width: 15 },
+      { header: 'Durée', key: 'duration', width: 12 },
+      { header: 'Statut', key: 'status', width: 12 }
+    ];
+
+    // Styliser l'en-tête
+    detailsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    detailsSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4A90E2' }
+    };
+    detailsSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Fonction pour formater la date/heure
+    const formatDateTime = (dateTimeString) => {
+      if (!dateTimeString) return '-';
+      const dt = new Date(dateTimeString);
+      return dt.toLocaleString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    };
+
+    // Fonction pour formater la date seule
+    const formatDate = (dateString) => {
+      if (!dateString) return '-';
+      const dt = new Date(dateString);
+      return dt.toLocaleDateString('fr-FR');
+    };
+
+    // Fonction pour calculer la durée
+    const calculateDuration = (startTime, endTime) => {
+      if (!startTime || !endTime) return '-';
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diff = end - start;
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      return `${hours}h${minutes.toString().padStart(2, '0')}`;
+    };
+
+    // Fonction pour formater le statut
+    const formatStatus = (status) => {
+      switch (status) {
+        case 'complete': return 'Complet';
+        case 'partial': return 'En cours';
+        case 'missing': return 'Non pointé';
+        default: return status;
+      }
+    };
+
+    // Ajouter toutes les lignes de détails
+    data.forEach(livreur => {
+      livreur.timesheets.forEach(ts => {
+        detailsSheet.addRow({
+          username: livreur.username,
+          date: formatDate(ts.date),
+          scooter_id: ts.scooter_id || '-',
+          start_time: formatDateTime(ts.start_time),
+          start_km: ts.start_km !== null ? ts.start_km : '-',
+          end_time: formatDateTime(ts.end_time),
+          end_km: ts.end_km !== null ? ts.end_km : '-',
+          total_km: ts.total_km !== null ? `${ts.total_km} km` : '-',
+          duration: calculateDuration(ts.start_time, ts.end_time),
+          status: formatStatus(ts.status)
+        });
+      });
+    });
+
+    // Bordures
+    detailsSheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    });
+
+    // ==================== ONGLET 3 : STATISTIQUES ====================
+    const statsSheet = workbook.addWorksheet('Statistiques');
+
+    // Titre
+    statsSheet.mergeCells('A1:B1');
+    statsSheet.getCell('A1').value = `Statistiques de la période du ${formatDate(start_date)} au ${formatDate(end_date)}`;
+    statsSheet.getCell('A1').font = { bold: true, size: 14 };
+    statsSheet.getCell('A1').alignment = { horizontal: 'center' };
+
+    // Statistiques globales
+    statsSheet.addRow([]);
+    statsSheet.addRow(['Indicateur', 'Valeur']);
+    statsSheet.getRow(3).font = { bold: true };
+    statsSheet.getRow(3).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE2E8F0' }
+    };
+
+    statsSheet.addRow(['Total pointages attendus', stats.total_expected]);
+    statsSheet.addRow(['Total pointages effectués', stats.total_timesheets]);
+    statsSheet.addRow(['Pointages complets', stats.complete_timesheets]);
+    statsSheet.addRow(['Pointages partiels', stats.partial_timesheets]);
+    statsSheet.addRow(['Pointages manquants', stats.missing_timesheets]);
+    statsSheet.addRow(['Taux de pointage', `${stats.pointage_rate}%`]);
+    statsSheet.addRow([]);
+    statsSheet.addRow(['Total kilomètres parcourus', `${stats.total_km} km`]);
+    statsSheet.addRow(['Moyenne kilomètres par pointage', `${stats.avg_km} km`]);
+
+    // Largeur des colonnes
+    statsSheet.getColumn(1).width = 30;
+    statsSheet.getColumn(2).width = 20;
+
+    // Bordures
+    for (let i = 3; i <= statsSheet.lastRow.number; i++) {
+      statsSheet.getRow(i).eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    }
+
+    // Définir le nom du fichier
+    const filename = `Pointages_${start_date}_au_${end_date}.xlsx`;
+
+    // Envoyer le fichier
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Erreur exportTimesheetsRangeToExcel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'export Excel.'
+    });
+  }
+};
+
 module.exports = {
   uploadPhotoMiddleware,
   getTodayTimesheet,
@@ -1155,5 +1581,8 @@ module.exports = {
   updateTimesheet,
   updateStartActivity,
   updateEndActivity,
-  getUsedScooters
+  getUsedScooters,
+  exportTimesheetsToExcel,
+  getTimesheetsForDateRange,
+  exportTimesheetsRangeToExcel
 };

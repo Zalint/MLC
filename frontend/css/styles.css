@@ -5602,4 +5602,44 @@ input[type="tel"]:focus {
   }
 }
 
+/* Badges pour les statuts */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.badge-success {
+  background-color: #10b981;
+  color: white;
+}
+
+.badge-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.badge-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Bouton icône pour toggle */
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px 10px;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
+
 /* ===== FIN STYLES POINTAGES LIVREURS ===== */
