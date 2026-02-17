@@ -80,10 +80,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
           -- Zones pour MLC sans abonnement
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone1,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2000 THEN 1 ELSE 0 END) as mlc_zone2,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 3000 THEN 1 ELSE 0 END) as mlc_zone3,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1750, 2000, 3000) THEN 1 ELSE 0 END) as mlc_autre_zone
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000, 1750, 2500) THEN 1 ELSE 0 END) as mlc_autre_zone
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE DATE(o.created_at) = $1 AND u.role = 'LIVREUR' AND u.is_active = true
@@ -169,10 +169,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
         -- Zones pour MLC sans abonnement par livreur
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone1,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2000 THEN 1 ELSE 0 END) as mlc_zone2,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 3000 THEN 1 ELSE 0 END) as mlc_zone3,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1750, 2000, 3000) THEN 1 ELSE 0 END) as mlc_autre_zone,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000, 1750, 2500) THEN 1 ELSE 0 END) as mlc_autre_zone,
         -- Calcul des revenus et bénéfices
         COALESCE(SUM(o.course_price), 0) as total_revenus,
         COALESCE(e.carburant, 0) + COALESCE(e.reparations, 0) + COALESCE(e.police, 0) + COALESCE(e.autres, 0) as total_depenses,
@@ -564,10 +564,10 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
           -- Zones pour MLC sans abonnement
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone1,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2000 THEN 1 ELSE 0 END) as mlc_zone2,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 3000 THEN 1 ELSE 0 END) as mlc_zone3,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1750, 2000, 3000) THEN 1 ELSE 0 END) as mlc_autre_zone
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000,1750,2500) THEN 1 ELSE 0 END) as mlc_autre_zone
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE DATE(o.created_at) BETWEEN $1 AND $2 AND u.role = 'LIVREUR' AND u.is_active = true
@@ -648,10 +648,10 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
         -- Zones pour MLC sans abonnement par livreur
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone1,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2000 THEN 1 ELSE 0 END) as mlc_zone2,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 3000 THEN 1 ELSE 0 END) as mlc_zone3,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1750, 2000, 3000) THEN 1 ELSE 0 END) as mlc_autre_zone,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000,1750,2500) THEN 1 ELSE 0 END) as mlc_autre_zone,
         -- Calcul des revenus et bénéfices
         COALESCE(SUM(o.course_price), 0) as total_revenus,
         COALESCE(SUM(e.carburant), 0) + COALESCE(SUM(e.reparations), 0) + COALESCE(SUM(e.police), 0) + COALESCE(SUM(e.autres), 0) as total_depenses,
