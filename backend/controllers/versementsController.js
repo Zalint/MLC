@@ -2,16 +2,30 @@ const db = require('../models/database');
 const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 
-class PaymentsController {
+class VersementsController {
 
-  // GET /api/v1/payments
-  static async getPayments(req, res) {
+  // GET /api/v1/versements
+  static async getVersements(req, res) {
     try {
       const { startDate, endDate, livreur_id } = req.query;
 
       if (!startDate || !endDate) {
         return res.status(400).json({ error: 'Les dates de début et de fin sont requises' });
       }
+
+      const startTs = Date.parse(startDate);
+      const endTs   = Date.parse(endDate);
+      if (isNaN(startTs)) {
+        return res.status(400).json({ error: 'La date de début est invalide' });
+      }
+      if (isNaN(endTs)) {
+        return res.status(400).json({ error: 'La date de fin est invalide' });
+      }
+      if (startTs > endTs) {
+        return res.status(400).json({ error: 'La date de début doit être antérieure ou égale à la date de fin' });
+      }
+      const normStart = new Date(startTs).toISOString().split('T')[0];
+      const normEnd   = new Date(endTs).toISOString().split('T')[0];
 
       let query = `
         SELECT
@@ -30,7 +44,7 @@ class PaymentsController {
         LEFT JOIN users c ON v.created_by = c.id
         WHERE v.payment_date BETWEEN $1 AND $2
       `;
-      const params = [startDate, endDate];
+      const params = [normStart, normEnd];
 
       if (livreur_id) {
         params.push(livreur_id);
@@ -49,8 +63,8 @@ class PaymentsController {
     }
   }
 
-  // POST /api/v1/payments
-  static async createPayment(req, res) {
+  // POST /api/v1/versements
+  static async createVersement(req, res) {
     try {
       const { payment_date, livreur_id, mode, commentaire, notes, montant } = req.body;
 
@@ -58,8 +72,9 @@ class PaymentsController {
         return res.status(400).json({ error: 'Date, livreur, mode et montant sont requis' });
       }
 
-      if (parseFloat(montant) <= 0) {
-        return res.status(400).json({ error: 'Le montant doit être supérieur à 0' });
+      const parsedMontant = parseFloat(montant);
+      if (!Number.isFinite(parsedMontant) || parsedMontant <= 0) {
+        return res.status(400).json({ error: 'Le montant doit être un nombre valide et supérieur à 0' });
       }
 
       const livreurRes = await db.query('SELECT id FROM users WHERE id = $1 AND is_active = true', [livreur_id]);
@@ -72,7 +87,7 @@ class PaymentsController {
         `INSERT INTO versements (id, payment_date, livreur_id, mode, commentaire, notes, montant, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [id, payment_date, livreur_id, mode, commentaire || null, notes || null, Math.round(parseFloat(montant)), req.user.id]
+        [id, payment_date, livreur_id, mode, commentaire || null, notes || null, Math.round(parsedMontant), req.user.id]
       );
 
       res.status(201).json({ success: true, message: 'Versement enregistré avec succès', payment: result.rows[0] });
@@ -82,8 +97,8 @@ class PaymentsController {
     }
   }
 
-  // DELETE /api/v1/payments/:id
-  static async deletePayment(req, res) {
+  // DELETE /api/v1/versements/:id
+  static async deleteVersement(req, res) {
     try {
       const { id } = req.params;
 
@@ -111,14 +126,28 @@ class PaymentsController {
     }
   }
 
-  // GET /api/v1/payments/export
-  static async exportPayments(req, res) {
+  // GET /api/v1/versements/export
+  static async exportVersements(req, res) {
     try {
       const { startDate, endDate, livreur_id } = req.query;
 
       if (!startDate || !endDate) {
         return res.status(400).json({ error: 'Les dates de début et de fin sont requises' });
       }
+
+      const startTs = Date.parse(startDate);
+      const endTs   = Date.parse(endDate);
+      if (isNaN(startTs)) {
+        return res.status(400).json({ error: 'La date de début est invalide' });
+      }
+      if (isNaN(endTs)) {
+        return res.status(400).json({ error: 'La date de fin est invalide' });
+      }
+      if (startTs > endTs) {
+        return res.status(400).json({ error: 'La date de début doit être antérieure ou égale à la date de fin' });
+      }
+      const normStart = new Date(startTs).toISOString().split('T')[0];
+      const normEnd   = new Date(endTs).toISOString().split('T')[0];
 
       let query = `
         SELECT
@@ -132,7 +161,7 @@ class PaymentsController {
         JOIN users u ON v.livreur_id = u.id
         WHERE v.payment_date BETWEEN $1 AND $2
       `;
-      const params = [startDate, endDate];
+      const params = [normStart, normEnd];
 
       if (livreur_id) {
         params.push(livreur_id);
@@ -161,7 +190,7 @@ class PaymentsController {
       headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
       headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
-      const modeLabels = { WAVE: 'Wave', ORANGE_MONEY: 'Orange Money', CASH: 'Cash', AUTRE: 'Autre' };
+      const modeLabels = { WAVE: 'Wave', ORANGE_MONEY: 'Orange Money', CASH: 'Espèces', AUTRE: 'Autre' };
 
       rows.forEach(row => {
         const dateVal = row.payment_date instanceof Date
@@ -207,4 +236,4 @@ class PaymentsController {
   }
 }
 
-module.exports = PaymentsController;
+module.exports = VersementsController;

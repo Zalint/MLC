@@ -5644,9 +5644,9 @@ input[type="tel"]:focus {
 
 /* ===== FIN STYLES POINTAGES LIVREURS ===== */
 
-/* ===== PAGE PAIEMENTS LIVREURS ===== */
+/* ===== PAGE VERSEMENTS LIVREURS ===== */
 
-.payments-layout {
+.versements-layout {
   display: grid;
   grid-template-columns: 380px 1fr;
   gap: 1.5rem;
@@ -5654,8 +5654,8 @@ input[type="tel"]:focus {
   padding: 1rem 0;
 }
 
-.payments-form-card,
-.payments-table-card {
+.versements-form-card,
+.versements-table-card {
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,.08);
@@ -5671,15 +5671,15 @@ input[type="tel"]:focus {
   border-bottom: 1px solid #e5e7eb;
 }
 
-/* Radios mode de paiement */
-.payment-mode-radios {
+/* Radios mode de versement */
+.versement-mode-radios {
   display: flex;
   flex-wrap: wrap;
   gap: .6rem;
   margin-top: .25rem;
 }
 
-.payment-mode-radio {
+.versement-mode-radio {
   display: flex;
   align-items: center;
   gap: .4rem;
@@ -5692,31 +5692,31 @@ input[type="tel"]:focus {
   user-select: none;
 }
 
-.payment-mode-radio:hover {
+.versement-mode-radio:hover {
   border-color: #2563eb;
   background: #eff6ff;
 }
 
-.payment-mode-radio input[type="radio"] {
+.versement-mode-radio input[type="radio"] {
   accent-color: #2563eb;
   width: 15px;
   height: 15px;
   cursor: pointer;
 }
 
-.payment-mode-radio:has(input:checked) {
+.versement-mode-radio:has(input:checked) {
   border-color: #2563eb;
   background: #eff6ff;
 }
 
-.payment-mode-label {
+.versement-mode-label {
   font-size: .9rem;
   font-weight: 500;
   color: #374151;
 }
 
 /* Textarea notes */
-#payment-notes {
+#versement-notes {
   resize: vertical;
   min-height: 60px;
 }
@@ -5728,7 +5728,7 @@ input[type="tel"]:focus {
 }
 
 /* Barre de filtres */
-.payments-filter-bar {
+.versements-filter-bar {
   margin-bottom: 1rem;
 }
 
@@ -5759,14 +5759,14 @@ input[type="tel"]:focus {
   height: 36px;
 }
 
-/* Tableau paiements */
-.payments-table {
+/* Tableau versements */
+.versements-table {
   width: 100%;
   border-collapse: collapse;
   font-size: .875rem;
 }
 
-.payments-table thead th {
+.versements-table thead th {
   background: #2563eb;
   color: #fff;
   font-weight: 600;
@@ -5775,32 +5775,32 @@ input[type="tel"]:focus {
   white-space: nowrap;
 }
 
-.payments-table tbody tr:nth-child(even) {
+.versements-table tbody tr:nth-child(even) {
   background: #f9fafb;
 }
 
-.payments-table tbody tr:hover {
+.versements-table tbody tr:hover {
   background: #eff6ff;
 }
 
-.payments-table td {
+.versements-table td {
   padding: .6rem .85rem;
   border-bottom: 1px solid #e5e7eb;
   vertical-align: middle;
 }
 
-.payments-total-row {
+.versements-total-row {
   background: #f0f4ff !important;
   font-weight: 700;
 }
 
-.payments-total-row td {
+.versements-total-row td {
   border-top: 2px solid #2563eb;
   padding: .75rem .85rem;
 }
 
-/* Badges mode de paiement */
-.payment-badge {
+/* Badges mode de versement */
+.versement-badge {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 20px;
@@ -5830,7 +5830,7 @@ input[type="tel"]:focus {
 }
 
 /* Bouton supprimer */
-.btn-delete-payment {
+.btn-delete-versement {
   background: none;
   border: none;
   color: #ef4444;
@@ -5842,16 +5842,16 @@ input[type="tel"]:focus {
   line-height: 1;
 }
 
-.btn-delete-payment:hover {
+.btn-delete-versement:hover {
   background: #fee2e2;
 }
 
-.btn-delete-payment.btn-delete-disabled {
+.btn-delete-versement.btn-delete-disabled {
   color: #d1d5db;
   cursor: not-allowed;
 }
 
-.btn-delete-payment.btn-delete-disabled:hover {
+.btn-delete-versement.btn-delete-disabled:hover {
   background: none;
 }
 
@@ -5862,9 +5862,9 @@ input[type="tel"]:focus {
 .text-error  { color: #ef4444; }
 .font-bold   { font-weight: 700; }
 
-/* Responsive paiements */
+/* Responsive versements */
 @media (max-width: 900px) {
-  .payments-layout {
+  .versements-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -5875,11 +5875,11 @@ input[type="tel"]:focus {
     align-items: stretch;
   }
 
-  .payments-table thead {
+  .versements-table thead {
     display: none;
   }
 
-  .payments-table tbody tr {
+  .versements-table tbody tr {
     display: block;
     margin-bottom: 1rem;
     border: 1px solid #e5e7eb;
@@ -5887,18 +5887,18 @@ input[type="tel"]:focus {
     padding: .5rem;
   }
 
-  .payments-table td {
+  .versements-table td {
     display: block;
     padding: .3rem .5rem;
     border: none;
     text-align: left !important;
   }
 
-  .payments-table td::before {
+  .versements-table td::before {
     content: attr(data-label) ': ';
     font-weight: 600;
     color: #374151;
   }
 }
 
-/* ===== FIN STYLES PAIEMENTS ===== */
+/* ===== FIN STYLES VERSEMENTS ===== */

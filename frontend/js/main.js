@@ -1142,10 +1142,10 @@ class PageManager {
             }
           }
           break;
-        case 'payments':
+        case 'versements':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
-            if (window.PaymentsModule) {
-              await window.PaymentsModule.init();
+            if (window.VersementsModule) {
+              await window.VersementsModule.init();
             }
           } else {
             ToastManager.error('Accès non autorisé');
@@ -1364,6 +1364,11 @@ class AuthManager {
         navExpenses.classList.add('hidden');
         navExpenses.style.display = 'none';
       }
+      const navVersementsEl = document.getElementById('nav-versements');
+      if (navVersementsEl) {
+        navVersementsEl.classList.add('hidden');
+        navVersementsEl.style.display = 'none';
+      }
       if (navMonthlyDashboard) {
         navMonthlyDashboard.classList.add('hidden');
         navMonthlyDashboard.style.display = 'none';
@@ -1450,7 +1455,7 @@ class AuthManager {
         'nav-users',
         'nav-subscriptions',
         'nav-expenses',
-        'nav-payments',
+        'nav-versements',
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard',
         'nav-gps-tracking',

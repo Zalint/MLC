@@ -69,7 +69,7 @@
                 <span class="icon">📊</span>
                 <span class="text">Dépenses</span>
             </button>
-            <button class="nav-item hidden" id="nav-payments" data-page="payments">
+            <button class="nav-item hidden" id="nav-versements" data-page="versements">
                 <span class="icon">💳</span>
                 <span class="text">Versements</span>
             </button>
@@ -1757,91 +1757,91 @@
         </div>
 
         <!-- Page Versements (managers/admins) -->
-        <div id="payments-page" class="page">
+        <div id="versements-page" class="page">
             <div class="page-header">
                 <h2>Versements livreurs</h2>
             </div>
 
             <!-- Formulaire d'enregistrement -->
-            <div class="payments-layout">
-                <div class="payments-form-card card">
+            <div class="versements-layout">
+                <div class="versements-form-card card">
                     <h3 class="card-title">Enregistrer un versement</h3>
-                    <form id="payment-form" novalidate>
+                    <form id="versement-form" novalidate>
 
                         <div class="form-group">
-                            <label for="payment-date">Date</label>
-                            <input type="date" id="payment-date" class="form-control" required>
+                            <label for="versement-date">Date</label>
+                            <input type="date" id="versement-date" class="form-control" required>
                         </div>
 
                         <div class="form-group">
-                            <label for="payment-livreur-select">Livreur</label>
-                            <select id="payment-livreur-select" class="form-control" required>
+                            <label for="versement-livreur-select">Livreur</label>
+                            <select id="versement-livreur-select" class="form-control" required>
                                 <option value="">-- Sélectionner un livreur --</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label>Mode de paiement</label>
-                            <div id="payment-mode-radios" class="payment-mode-radios">
-                                <!-- Généré dynamiquement depuis payment-modes.json -->
+                            <label>Mode de versement</label>
+                            <div id="versement-mode-radios" class="versement-mode-radios">
+                                <!-- Généré dynamiquement depuis versement-modes.json -->
                             </div>
                         </div>
 
-                        <div class="form-group" id="payment-commentaire-group" style="display:none;">
-                            <label for="payment-commentaire">Commentaire <span class="text-muted">(ex : nom du client)</span></label>
-                            <input type="text" id="payment-commentaire" class="form-control"
+                        <div class="form-group" id="versement-commentaire-group" style="display:none;">
+                            <label for="versement-commentaire">Commentaire <span class="text-muted">(ex : nom du client)</span></label>
+                            <input type="text" id="versement-commentaire" class="form-control"
                                    placeholder="Nom du client, référence...">
                         </div>
 
                         <div class="form-group">
-                            <label for="payment-notes">Notes <span class="text-muted">(libre)</span></label>
-                            <textarea id="payment-notes" class="form-control" rows="2"
+                            <label for="versement-notes">Notes <span class="text-muted">(libre)</span></label>
+                            <textarea id="versement-notes" class="form-control" rows="2"
                                       placeholder="Toute information complémentaire..."></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="payment-montant">Montant (FCFA)</label>
-                            <input type="number" id="payment-montant" class="form-control"
+                            <label for="versement-montant">Montant (FCFA)</label>
+                            <input type="number" id="versement-montant" class="form-control"
                                    placeholder="0" min="1" step="1" required>
                         </div>
 
-                        <button type="submit" id="payment-submit-btn" class="btn btn-primary btn-full">
+                        <button type="submit" id="versement-submit-btn" class="btn btn-primary btn-full">
                             Enregistrer
                         </button>
                     </form>
                 </div>
 
                 <!-- Tableau de consultation -->
-                <div class="payments-table-card card">
+                <div class="versements-table-card card">
                     <h3 class="card-title">Historique des versements</h3>
 
-                    <div class="payments-filter-bar">
+                    <div class="versements-filter-bar">
                         <div class="filter-row">
                             <div class="form-group form-group-inline">
-                                <label for="payment-filter-start">Du</label>
-                                <input type="date" id="payment-filter-start" class="form-control">
+                                <label for="versement-filter-start">Du</label>
+                                <input type="date" id="versement-filter-start" class="form-control">
                             </div>
                             <div class="form-group form-group-inline">
-                                <label for="payment-filter-end">Au</label>
-                                <input type="date" id="payment-filter-end" class="form-control">
+                                <label for="versement-filter-end">Au</label>
+                                <input type="date" id="versement-filter-end" class="form-control">
                             </div>
                             <div class="form-group form-group-inline">
-                                <label for="payment-filter-livreur">Livreur</label>
-                                <select id="payment-filter-livreur" class="form-control">
+                                <label for="versement-filter-livreur">Livreur</label>
+                                <select id="versement-filter-livreur" class="form-control">
                                     <option value="">-- Tous --</option>
                                 </select>
                             </div>
-                            <button id="payment-filter-btn" class="btn btn-secondary btn-sm">
+                            <button id="versement-filter-btn" class="btn btn-secondary btn-sm">
                                 Filtrer
                             </button>
-                            <button id="payment-export-btn" class="btn btn-primary btn-sm">
+                            <button id="versement-export-btn" class="btn btn-primary btn-sm">
                                 Export Excel
                             </button>
                         </div>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="payments-table">
+                        <table class="versements-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -1853,13 +1853,13 @@
                                     <th class="text-center">Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="payments-table-body">
+                            <tbody id="versements-table-body">
                                 <tr><td colspan="7" class="text-center text-muted">Chargement...</td></tr>
                             </tbody>
                             <tfoot>
-                                <tr class="payments-total-row">
+                                <tr class="versements-total-row">
                                     <td colspan="5" class="text-right font-bold">Total</td>
-                                    <td class="text-right font-bold" id="payments-total">0 FCFA</td>
+                                    <td class="text-right font-bold" id="versements-total">0 FCFA</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1907,7 +1907,7 @@
     <script src="js/mlc-table.js"></script>
     <script src="js/commandes-en-cours.js"></script>
     <script src="js/client-credits.js"></script>
-    <script src="js/payments.js"></script>
+    <script src="js/versements.js"></script>
 
     <!-- ==================== MODALS POINTAGES ==================== -->
     
