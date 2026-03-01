@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS orders (
   address      TEXT,
   description  TEXT,
   amount       DECIMAL(12,2),
-  order_type   VARCHAR(5) CHECK (order_type IN ('MATA','MLC','AUTRE')) NOT NULL,
+  order_type   VARCHAR(10) CHECK (order_type IN ('MATA','MLC','YANGO','KEUR_BALLI','AUTRE')) NOT NULL,
   created_by   UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );

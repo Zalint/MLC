@@ -173,8 +173,8 @@ const validateOrderCreation = [
     .withMessage('Le montant doit être un nombre positif inférieur à 1 000 000'),
     
   body('order_type')
-    .isIn(['MATA', 'MLC', 'AUTRE'])
-    .withMessage('Le type de commande doit être MATA, MLC ou AUTRE'),
+    .isIn(['MATA', 'MLC', 'YANGO', 'KEUR_BALLI', 'AUTRE'])
+    .withMessage('Le type de commande doit être MATA, MLC, Yango, Keur Balli ou Autre'),
   
   body('adresse_source')
     .if(body('order_type').custom(val => val === 'MLC' || val === 'AUTRE'))

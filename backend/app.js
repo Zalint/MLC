@@ -118,6 +118,16 @@ app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)
 app.use('/api', commandesEnCoursRoutes);
 
+// Route config : types de commandes (public, lu depuis order-types.json)
+app.get('/api/v1/config/order-types', (req, res) => {
+  try {
+    const config = require('./config/order-types.json');
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de charger la configuration des types de commandes' });
+  }
+});
+
 // Route de santé
 app.get('/api/health', (req, res) => {
   res.json({

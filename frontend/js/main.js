@@ -27,6 +27,47 @@ const AppState = {
 // Exposer AppState sur window pour les autres modules
 window.AppState = AppState;
 
+// ===== CONFIGURATION DES TYPES DE COMMANDES =====
+// Chargé dynamiquement depuis backend/config/order-types.json
+window.ORDER_TYPES_CONFIG = null;
+
+async function loadOrderTypesConfig() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/config/order-types`);
+    if (!res.ok) throw new Error('Erreur chargement config');
+    window.ORDER_TYPES_CONFIG = await res.json();
+  } catch (e) {
+    // Fallback si l'API est inaccessible
+    window.ORDER_TYPES_CONFIG = {
+      coreTypes: ['MATA', 'MLC'],
+      extensions: [
+        { label: 'Yango',      value: 'YANGO',      category: 'AUTRE' },
+        { label: 'Keur Balli', value: 'KEUR_BALLI', category: 'AUTRE' },
+        { label: 'Autre',      value: 'AUTRE',       category: 'AUTRE' }
+      ]
+    };
+  }
+}
+
+// Retourne toutes les options pour les dropdowns de formulaire
+function getOrderTypeOptions() {
+  const config = window.ORDER_TYPES_CONFIG;
+  if (!config) return [];
+  const core = config.coreTypes.map(v => ({ label: v, value: v }));
+  const exts = config.extensions.map(e => ({ label: e.label, value: e.value }));
+  return [...core, ...exts];
+}
+
+// Retourne les labels d'affichage pour le récapitulatif mensuel
+// (inclut les types dérivés MATA/MLC + toutes les extensions)
+function getRecapAllTypes() {
+  const config = window.ORDER_TYPES_CONFIG;
+  const fixed = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne'];
+  if (!config) return [...fixed, 'AUTRES', 'AUTRE'];
+  const extValues = config.extensions.map(e => e.value);
+  return [...fixed, ...extValues, 'AUTRES'];
+}
+
 // ===== UTILITAIRES =====
 class Utils {
   // Formater une date
@@ -1465,6 +1506,9 @@ class DashboardManager {
         .badge-mlc {
           background-color: #007bff;
         }
+        .badge-autre {
+          background-color: #6c757d;
+        }
       `;
       document.head.appendChild(styleElement);
       this.badgeStylesInjected = true;
@@ -1662,6 +1706,9 @@ class DashboardManager {
       return;
     }
 
+    // Extensions dynamiques depuis order-types.json
+    const extensions = (window.ORDER_TYPES_CONFIG && window.ORDER_TYPES_CONFIG.extensions) || [];
+
     container.innerHTML = `
       <div class="table-container">
         <table class="table">
@@ -1671,6 +1718,7 @@ class DashboardManager {
               <th>Commandes</th>
               <th>🛒 MATA</th>
               <th>📦 MLC</th>
+              ${extensions.map(e => `<th>${e.label}</th>`).join('')}
               <th>Courses</th>
               <th>Dépenses</th>
               <th>Bénéfice</th>
@@ -1691,6 +1739,12 @@ class DashboardManager {
               const mlcSimpleCount = statsByType['MLC simple'] ? parseInt(statsByType['MLC simple'].count) : 0;
               const mlcAbonnementCount = statsByType['MLC avec abonnement'] ? parseInt(statsByType['MLC avec abonnement'].count) : 0;
               const mlcTotalCount = mlcSimpleCount + mlcAbonnementCount;
+
+              // Colonnes dynamiques pour chaque extension
+              const extensionCols = extensions.map(e => {
+                const count = statsByType[e.value] ? parseInt(statsByType[e.value].count) : 0;
+                return `<td class="text-center"><span class="badge badge-autre">${count}</span></td>`;
+              }).join('');
               
               return `
                 <tr>
@@ -1698,6 +1752,7 @@ class DashboardManager {
                   <td>${item.nombre_commandes}</td>
                   <td class="text-center"><span class="badge badge-mata">${mataCount}</span></td>
                   <td class="text-center"><span class="badge badge-mlc">${mlcTotalCount}</span></td>
+                  ${extensionCols}
                   <td>${Utils.formatAmount(item.total_montant)}</td>
                   <td>${Utils.formatAmount(item.total_depenses)}</td>
                   <td class="${profitClass}">${Utils.formatAmount(profit)}</td>
@@ -2131,8 +2186,8 @@ class MonthlyDashboardManager {
         const expenseData = expensesMap[expenseKey] || { carburant: 0, reparations: 0, police: 0, autres: 0, km_parcourus: 0 };
         const gpsData = gpsMap[gpsKey] || { total_distance_km: 0 };
         
-        // Trouver tous les types pour ce livreur/date
-        const allTypes = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne', 'AUTRES', 'AUTRE'];
+        // Trouver tous les types pour ce livreur/date (dynamique depuis order-types.json)
+        const allTypes = getRecapAllTypes();
         const typesForThisLivreurDate = allTypes.filter(type => {
           const typeKey = `${date}_${livreur}_${type}`;
           const typeInfo = typeDataMap[typeKey];
@@ -2256,6 +2311,7 @@ class MonthlyDashboardManager {
             <option value="MLC avec abonnement">MLC abonnement</option>
             <option value="MATA client">MATA client</option>
             <option value="MATA interne">MATA interne</option>
+            ${(window.ORDER_TYPES_CONFIG ? window.ORDER_TYPES_CONFIG.extensions : []).map(e => `<option value="${e.value}">${e.label}</option>`).join('')}
             <option value="AUTRES">Autres</option>
           </select>
         </div>
@@ -4406,10 +4462,7 @@ class OrderManager {
           </div>
           <div class="form-group">
             <label for="edit-order-type">Type de commande *</label>
-            <select id="edit-order-type" name="order_type" required>
-              <option value="MATA" ${order.order_type === 'MATA' ? 'selected' : ''}>MATA</option>
-              <option value="MLC" ${order.order_type === 'MLC' ? 'selected' : ''}>MLC</option>
-              <option value="AUTRE" ${order.order_type === 'AUTRE' ? 'selected' : ''}>AUTRE</option>
+            <select id="edit-order-type" name="order_type" required data-current-type="${order.order_type || ''}">
             </select>
           </div>
           <div class="form-group" id="edit-course-price-group" style="display: ${order.order_type ? 'block' : 'none'};">
@@ -4442,6 +4495,22 @@ class OrderManager {
       // Hide old address field if present
       const oldAddressField = document.getElementById('edit-address');
       if (oldAddressField) oldAddressField.parentElement.style.display = 'none';
+
+      // Population dynamique du dropdown édition (depuis order-types.json)
+      (function populateEditOrderTypeDropdown() {
+        const sel = document.getElementById('edit-order-type');
+        if (!sel) return;
+        const currentVal = sel.value || order.order_type || '';
+        sel.innerHTML = '';
+        getOrderTypeOptions().forEach(({ label, value }) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          if (value === currentVal) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        if (!sel.value && currentVal) sel.value = currentVal;
+      })();
 
       // Show/hide point de vente and set required logic
       const orderTypeSelect = document.getElementById('edit-order-type');
@@ -7199,6 +7268,19 @@ class App {
       }
     }
 
+    // --- Population dynamique du dropdown type de commande (depuis order-types.json) ---
+    (function populateOrderTypeDropdown() {
+      const sel = document.getElementById('order-type');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Sélectionner un type</option>';
+      getOrderTypeOptions().forEach(({ label, value }) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    })();
+
     // --- Order form dynamic fields logic ---
     const orderTypeSelect = document.getElementById('order-type');
     const adresseSourceGroup = document.getElementById('adresse-source-group');
@@ -7284,7 +7366,8 @@ class App {
 }
 
 // ===== DÉMARRAGE DE L'APPLICATION =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadOrderTypesConfig();
   App.init();
   
   // Vérifier l'API Contacts après l'initialisation

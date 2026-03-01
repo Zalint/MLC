@@ -1,0 +1,20 @@
+{
+  "coreTypes": ["MATA", "MLC"],
+  "extensions": [
+    {
+      "label": "Yango",
+      "value": "YANGO",
+      "category": "AUTRE"
+    },
+    {
+      "label": "Keur Balli",
+      "value": "KEUR_BALLI",
+      "category": "AUTRE"
+    },
+    {
+      "label": "Autre",
+      "value": "AUTRE",
+      "category": "AUTRE"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Expense = require('../models/Expense');
 const ExcelJS = require('exceljs');
 const OpenAI = require('openai');
+const orderTypesConfig = require('../config/order-types.json');
 
 class OrderController {
   // Créer une nouvelle commande
@@ -2847,7 +2848,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       });
 
       // Ajouter les données ligne par ligne (une ligne par type de course)
-      const allTypes = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne', 'AUTRES', 'AUTRE'];
+      // allTypes construit dynamiquement depuis order-types.json
+      const extensionValues = orderTypesConfig.extensions.map(e => e.value);
+      const allTypes = ['MLC simple', 'MLC avec abonnement', 'MATA client', 'MATA interne', ...extensionValues, 'AUTRES'];
       
       dates.forEach(date => {
         const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
