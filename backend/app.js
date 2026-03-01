@@ -27,6 +27,7 @@ const auditRoutes = require('./routes/audit');
 const commandesEnCoursRoutes = require('./routes/commandesEnCours');
 const clientCreditsRoutes = require('./routes/clientCredits');
 const timesheetRoutes = require('./routes/timesheets');
+const paymentsRoutes = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -113,6 +114,7 @@ app.use('/api/v1/gps', gpsRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/clients', clientCreditsRoutes);
 app.use('/api/v1/timesheets', timesheetRoutes);
+app.use('/api/v1/payments', paymentsRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)
@@ -125,6 +127,18 @@ app.get('/api/v1/config/order-types', (req, res) => {
     res.json(config);
   } catch (err) {
     res.status(500).json({ error: 'Impossible de charger la configuration des types de commandes' });
+  }
+});
+
+// Route config : modes de paiement (lu depuis payment-modes.json)
+app.get('/api/v1/config/payment-modes', (req, res) => {
+  try {
+    // Vider le cache pour permettre les modifications à chaud
+    delete require.cache[require.resolve('./config/payment-modes.json')];
+    const config = require('./config/payment-modes.json');
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de charger la configuration des modes de paiement' });
   }
 });
 

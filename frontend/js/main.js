@@ -1142,6 +1142,15 @@ class PageManager {
             }
           }
           break;
+        case 'payments':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            if (window.PaymentsModule) {
+              await window.PaymentsModule.init();
+            }
+          } else {
+            ToastManager.error('Accès non autorisé');
+          }
+          break;
         case 'profile':
           await ProfileManager.loadProfile();
           break;
@@ -1440,7 +1449,8 @@ class AuthManager {
       const elementsToCheck = [
         'nav-users',
         'nav-subscriptions',
-        'nav-expenses', 
+        'nav-expenses',
+        'nav-payments',
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard',
         'nav-gps-tracking',
