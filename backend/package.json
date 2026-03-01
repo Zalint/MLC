@@ -4,9 +4,11 @@
   "description": "Backend API pour le système Matix Livreur",
   "main": "app.js",
   "scripts": {
+    "prestart": "node sql/run_migration.js",
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "jest"
+    "test": "jest",
+    "migrate:order-types": "node sql/run_migration.js"
   },
   "dependencies": {
     "axios": "^1.6.0",

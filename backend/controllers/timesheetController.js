@@ -17,6 +17,14 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10 MB
     files: 1 // Max 1 fichier par pointage
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/png'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Format de fichier non accepté. Seuls JPEG et PNG sont autorisés.'));
+    }
   }
 }).single('photo');
 
@@ -37,9 +45,10 @@ const uploadPhotoMiddleware = (req, res, next) => {
         message: `Erreur d'upload: ${err.message}`
       });
     } else if (err) {
-      return res.status(500).json({
+      // Erreur personnalisée (ex: fileFilter)
+      return res.status(400).json({
         success: false,
-        message: 'Erreur lors de l\'upload de la photo.'
+        message: err.message || 'Erreur lors de l\'upload de la photo.'
       });
     }
     next();
