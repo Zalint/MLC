@@ -3766,8 +3766,30 @@ class OrderManager {
       if (orderData.order_type) {
         const orderTypeSelect = document.getElementById('order-type');
         if (orderTypeSelect) {
+          console.log('🔧 [prefill] Options disponibles:', Array.from(orderTypeSelect.options).map(o => o.value));
+          console.log('🔧 [prefill] Tentative de set order_type:', orderData.order_type);
+
+          // S'assurer que l'option existe dans le dropdown (peut être masquée par settings pour les livreurs)
+          const optionExists = Array.from(orderTypeSelect.options).some(o => o.value === orderData.order_type);
+          if (!optionExists) {
+            console.warn('⚠️ [prefill] Option', orderData.order_type, 'absente du dropdown, ajout forcé...');
+            const opt = document.createElement('option');
+            opt.value = orderData.order_type;
+            opt.textContent = orderData.order_type;
+            orderTypeSelect.appendChild(opt);
+          }
+
           orderTypeSelect.value = orderData.order_type;
-          orderTypeSelect.dispatchEvent(new Event('change')); // Trigger les events pour afficher les bons champs
+          console.log('🔧 [prefill] Valeur après set:', orderTypeSelect.value);
+
+          // Griser visuellement sans disabled (disabled empêche FormData + peut reset l'affichage)
+          orderTypeSelect.style.pointerEvents = 'none';
+          orderTypeSelect.style.opacity = '0.6';
+          orderTypeSelect.style.backgroundColor = '#e9ecef';
+          orderTypeSelect.dataset.locked = 'true';
+
+          orderTypeSelect.dispatchEvent(new Event('change'));
+          console.log('🔧 [prefill] Valeur après change event:', orderTypeSelect.value);
         }
       }
 
@@ -4431,7 +4453,15 @@ class OrderManager {
       
       // Réinitialiser le formulaire
       document.getElementById('new-order-form').reset();
-      
+      // Débloquer le dropdown type (peut avoir été verrouillé par "Prendre la livraison")
+      const orderTypeSelect = document.getElementById('order-type');
+      if (orderTypeSelect && orderTypeSelect.dataset.locked === 'true') {
+        orderTypeSelect.style.pointerEvents = '';
+        orderTypeSelect.style.opacity = '';
+        orderTypeSelect.style.backgroundColor = '';
+        delete orderTypeSelect.dataset.locked;
+      }
+
       // Réinitialiser les pièces jointes
       if (typeof AttachmentsManager !== 'undefined') {
         AttachmentsManager.reset();
@@ -6883,7 +6913,13 @@ class App {
       
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
-      
+
+      // Ajouter commande_en_cours_id si présent (pour autoriser MATA côté backend)
+      const commandeEnCoursId = sessionStorage.getItem('commande_en_cours_to_complete');
+      if (commandeEnCoursId) {
+        orderData.commande_en_cours_id = commandeEnCoursId;
+      }
+
       // Fonction pour réactiver le bouton
       const resetButton = () => {
         submitBtn.disabled = false;
@@ -7346,7 +7382,9 @@ class App {
       const sel = document.getElementById('order-type');
       if (!sel) return;
       sel.innerHTML = '<option value="">Sélectionner un type</option>';
-      getFilteredOrderTypeOptions().forEach(({ label, value }) => {
+      const options = getFilteredOrderTypeOptions();
+      console.log('🔧 [populateOrderTypeDropdown] Options chargées:', options.map(o => o.value));
+      options.forEach(({ label, value }) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = label;
