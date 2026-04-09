@@ -984,9 +984,36 @@ class PageManager {
             } catch (error) {
               ToastManager.error('Erreur lors du chargement des livreurs');
             }
+          // Affichage du champ date pour managers/admins
+            const orderDateGroup = document.getElementById('order-date-group');
+            if (orderDateGroup) orderDateGroup.style.display = 'block';
           } else {
             livreurGroup.style.display = 'none';
+            const orderDateGroup = document.getElementById('order-date-group');
+            if (orderDateGroup) orderDateGroup.style.display = 'none';
           }
+
+          // Population dynamique du dropdown type de commande (filtré par permissions)
+          (function populateOrderTypeDropdownFiltered() {
+            const sel = document.getElementById('order-type');
+            if (!sel) return;
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">Sélectionner un type</option>';
+            const allOptions = getOrderTypeOptions();
+            let options = allOptions;
+            if (AppState.user && AppState.user.role === 'LIVREUR') {
+              const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
+              const allowed = AppState.user.allowed_order_types || defaultAllowed;
+              options = allOptions.filter(t => allowed.includes(t.value));
+            }
+            options.forEach(({ label, value }) => {
+              const opt = document.createElement('option');
+              opt.value = value;
+              opt.textContent = label;
+              if (value === currentVal) opt.selected = true;
+              sel.appendChild(opt);
+            });
+          })();
           break;
         case 'orders':
           await OrderManager.loadOrders();
@@ -5535,13 +5562,26 @@ class LivreurManager {
         return;
       }
 
+      // Générer les checkboxes de types de commandes depuis order-types.json
+      const allTypes = getOrderTypeOptions();
+      const defaultAllowed = allTypes.filter(t => t.value !== 'MATA').map(t => t.value);
+      const currentAllowed = livreur.allowed_order_types || defaultAllowed;
+
+      const orderTypeCheckboxes = allTypes.map(t => {
+        const checked = currentAllowed.includes(t.value) ? 'checked' : '';
+        return `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:4px;border-radius:20px;cursor:pointer;background:${checked ? '#e8f5e9' : '#f5f5f5'};border:1px solid ${checked ? '#4caf50' : '#ddd'};font-size:14px;white-space:nowrap;">
+          <input type="checkbox" name="allowed_order_types" value="${t.value}" ${checked} style="margin:0;">
+          ${Utils.escapeHtml(t.label)}
+        </label>`;
+      }).join('');
+
       const content = `
         <form id="edit-livreur-form">
           <div class="form-group">
             <label for="edit-livreur-username">Nom d'utilisateur *</label>
             <input type="text" id="edit-livreur-username" name="username" value="${Utils.escapeHtml(livreur.username)}" required>
           </div>
-          
+
           <div class="form-group">
             <label for="edit-livreur-active">Statut</label>
             <select id="edit-livreur-active" name="is_active">
@@ -5549,7 +5589,14 @@ class LivreurManager {
               <option value="false" ${!livreur.is_active ? 'selected' : ''}>Inactif</option>
             </select>
           </div>
-          
+
+          <div class="form-group">
+            <label>Types de courses autorisés</label>
+            <div style="display:flex;flex-wrap:wrap;gap:2px;padding:8px 4px;">
+              ${orderTypeCheckboxes}
+            </div>
+          </div>
+
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Sauvegarder</button>
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
@@ -5566,10 +5613,12 @@ class LivreurManager {
 
       document.getElementById('edit-livreur-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
-        const userData = Object.fromEntries(formData.entries());
-        userData.is_active = userData.is_active === 'true';
+        const userData = {};
+        userData.username = formData.get('username');
+        userData.is_active = formData.get('is_active') === 'true';
+        userData.allowed_order_types = formData.getAll('allowed_order_types');
 
         try {
           await ApiClient.updateUser(livreurId, userData);
@@ -6855,6 +6904,11 @@ class App {
         }
       }
       
+      // Supprimer created_at si vide (laisser le serveur utiliser NOW())
+      if (!orderData.created_at) {
+        delete orderData.created_at;
+      }
+
       // Convertir les montants en nombres
       if (orderData.course_price) {
         orderData.course_price = parseFloat(orderData.course_price);
@@ -7288,7 +7342,15 @@ class App {
       const sel = document.getElementById('order-type');
       if (!sel) return;
       sel.innerHTML = '<option value="">Sélectionner un type</option>';
-      getOrderTypeOptions().forEach(({ label, value }) => {
+      const allOptions = getOrderTypeOptions();
+      // Pour les livreurs, filtrer selon leurs types autorisés
+      let options = allOptions;
+      if (AppState.user && AppState.user.role === 'LIVREUR') {
+        const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
+        const allowed = AppState.user.allowed_order_types || defaultAllowed;
+        options = allOptions.filter(t => allowed.includes(t.value));
+      }
+      options.forEach(({ label, value }) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = label;

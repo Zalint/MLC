@@ -22,18 +22,24 @@ class Order {
   }
 
   // Créer une nouvelle commande
-  static async create({ client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne }) {
+  static async create({ client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne, created_at }) {
     const id = uuidv4();
-    
+
+    const columns = 'id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne' + (created_at ? ', created_at' : '');
+    const placeholders = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14' + (created_at ? ', $15' : '');
+
     const query = `
-      INSERT INTO orders (id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, subscription_id, interne)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      INSERT INTO orders (${columns})
+      VALUES (${placeholders})
       RETURNING *
     `;
-    
-    const result = await db.query(query, [
+
+    const params = [
       id, client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount || null, course_price || 0, order_type, created_by, subscription_id || null, interne || false
-    ]);
+    ];
+    if (created_at) params.push(created_at);
+
+    const result = await db.query(query, params);
     
     return new Order(result.rows[0]);
   }

@@ -194,12 +194,25 @@ app.use('*', (req, res) => {
   });
 });
 
+// Auto-migrations au démarrage
+async function runStartupMigrations() {
+  const db = require('./models/database');
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_order_types JSONB DEFAULT NULL`);
+    console.log('✅ Migration: allowed_order_types OK');
+  } catch (err) {
+    console.error('⚠️ Migration allowed_order_types:', err.message);
+  }
+}
+
 // Démarrage du serveur
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Serveur API démarré sur le port ${PORT}`);
-  console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL locale: http://localhost:${PORT}`);
-  console.log(`🔗 URL réseau: http://192.168.1.184:${PORT}`);
+runStartupMigrations().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Serveur API démarré sur le port ${PORT}`);
+    console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 URL locale: http://localhost:${PORT}`);
+    console.log(`🔗 URL réseau: http://192.168.1.184:${PORT}`);
+  });
 });
 
 module.exports = app; 
