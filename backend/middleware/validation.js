@@ -1,4 +1,11 @@
 const { body, param, query, validationResult } = require('express-validator');
+const orderTypesConfig = require('../config/order-types.json');
+
+// Build valid order types from config (case-insensitive matching)
+const validOrderTypes = [
+  ...orderTypesConfig.coreTypes,
+  ...orderTypesConfig.extensions.map(e => e.value)
+];
 
 // Middleware pour gérer les erreurs de validation
 const handleValidationErrors = (req, res, next) => {
@@ -173,9 +180,10 @@ const validateOrderCreation = [
     .withMessage('Le montant doit être un nombre positif inférieur à 1 000 000'),
     
   body('order_type')
-    .isIn(['MATA', 'MLC', 'YANGO', 'KEUR_BALLI', 'AUTRE'])
-    .withMessage('Le type de commande doit être MATA, MLC, Yango, Keur Balli ou Autre'),
-  
+    .customSanitizer(val => typeof val === 'string' ? val.toUpperCase() : val)
+    .isIn(validOrderTypes)
+    .withMessage(`Le type de commande doit être ${validOrderTypes.join(', ')}`),
+
   body('adresse_source')
     .if(body('order_type').custom(val => val === 'MLC' || val === 'AUTRE'))
     .notEmpty().withMessage('Adresse source requise pour ce type de commande')
@@ -188,7 +196,19 @@ const validateOrderCreation = [
     .if(body('order_type').equals('MATA'))
     .notEmpty().withMessage('Le point de vente est obligatoire pour MATA')
     .isIn(['O.Foire', 'Mbao', 'Keur Massar','Sacre Coeur']).withMessage('Point de vente invalide'),
-  
+
+  body('created_at')
+    .optional({ values: 'falsy' })
+    .isISO8601().withMessage('La date doit être au format valide')
+    .custom(val => {
+      const date = new Date(val);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      if (date >= tomorrow) throw new Error('La date ne peut pas être dans le futur');
+      return true;
+    }),
+
   handleValidationErrors
 ];
 
@@ -235,8 +255,9 @@ const validateOrderUpdate = [
     
   body('order_type')
     .optional()
-    .isIn(['MATA', 'MLC', 'AUTRE'])
-    .withMessage('Le type de commande doit être MATA, MLC ou AUTRE'),
+    .customSanitizer(val => typeof val === 'string' ? val.toUpperCase() : val)
+    .isIn(validOrderTypes)
+    .withMessage(`Le type de commande doit être ${validOrderTypes.join(', ')}`),
     
   body('commentaire')
     .optional()

@@ -613,9 +613,9 @@ const TimesheetsManagerView = (() => {
     const timesheetId = document.getElementById('point-timesheet-id')?.value;
     const scooterId = document.getElementById('point-scooter-id')?.value;
 
-    // Validations
-    if (!userId || !date || !km || !photoFile) {
-      showNotification('Veuillez remplir tous les champs et ajouter une photo', 'error');
+    // Validations (photo optionnelle pour managers)
+    if (!userId || !date || !km) {
+      showNotification('Veuillez remplir tous les champs obligatoires', 'error');
       return;
     }
 
@@ -630,7 +630,9 @@ const TimesheetsManagerView = (() => {
     formData.append('user_id', userId);
     formData.append('date', date);
     formData.append('km', km);
-    formData.append('photo', photoFile);
+    if (photoFile) {
+      formData.append('photo', photoFile);
+    }
     
     // Ajouter scooter_id pour le début, timesheet_id pour la fin
     if (type === 'start' && scooterId) {

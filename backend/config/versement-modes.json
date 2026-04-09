@@ -1,0 +1,8 @@
+{
+  "modes": [
+    { "label": "Wave",         "value": "WAVE",         "hasComment": false },
+    { "label": "Orange Money", "value": "ORANGE_MONEY", "hasComment": false },
+    { "label": "Espèces",      "value": "CASH",         "hasComment": false },
+    { "label": "Autre",        "value": "AUTRE",        "hasComment": true  }
+  ]
+}

@@ -58,6 +58,17 @@ function getOrderTypeOptions() {
   return [...core, ...exts];
 }
 
+// Retourne les options filtrées selon les permissions du livreur connecté
+function getFilteredOrderTypeOptions() {
+  const allOptions = getOrderTypeOptions();
+  if (AppState.user && AppState.user.role === 'LIVREUR') {
+    const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
+    const allowed = AppState.user.allowed_order_types || defaultAllowed;
+    return allOptions.filter(t => allowed.includes(t.value));
+  }
+  return allOptions;
+}
+
 // Retourne les labels d'affichage pour le récapitulatif mensuel
 // (inclut les types dérivés MATA/MLC + toutes les extensions)
 function getRecapAllTypes() {
@@ -984,9 +995,29 @@ class PageManager {
             } catch (error) {
               ToastManager.error('Erreur lors du chargement des livreurs');
             }
+          // Affichage du champ date pour managers/admins
+            const orderDateGroup = document.getElementById('order-date-group');
+            if (orderDateGroup) orderDateGroup.style.display = 'block';
           } else {
             livreurGroup.style.display = 'none';
+            const orderDateGroup = document.getElementById('order-date-group');
+            if (orderDateGroup) orderDateGroup.style.display = 'none';
           }
+
+          // Population dynamique du dropdown type de commande (filtré par permissions)
+          (function populateOrderTypeDropdownFiltered() {
+            const sel = document.getElementById('order-type');
+            if (!sel) return;
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">Sélectionner un type</option>';
+            getFilteredOrderTypeOptions().forEach(({ label, value }) => {
+              const opt = document.createElement('option');
+              opt.value = value;
+              opt.textContent = label;
+              if (value === currentVal) opt.selected = true;
+              sel.appendChild(opt);
+            });
+          })();
           break;
         case 'orders':
           await OrderManager.loadOrders();
@@ -1140,6 +1171,15 @@ class PageManager {
                 }
               }, 500);
             }
+          }
+          break;
+        case 'versements':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            if (window.VersementsModule) {
+              await window.VersementsModule.init();
+            }
+          } else {
+            ToastManager.error('Accès non autorisé');
           }
           break;
         case 'profile':
@@ -1355,6 +1395,11 @@ class AuthManager {
         navExpenses.classList.add('hidden');
         navExpenses.style.display = 'none';
       }
+      const navVersementsEl = document.getElementById('nav-versements');
+      if (navVersementsEl) {
+        navVersementsEl.classList.add('hidden');
+        navVersementsEl.style.display = 'none';
+      }
       if (navMonthlyDashboard) {
         navMonthlyDashboard.classList.add('hidden');
         navMonthlyDashboard.style.display = 'none';
@@ -1440,7 +1485,8 @@ class AuthManager {
       const elementsToCheck = [
         'nav-users',
         'nav-subscriptions',
-        'nav-expenses', 
+        'nav-expenses',
+        'nav-versements',
         'nav-monthly-dashboard',
         'nav-mata-monthly-dashboard',
         'nav-gps-tracking',
@@ -3720,8 +3766,30 @@ class OrderManager {
       if (orderData.order_type) {
         const orderTypeSelect = document.getElementById('order-type');
         if (orderTypeSelect) {
+          console.log('🔧 [prefill] Options disponibles:', Array.from(orderTypeSelect.options).map(o => o.value));
+          console.log('🔧 [prefill] Tentative de set order_type:', orderData.order_type);
+
+          // S'assurer que l'option existe dans le dropdown (peut être masquée par settings pour les livreurs)
+          const optionExists = Array.from(orderTypeSelect.options).some(o => o.value === orderData.order_type);
+          if (!optionExists) {
+            console.warn('⚠️ [prefill] Option', orderData.order_type, 'absente du dropdown, ajout forcé...');
+            const opt = document.createElement('option');
+            opt.value = orderData.order_type;
+            opt.textContent = orderData.order_type;
+            orderTypeSelect.appendChild(opt);
+          }
+
           orderTypeSelect.value = orderData.order_type;
-          orderTypeSelect.dispatchEvent(new Event('change')); // Trigger les events pour afficher les bons champs
+          console.log('🔧 [prefill] Valeur après set:', orderTypeSelect.value);
+
+          // Griser visuellement sans disabled (disabled empêche FormData + peut reset l'affichage)
+          orderTypeSelect.style.pointerEvents = 'none';
+          orderTypeSelect.style.opacity = '0.6';
+          orderTypeSelect.style.backgroundColor = '#e9ecef';
+          orderTypeSelect.dataset.locked = 'true';
+
+          orderTypeSelect.dispatchEvent(new Event('change'));
+          console.log('🔧 [prefill] Valeur après change event:', orderTypeSelect.value);
         }
       }
 
@@ -4385,7 +4453,15 @@ class OrderManager {
       
       // Réinitialiser le formulaire
       document.getElementById('new-order-form').reset();
-      
+      // Débloquer le dropdown type (peut avoir été verrouillé par "Prendre la livraison")
+      const orderTypeSelect = document.getElementById('order-type');
+      if (orderTypeSelect && orderTypeSelect.dataset.locked === 'true') {
+        orderTypeSelect.style.pointerEvents = '';
+        orderTypeSelect.style.opacity = '';
+        orderTypeSelect.style.backgroundColor = '';
+        delete orderTypeSelect.dataset.locked;
+      }
+
       // Réinitialiser les pièces jointes
       if (typeof AttachmentsManager !== 'undefined') {
         AttachmentsManager.reset();
@@ -4496,13 +4572,13 @@ class OrderManager {
       const oldAddressField = document.getElementById('edit-address');
       if (oldAddressField) oldAddressField.parentElement.style.display = 'none';
 
-      // Population dynamique du dropdown édition (depuis order-types.json)
+      // Population dynamique du dropdown édition (filtré par permissions)
       (function populateEditOrderTypeDropdown() {
         const sel = document.getElementById('edit-order-type');
         if (!sel) return;
         const currentVal = sel.value || order.order_type || '';
         sel.innerHTML = '';
-        getOrderTypeOptions().forEach(({ label, value }) => {
+        getFilteredOrderTypeOptions().forEach(({ label, value }) => {
           const opt = document.createElement('option');
           opt.value = value;
           opt.textContent = label;
@@ -5520,13 +5596,26 @@ class LivreurManager {
         return;
       }
 
+      // Générer les checkboxes de types de commandes depuis order-types.json
+      const allTypes = getOrderTypeOptions();
+      const defaultAllowed = allTypes.filter(t => t.value !== 'MATA').map(t => t.value);
+      const currentAllowed = livreur.allowed_order_types || defaultAllowed;
+
+      const orderTypeCheckboxes = allTypes.map(t => {
+        const checked = currentAllowed.includes(t.value) ? 'checked' : '';
+        return `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:4px;border-radius:20px;cursor:pointer;background:${checked ? '#e8f5e9' : '#f5f5f5'};border:1px solid ${checked ? '#4caf50' : '#ddd'};font-size:14px;white-space:nowrap;">
+          <input type="checkbox" name="allowed_order_types" value="${t.value}" ${checked} style="margin:0;">
+          ${Utils.escapeHtml(t.label)}
+        </label>`;
+      }).join('');
+
       const content = `
         <form id="edit-livreur-form">
           <div class="form-group">
             <label for="edit-livreur-username">Nom d'utilisateur *</label>
             <input type="text" id="edit-livreur-username" name="username" value="${Utils.escapeHtml(livreur.username)}" required>
           </div>
-          
+
           <div class="form-group">
             <label for="edit-livreur-active">Statut</label>
             <select id="edit-livreur-active" name="is_active">
@@ -5534,7 +5623,14 @@ class LivreurManager {
               <option value="false" ${!livreur.is_active ? 'selected' : ''}>Inactif</option>
             </select>
           </div>
-          
+
+          <div class="form-group">
+            <label>Types de courses autorisés</label>
+            <div style="display:flex;flex-wrap:wrap;gap:2px;padding:8px 4px;">
+              ${orderTypeCheckboxes}
+            </div>
+          </div>
+
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Sauvegarder</button>
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
@@ -5551,10 +5647,12 @@ class LivreurManager {
 
       document.getElementById('edit-livreur-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
-        const userData = Object.fromEntries(formData.entries());
-        userData.is_active = userData.is_active === 'true';
+        const userData = {};
+        userData.username = formData.get('username');
+        userData.is_active = formData.get('is_active') === 'true';
+        userData.allowed_order_types = formData.getAll('allowed_order_types');
 
         try {
           await ApiClient.updateUser(livreurId, userData);
@@ -6815,7 +6913,13 @@ class App {
       
       const formData = new FormData(e.target);
       const orderData = Object.fromEntries(formData.entries());
-      
+
+      // Ajouter commande_en_cours_id si présent (pour autoriser MATA côté backend)
+      const commandeEnCoursId = sessionStorage.getItem('commande_en_cours_to_complete');
+      if (commandeEnCoursId) {
+        orderData.commande_en_cours_id = commandeEnCoursId;
+      }
+
       // Fonction pour réactiver le bouton
       const resetButton = () => {
         submitBtn.disabled = false;
@@ -6840,6 +6944,11 @@ class App {
         }
       }
       
+      // Supprimer created_at si vide (laisser le serveur utiliser NOW())
+      if (!orderData.created_at) {
+        delete orderData.created_at;
+      }
+
       // Convertir les montants en nombres
       if (orderData.course_price) {
         orderData.course_price = parseFloat(orderData.course_price);
@@ -7273,7 +7382,9 @@ class App {
       const sel = document.getElementById('order-type');
       if (!sel) return;
       sel.innerHTML = '<option value="">Sélectionner un type</option>';
-      getOrderTypeOptions().forEach(({ label, value }) => {
+      const options = getFilteredOrderTypeOptions();
+      console.log('🔧 [populateOrderTypeDropdown] Options chargées:', options.map(o => o.value));
+      options.forEach(({ label, value }) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = label;

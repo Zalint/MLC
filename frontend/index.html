@@ -69,6 +69,10 @@
                 <span class="icon">📊</span>
                 <span class="text">Dépenses</span>
             </button>
+            <button class="nav-item hidden" id="nav-versements" data-page="versements">
+                <span class="icon">💳</span>
+                <span class="text">Versements</span>
+            </button>
             <button class="nav-item hidden" id="nav-users" data-page="users">
                 <span class="icon">👥</span>
                 <span class="text">Utilisateurs</span>
@@ -81,12 +85,12 @@
                 <span class="icon">🚚</span>
                 <span class="text">Gestion livreurs</span>
             </button>
-                    <button class="nav-item hidden" id="nav-gps-tracking" data-page="gps-tracking">
+                    <button class="nav-item hidden" id="nav-gps-tracking" data-page="gps-tracking" style="display:none;">
             <span class="icon">🗺️</span>
             <span class="text">Suivi GPS</span>
         </button>
         
-        <button class="nav-item hidden" id="nav-gps-analytics" data-page="gps-analytics">
+        <button class="nav-item hidden" id="nav-gps-analytics" data-page="gps-analytics" style="display:none;">
             <span class="icon">📊</span>
             <span class="text">Analytics GPS</span>
         </button>
@@ -552,6 +556,12 @@
                         <option value="">Sélectionner un livreur</option>
                         <!-- Options dynamiques JS -->
                     </select>
+                </div>
+
+                <div class="form-group" id="order-date-group" style="display: none;">
+                    <label for="order-date">Date de la commande</label>
+                    <input type="date" id="order-date" name="created_at">
+                    <small style="color: #666;">Laisser vide pour la date du jour</small>
                 </div>
 
                 <!-- Nouveau groupe pour les zones MLC sans abonnement -->
@@ -1751,6 +1761,120 @@
                 </div>
             </div>
         </div>
+
+        <!-- Page Versements (managers/admins) -->
+        <div id="versements-page" class="page">
+            <div class="page-header">
+                <h2>Versements livreurs</h2>
+            </div>
+
+            <!-- Formulaire d'enregistrement -->
+            <div class="versements-layout">
+                <div class="versements-form-card card">
+                    <h3 class="card-title">Enregistrer un versement</h3>
+                    <form id="versement-form" novalidate>
+
+                        <div class="form-group">
+                            <label for="versement-date">Date</label>
+                            <input type="date" id="versement-date" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="versement-livreur-select">Livreur</label>
+                            <select id="versement-livreur-select" class="form-control" required>
+                                <option value="">-- Sélectionner un livreur --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mode de versement</label>
+                            <div id="versement-mode-radios" class="versement-mode-radios">
+                                <!-- Généré dynamiquement depuis versement-modes.json -->
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="versement-commentaire-group" style="display:none;">
+                            <label for="versement-commentaire">Commentaire <span class="text-muted">(ex : nom du client)</span></label>
+                            <input type="text" id="versement-commentaire" class="form-control"
+                                   placeholder="Nom du client, référence...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="versement-notes">Notes <span class="text-muted">(libre)</span></label>
+                            <textarea id="versement-notes" class="form-control" rows="2"
+                                      placeholder="Toute information complémentaire..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="versement-montant">Montant (FCFA)</label>
+                            <input type="number" id="versement-montant" class="form-control"
+                                   placeholder="0" min="1" step="1" required>
+                        </div>
+
+                        <button type="submit" id="versement-submit-btn" class="btn btn-primary btn-full">
+                            Enregistrer
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Tableau de consultation -->
+                <div class="versements-table-card card">
+                    <h3 class="card-title">Historique des versements</h3>
+
+                    <div class="versements-filter-bar">
+                        <div class="filter-row">
+                            <div class="form-group form-group-inline">
+                                <label for="versement-filter-start">Du</label>
+                                <input type="date" id="versement-filter-start" class="form-control">
+                            </div>
+                            <div class="form-group form-group-inline">
+                                <label for="versement-filter-end">Au</label>
+                                <input type="date" id="versement-filter-end" class="form-control">
+                            </div>
+                            <div class="form-group form-group-inline">
+                                <label for="versement-filter-livreur">Livreur</label>
+                                <select id="versement-filter-livreur" class="form-control">
+                                    <option value="">-- Tous --</option>
+                                </select>
+                            </div>
+                            <button id="versement-filter-btn" class="btn btn-secondary btn-sm">
+                                Filtrer
+                            </button>
+                            <button id="versement-export-btn" class="btn btn-primary btn-sm">
+                                Export Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="versements-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Livreur</th>
+                                    <th>Mode</th>
+                                    <th>Commentaire</th>
+                                    <th>Notes</th>
+                                    <th class="text-right">Montant</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="versements-table-body">
+                                <tr><td colspan="7" class="text-center text-muted">Chargement...</td></tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="versements-total-row">
+                                    <td colspan="5" class="text-right font-bold">Total</td>
+                                    <td class="text-right font-bold" id="versements-total">0 FCFA</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Modales -->
@@ -1789,6 +1913,7 @@
     <script src="js/mlc-table.js"></script>
     <script src="js/commandes-en-cours.js"></script>
     <script src="js/client-credits.js"></script>
+    <script src="js/versements.js"></script>
 
     <!-- ==================== MODALS POINTAGES ==================== -->
     

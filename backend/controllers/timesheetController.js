@@ -17,6 +17,14 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10 MB
     files: 1 // Max 1 fichier par pointage
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/png'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Format de fichier non accepté. Seuls JPEG et PNG sont autorisés.'));
+    }
   }
 }).single('photo');
 
@@ -37,9 +45,10 @@ const uploadPhotoMiddleware = (req, res, next) => {
         message: `Erreur d'upload: ${err.message}`
       });
     } else if (err) {
-      return res.status(500).json({
+      // Erreur personnalisée (ex: fileFilter)
+      return res.status(400).json({
         success: false,
-        message: 'Erreur lors de l\'upload de la photo.'
+        message: err.message || 'Erreur lors de l\'upload de la photo.'
       });
     }
     next();
@@ -408,11 +417,11 @@ const startActivityForUser = async (req, res) => {
     const { user_id, date, km, scooter_id } = req.body;
     const photo = req.file;
 
-    // Validations
-    if (!user_id || !date || !km || !photo) {
+    // Validations (photo optionnelle pour managers)
+    if (!user_id || !date || !km) {
       return res.status(400).json({
         success: false,
-        message: 'ID utilisateur, date, kilométrage et photo sont requis.'
+        message: 'ID utilisateur, date et kilométrage sont requis.'
       });
     }
 
@@ -473,8 +482,14 @@ const startActivityForUser = async (req, res) => {
       }
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, user_id, date, 'start');
+    // Upload de la photo (optionnelle pour managers)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, user_id, date, 'start');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Créer le pointage
     let timesheet;
@@ -489,11 +504,15 @@ const startActivityForUser = async (req, res) => {
         startPhotoName: fileName
       });
     } catch (error) {
+      // Nettoyer la photo uploadée si la création DB échoue
+      if (filePath) {
+        try { await deleteTimesheetPhoto(filePath); } catch (e) { console.error('Erreur nettoyage photo:', e.message); }
+      }
       // Catch DB unique constraint violation (pointage en cours pour ce scooter)
       if (error.code === '23505' && (error.constraint === 'unique_user_scooter_date' || error.constraint === 'idx_unique_user_scooter_date_ongoing')) {
         return res.status(409).json({
           success: false,
-          message: scooter_id 
+          message: scooter_id
             ? `${targetUser.username} a déjà un pointage en cours avec le scooter ${scooter_id}.`
             : `${targetUser.username} a déjà un pointage en cours.`
         });
@@ -531,11 +550,11 @@ const endActivityForUser = async (req, res) => {
     const { timesheet_id, km } = req.body;
     const photo = req.file;
 
-    // Validations
-    if (!timesheet_id || !km || !photo) {
+    // Validations (photo optionnelle pour managers)
+    if (!timesheet_id || !km) {
       return res.status(400).json({
         success: false,
-        message: 'ID du pointage, kilométrage et photo sont requis.'
+        message: 'ID du pointage et kilométrage sont requis.'
       });
     }
 
@@ -582,16 +601,31 @@ const endActivityForUser = async (req, res) => {
       });
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, timesheet.user_id, timesheet.date, 'end');
+    // Upload de la photo (optionnelle pour managers)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, timesheet.user_id, timesheet.date, 'end');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Mettre à jour le pointage
-    const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
-      endTime: new Date(),
-      endKm: kmNumber,
-      endPhotoPath: filePath,
-      endPhotoName: fileName
-    });
+    let updatedTimesheet;
+    try {
+      updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
+        endTime: new Date(),
+        endKm: kmNumber,
+        endPhotoPath: filePath,
+        endPhotoName: fileName
+      });
+    } catch (error) {
+      // Nettoyer la photo uploadée si la mise à jour DB échoue
+      if (filePath) {
+        try { await deleteTimesheetPhoto(filePath); } catch (e) { console.error('Erreur nettoyage photo:', e.message); }
+      }
+      throw error;
+    }
 
     // Log d'audit
     console.log(`📝 AUDIT: Manager ${managerUsername} a pointé la fin pour ${targetUser.username} le ${timesheet.date} (${kmNumber} km, Total: ${updatedTimesheet.total_km} km)${timesheet.scooter_id ? ` Scooter: ${timesheet.scooter_id}` : ''}`);

@@ -27,6 +27,7 @@ const auditRoutes = require('./routes/audit');
 const commandesEnCoursRoutes = require('./routes/commandesEnCours');
 const clientCreditsRoutes = require('./routes/clientCredits');
 const timesheetRoutes = require('./routes/timesheets');
+const versementsRoutes = require('./routes/versements');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -113,6 +114,7 @@ app.use('/api/v1/gps', gpsRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/clients', clientCreditsRoutes);
 app.use('/api/v1/timesheets', timesheetRoutes);
+app.use('/api/v1/versements', versementsRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)
@@ -125,6 +127,18 @@ app.get('/api/v1/config/order-types', (req, res) => {
     res.json(config);
   } catch (err) {
     res.status(500).json({ error: 'Impossible de charger la configuration des types de commandes' });
+  }
+});
+
+// Route config : modes de versement (lu depuis versement-modes.json)
+app.get('/api/v1/config/versement-modes', (req, res) => {
+  try {
+    // Vider le cache pour permettre les modifications à chaud
+    delete require.cache[require.resolve('./config/versement-modes.json')];
+    const config = require('./config/versement-modes.json');
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de charger la configuration des modes de paiement' });
   }
 });
 
@@ -180,12 +194,26 @@ app.use('*', (req, res) => {
   });
 });
 
+// Auto-migrations au démarrage
+async function runStartupMigrations() {
+  const db = require('./models/database');
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_order_types JSONB DEFAULT NULL`);
+    console.log('✅ Migration: allowed_order_types OK');
+  } catch (err) {
+    console.error('❌ Migration allowed_order_types échouée:', err.message);
+    process.exit(1);
+  }
+}
+
 // Démarrage du serveur
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Serveur API démarré sur le port ${PORT}`);
-  console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL locale: http://localhost:${PORT}`);
-  console.log(`🔗 URL réseau: http://192.168.1.184:${PORT}`);
+runStartupMigrations().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Serveur API démarré sur le port ${PORT}`);
+    console.log(`📊 Environnement: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 URL locale: http://localhost:${PORT}`);
+    console.log(`🔗 URL réseau: http://192.168.1.184:${PORT}`);
+  });
 });
 
 module.exports = app; 

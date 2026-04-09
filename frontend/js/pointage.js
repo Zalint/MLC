@@ -1197,8 +1197,8 @@ async function submitPointForUser(e) {
   const timesheetId = document.getElementById('point-timesheet-id')?.value;
   const scooterId = document.getElementById('point-scooter-id')?.value;
 
-  if (!userId || !date || !km || !photoFile) {
-    showNotification('Veuillez remplir tous les champs et ajouter une photo', 'error');
+  if (!userId || !date || !km) {
+    showNotification('Veuillez remplir tous les champs obligatoires', 'error');
     return;
   }
 
@@ -1212,7 +1212,9 @@ async function submitPointForUser(e) {
   formData.append('user_id', userId);
   formData.append('date', date);
   formData.append('km', km);
-  formData.append('photo', photoFile);
+  if (photoFile) {
+    formData.append('photo', photoFile);
+  }
   
   // Ajouter scooter_id pour le début, timesheet_id pour la fin
   if (type === 'start' && scooterId) {
