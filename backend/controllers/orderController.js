@@ -8,7 +8,7 @@ class OrderController {
   // Créer une nouvelle commande
   static async createOrder(req, res) {
     try {
-      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, interne } = req.body;
+      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, interne, created_at } = req.body;
       
       // Debug: logger les données reçues
       console.log('🔍 Données reçues pour création de commande:', {
@@ -72,6 +72,22 @@ class OrderController {
         actualCreatedBy = req.user.id;
       }
 
+      // Vérifier que le livreur a accès à ce type de commande
+      if (req.user.role === 'LIVREUR') {
+        const orderTypesConfig = require('../config/order-types.json');
+        const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
+        const defaultAllowed = allTypes.filter(t => t !== 'MATA');
+        const allowed = req.user.allowed_order_types || defaultAllowed;
+        if (!allowed.includes(order_type)) {
+          return res.status(403).json({
+            error: `Vous n'avez pas accès au type de commande ${order_type}`
+          });
+        }
+      }
+
+      // Only managers/admins can backdate orders
+      const finalCreatedAt = (req.user.role === 'MANAGER' || req.user.role === 'ADMIN') && created_at ? created_at : undefined;
+
       const newOrder = await Order.create({
         client_name: finalClientName,
         phone_number: finalPhoneNumber,
@@ -84,7 +100,8 @@ class OrderController {
         course_price,
         order_type,
         created_by: actualCreatedBy,
-        interne: isInterne
+        interne: isInterne,
+        created_at: finalCreatedAt
       });
 
       res.status(201).json({

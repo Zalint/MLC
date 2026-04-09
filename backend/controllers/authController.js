@@ -63,7 +63,8 @@ class AuthController {
         user: {
           id: user.id,
           username: user.username,
-          role: user.role
+          role: user.role,
+          allowed_order_types: user.allowed_order_types || null
         },
         token: token // Include token for mobile fallback
       });
@@ -110,7 +111,8 @@ class AuthController {
         user: {
           id: req.user.id,
           username: req.user.username,
-          role: req.user.role
+          role: req.user.role,
+          allowed_order_types: req.user.allowed_order_types || null
         }
       });
 

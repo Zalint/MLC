@@ -417,11 +417,11 @@ const startActivityForUser = async (req, res) => {
     const { user_id, date, km, scooter_id } = req.body;
     const photo = req.file;
 
-    // Validations
-    if (!user_id || !date || !km || !photo) {
+    // Validations (photo optionnelle pour managers)
+    if (!user_id || !date || !km) {
       return res.status(400).json({
         success: false,
-        message: 'ID utilisateur, date, kilométrage et photo sont requis.'
+        message: 'ID utilisateur, date et kilométrage sont requis.'
       });
     }
 
@@ -482,8 +482,14 @@ const startActivityForUser = async (req, res) => {
       }
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, user_id, date, 'start');
+    // Upload de la photo (optionnelle pour managers)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, user_id, date, 'start');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Créer le pointage
     let timesheet;
@@ -540,11 +546,11 @@ const endActivityForUser = async (req, res) => {
     const { timesheet_id, km } = req.body;
     const photo = req.file;
 
-    // Validations
-    if (!timesheet_id || !km || !photo) {
+    // Validations (photo optionnelle pour managers)
+    if (!timesheet_id || !km) {
       return res.status(400).json({
         success: false,
-        message: 'ID du pointage, kilométrage et photo sont requis.'
+        message: 'ID du pointage et kilométrage sont requis.'
       });
     }
 
@@ -591,8 +597,14 @@ const endActivityForUser = async (req, res) => {
       });
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, timesheet.user_id, timesheet.date, 'end');
+    // Upload de la photo (optionnelle pour managers)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, timesheet.user_id, timesheet.date, 'end');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Mettre à jour le pointage
     const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {

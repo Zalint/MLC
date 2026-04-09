@@ -150,6 +150,15 @@ class UserController {
         });
       }
 
+      // Valider allowed_order_types si fourni
+      if (updates.allowed_order_types !== undefined) {
+        if (updates.allowed_order_types === null || (Array.isArray(updates.allowed_order_types) && updates.allowed_order_types.length === 0)) {
+          updates.allowed_order_types = null;
+        } else if (!Array.isArray(updates.allowed_order_types)) {
+          return res.status(400).json({ error: 'allowed_order_types doit être un tableau' });
+        }
+      }
+
       const updatedUser = await User.update(id, updates);
 
       res.json({

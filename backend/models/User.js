@@ -11,6 +11,7 @@ class User {
     this.is_active = data.is_active;
     this.created_at = data.created_at;
     this.updated_at = data.updated_at;
+    this.allowed_order_types = data.allowed_order_types || null;
   }
 
   // Créer un nouvel utilisateur
@@ -93,7 +94,7 @@ class User {
 
   // Mettre à jour un utilisateur
   static async update(id, updates) {
-    const allowedFields = ['username', 'role', 'is_active'];
+    const allowedFields = ['username', 'role', 'is_active', 'allowed_order_types'];
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -102,7 +103,8 @@ class User {
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setClause.push(`${key} = $${paramIndex}`);
-        values.push(value);
+        // JSONB columns need JSON.stringify
+        values.push(key === 'allowed_order_types' && value !== null ? JSON.stringify(value) : value);
         paramIndex++;
       }
     }
