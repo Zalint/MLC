@@ -73,15 +73,21 @@ class OrderController {
       }
 
       // Vérifier que le livreur a accès à ce type de commande
+      // Exception : MATA est autorisé si la commande vient de "Prendre la livraison" (commande en cours)
       if (req.user.role === 'LIVREUR') {
-        const orderTypesConfig = require('../config/order-types.json');
-        const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
-        const defaultAllowed = allTypes.filter(t => t !== 'MATA');
-        const allowed = req.user.allowed_order_types || defaultAllowed;
-        if (!allowed.includes(order_type)) {
-          return res.status(403).json({
-            error: `Vous n'avez pas accès au type de commande ${order_type}`
-          });
+        const isFromCommandeEnCours = !!req.body.commande_en_cours_id;
+        if (order_type === 'MATA' && isFromCommandeEnCours) {
+          console.log('✅ MATA autorisé via commande en cours:', req.body.commande_en_cours_id);
+        } else {
+          const orderTypesConfig = require('../config/order-types.json');
+          const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
+          const defaultAllowed = allTypes.filter(t => t !== 'MATA');
+          const allowed = req.user.allowed_order_types || defaultAllowed;
+          if (!allowed.includes(order_type)) {
+            return res.status(403).json({
+              error: `Vous n'avez pas accès au type de commande ${order_type}`
+            });
+          }
         }
       }
 
@@ -453,7 +459,8 @@ class OrderController {
       }
 
       // Vérifier que le livreur a accès au nouveau type de commande
-      if (updates.order_type && req.user.role === 'LIVREUR') {
+      // Exception: le livreur peut garder le type existant de la commande
+      if (updates.order_type && req.user.role === 'LIVREUR' && updates.order_type !== existingOrder.order_type) {
         const orderTypesConfig = require('../config/order-types.json');
         const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
         const defaultAllowed = allTypes.filter(t => t !== 'MATA');
