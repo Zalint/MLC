@@ -58,6 +58,17 @@ function getOrderTypeOptions() {
   return [...core, ...exts];
 }
 
+// Retourne les options filtrées selon les permissions du livreur connecté
+function getFilteredOrderTypeOptions() {
+  const allOptions = getOrderTypeOptions();
+  if (AppState.user && AppState.user.role === 'LIVREUR') {
+    const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
+    const allowed = AppState.user.allowed_order_types || defaultAllowed;
+    return allOptions.filter(t => allowed.includes(t.value));
+  }
+  return allOptions;
+}
+
 // Retourne les labels d'affichage pour le récapitulatif mensuel
 // (inclut les types dérivés MATA/MLC + toutes les extensions)
 function getRecapAllTypes() {
@@ -999,14 +1010,7 @@ class PageManager {
             if (!sel) return;
             const currentVal = sel.value;
             sel.innerHTML = '<option value="">Sélectionner un type</option>';
-            const allOptions = getOrderTypeOptions();
-            let options = allOptions;
-            if (AppState.user && AppState.user.role === 'LIVREUR') {
-              const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
-              const allowed = AppState.user.allowed_order_types || defaultAllowed;
-              options = allOptions.filter(t => allowed.includes(t.value));
-            }
-            options.forEach(({ label, value }) => {
+            getFilteredOrderTypeOptions().forEach(({ label, value }) => {
               const opt = document.createElement('option');
               opt.value = value;
               opt.textContent = label;
@@ -4538,13 +4542,13 @@ class OrderManager {
       const oldAddressField = document.getElementById('edit-address');
       if (oldAddressField) oldAddressField.parentElement.style.display = 'none';
 
-      // Population dynamique du dropdown édition (depuis order-types.json)
+      // Population dynamique du dropdown édition (filtré par permissions)
       (function populateEditOrderTypeDropdown() {
         const sel = document.getElementById('edit-order-type');
         if (!sel) return;
         const currentVal = sel.value || order.order_type || '';
         sel.innerHTML = '';
-        getOrderTypeOptions().forEach(({ label, value }) => {
+        getFilteredOrderTypeOptions().forEach(({ label, value }) => {
           const opt = document.createElement('option');
           opt.value = value;
           opt.textContent = label;
@@ -7342,15 +7346,7 @@ class App {
       const sel = document.getElementById('order-type');
       if (!sel) return;
       sel.innerHTML = '<option value="">Sélectionner un type</option>';
-      const allOptions = getOrderTypeOptions();
-      // Pour les livreurs, filtrer selon leurs types autorisés
-      let options = allOptions;
-      if (AppState.user && AppState.user.role === 'LIVREUR') {
-        const defaultAllowed = allOptions.filter(t => t.value !== 'MATA').map(t => t.value);
-        const allowed = AppState.user.allowed_order_types || defaultAllowed;
-        options = allOptions.filter(t => allowed.includes(t.value));
-      }
-      options.forEach(({ label, value }) => {
+      getFilteredOrderTypeOptions().forEach(({ label, value }) => {
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = label;

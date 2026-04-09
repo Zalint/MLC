@@ -201,7 +201,8 @@ async function runStartupMigrations() {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_order_types JSONB DEFAULT NULL`);
     console.log('✅ Migration: allowed_order_types OK');
   } catch (err) {
-    console.error('⚠️ Migration allowed_order_types:', err.message);
+    console.error('❌ Migration allowed_order_types échouée:', err.message);
+    process.exit(1);
   }
 }
 

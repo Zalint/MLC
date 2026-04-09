@@ -504,11 +504,15 @@ const startActivityForUser = async (req, res) => {
         startPhotoName: fileName
       });
     } catch (error) {
+      // Nettoyer la photo uploadée si la création DB échoue
+      if (filePath) {
+        try { await deleteTimesheetPhoto(filePath); } catch (e) { console.error('Erreur nettoyage photo:', e.message); }
+      }
       // Catch DB unique constraint violation (pointage en cours pour ce scooter)
       if (error.code === '23505' && (error.constraint === 'unique_user_scooter_date' || error.constraint === 'idx_unique_user_scooter_date_ongoing')) {
         return res.status(409).json({
           success: false,
-          message: scooter_id 
+          message: scooter_id
             ? `${targetUser.username} a déjà un pointage en cours avec le scooter ${scooter_id}.`
             : `${targetUser.username} a déjà un pointage en cours.`
         });
@@ -607,12 +611,21 @@ const endActivityForUser = async (req, res) => {
     }
 
     // Mettre à jour le pointage
-    const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
-      endTime: new Date(),
-      endKm: kmNumber,
-      endPhotoPath: filePath,
-      endPhotoName: fileName
-    });
+    let updatedTimesheet;
+    try {
+      updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {
+        endTime: new Date(),
+        endKm: kmNumber,
+        endPhotoPath: filePath,
+        endPhotoName: fileName
+      });
+    } catch (error) {
+      // Nettoyer la photo uploadée si la mise à jour DB échoue
+      if (filePath) {
+        try { await deleteTimesheetPhoto(filePath); } catch (e) { console.error('Erreur nettoyage photo:', e.message); }
+      }
+      throw error;
+    }
 
     // Log d'audit
     console.log(`📝 AUDIT: Manager ${managerUsername} a pointé la fin pour ${targetUser.username} le ${timesheet.date} (${kmNumber} km, Total: ${updatedTimesheet.total_km} km)${timesheet.scooter_id ? ` Scooter: ${timesheet.scooter_id}` : ''}`);

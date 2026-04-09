@@ -452,6 +452,19 @@ class OrderController {
         });
       }
 
+      // Vérifier que le livreur a accès au nouveau type de commande
+      if (updates.order_type && req.user.role === 'LIVREUR') {
+        const orderTypesConfig = require('../config/order-types.json');
+        const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
+        const defaultAllowed = allTypes.filter(t => t !== 'MATA');
+        const allowed = req.user.allowed_order_types || defaultAllowed;
+        if (!allowed.includes(updates.order_type)) {
+          return res.status(403).json({
+            error: `Vous n'avez pas accès au type de commande ${updates.order_type}`
+          });
+        }
+      }
+
       const updatedOrder = await Order.update(id, updates);
 
       res.json({
