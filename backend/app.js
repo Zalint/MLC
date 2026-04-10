@@ -28,6 +28,7 @@ const commandesEnCoursRoutes = require('./routes/commandesEnCours');
 const clientCreditsRoutes = require('./routes/clientCredits');
 const timesheetRoutes = require('./routes/timesheets');
 const versementsRoutes = require('./routes/versements');
+const mlcZonesRoutes = require('./routes/mlcZones');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -115,6 +116,7 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/clients', clientCreditsRoutes);
 app.use('/api/v1/timesheets', timesheetRoutes);
 app.use('/api/v1/versements', versementsRoutes);
+app.use('/api/v1/mlc-zones', mlcZonesRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)
@@ -202,6 +204,39 @@ async function runStartupMigrations() {
     console.log('✅ Migration: allowed_order_types OK');
   } catch (err) {
     console.error('⚠️ Migration allowed_order_types:', err.message);
+  }
+
+  // Table mlc_zones
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS mlc_zones (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        label VARCHAR(200) NOT NULL,
+        price INTEGER,
+        is_custom_price BOOLEAN DEFAULT false,
+        description TEXT,
+        sort_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    // Seed si la table est vide
+    const { rows } = await db.query('SELECT COUNT(*) FROM mlc_zones');
+    if (parseInt(rows[0].count) === 0) {
+      await db.query(`
+        INSERT INTO mlc_zones (name, label, price, is_custom_price, description, sort_order) VALUES
+        ('Zone 1', 'Dakar', 1000, false, 'Sacré-Cœur, Sicap, Almadies, Yoff, Point E, Fann, Mermoz, etc.', 1),
+        ('Zone 2', 'Proche', 1750, false, 'Parcelles, Guédiawaye, Pikine, Grand Yoff, HLM, etc.', 2),
+        ('Zone 3', 'Banlieue', 2500, false, 'Keur Massar, Rufisque, Mbao, Sangalkam, Bargny, etc.', 3),
+        ('Zone 4', 'Autre', NULL, true, 'Pour les destinations non couvertes par les zones 1, 2 et 3. Veuillez saisir le prix manuellement.', 4)
+      `);
+      console.log('✅ Migration: mlc_zones seeded');
+    }
+    console.log('✅ Migration: mlc_zones OK');
+  } catch (err) {
+    console.error('⚠️ Migration mlc_zones:', err.message);
   }
 }
 

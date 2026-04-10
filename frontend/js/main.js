@@ -68,6 +68,40 @@ function getRecapAllTypes() {
   return [...fixed, ...extValues, 'AUTRES'];
 }
 
+// Charger les zones MLC depuis la base et peupler un select
+async function loadMlcZones(selectId = 'mlc-zone') {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Sélectionner une zone</option>';
+  const zoneInfoContainer = document.getElementById('zone-info');
+  if (zoneInfoContainer) zoneInfoContainer.innerHTML = '';
+
+  try {
+    const response = await ApiClient.getMlcZones();
+    const zones = response.zones || [];
+    zones.forEach(zone => {
+      const opt = document.createElement('option');
+      opt.value = zone.id;
+      opt.textContent = `${zone.name} - ${zone.label} (${zone.is_custom_price ? 'prix libre' : zone.price + ' FCFA'})`;
+      opt.dataset.price = zone.price || '';
+      opt.dataset.custom = zone.is_custom_price ? 'true' : 'false';
+      sel.appendChild(opt);
+
+      // Ajouter le bloc info
+      if (zoneInfoContainer && zone.description) {
+        const div = document.createElement('div');
+        div.id = `zone-${zone.id}-info`;
+        div.className = 'zone-detail';
+        div.style.display = 'none';
+        div.innerHTML = `<strong>${zone.name} - ${zone.label} (${zone.is_custom_price ? 'prix libre' : zone.price + ' FCFA'}):</strong><br>${Utils.escapeHtml(zone.description)}`;
+        zoneInfoContainer.appendChild(div);
+      }
+    });
+  } catch (err) {
+    console.error('Erreur chargement zones MLC:', err);
+  }
+}
+
 // ===== UTILITAIRES =====
 class Utils {
   // Formater une date
@@ -740,6 +774,27 @@ class ApiClient {
     return this.request('/users/livreurs/active');
   }
 
+  // Zones MLC
+  static async getMlcZones() {
+    return this.request('/mlc-zones');
+  }
+
+  static async getAllMlcZones() {
+    return this.request('/mlc-zones/all');
+  }
+
+  static async createMlcZone(data) {
+    return this.request('/mlc-zones', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  static async updateMlcZone(id, data) {
+    return this.request(`/mlc-zones/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  static async deleteMlcZone(id) {
+    return this.request(`/mlc-zones/${id}`, { method: 'DELETE' });
+  }
+
   static async createUser(userData) {
     return this.request('/users', {
       method: 'POST',
@@ -1181,6 +1236,11 @@ class PageManager {
         case 'profile':
           await ProfileManager.loadProfile();
           break;
+        case 'mlc-zones':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await MlcZonesManager.loadZones();
+          }
+          break;
       }
     } catch (error) {
       console.error(`Erreur lors du chargement de la page ${pageId}:`, error);
@@ -1352,6 +1412,13 @@ class AuthManager {
       if (navAudit) {
         navAudit.classList.remove('hidden');
         navAudit.style.display = 'flex';
+      }
+
+      // Affichage du menu Zones MLC pour managers/admins
+      const navMlcZones = document.getElementById('nav-mlc-zones');
+      if (navMlcZones) {
+        navMlcZones.classList.remove('hidden');
+        navMlcZones.style.display = 'flex';
       }
       
       // Affichage des menus GPS pour managers/admins
@@ -6305,6 +6372,200 @@ class SubscriptionManager {
   }
 }
 
+// ===== GESTIONNAIRE DES ZONES MLC =====
+class MlcZonesManager {
+  static getZoneColor(index) {
+    const colors = [
+      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#fff' },
+      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#fff' },
+      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#fff' },
+      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#fff' },
+      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#fff' },
+      { bg: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', text: '#fff' },
+    ];
+    return colors[index % colors.length];
+  }
+
+  static async loadZones() {
+    const container = document.getElementById('mlc-zones-list');
+    if (!container) return;
+
+    // Toujours brancher le bouton ajouter
+    const addBtn = document.getElementById('add-zone-btn');
+    if (addBtn) {
+      addBtn.onclick = () => MlcZonesManager.showZoneForm(null);
+    }
+
+    try {
+      const response = await ApiClient.getAllMlcZones();
+      const zones = response.zones || [];
+
+      if (zones.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">Aucune zone configurée. Cliquez sur "Ajouter une zone" pour commencer.</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;">
+          ${zones.map((z, i) => {
+            const color = MlcZonesManager.getZoneColor(i);
+            return `
+            <div style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);overflow:hidden;transition:transform 0.3s ease,box-shadow 0.3s ease;${!z.is_active ? 'opacity:0.5;' : ''}"
+                 onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'"
+                 onmouseout="this.style.transform='';this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+              <div style="background:${color.bg};color:${color.text};padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <h3 style="margin:0;font-size:18px;font-weight:700;">${Utils.escapeHtml(z.name)}</h3>
+                  <span style="background:rgba(255,255,255,0.25);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">
+                    #${z.sort_order}
+                  </span>
+                </div>
+                <div style="font-size:28px;font-weight:800;margin-top:8px;">
+                  ${z.is_custom_price ? 'Prix libre' : z.price.toLocaleString('fr-FR') + ' <span style="font-size:14px;font-weight:400;">FCFA</span>'}
+                </div>
+                <div style="font-size:14px;opacity:0.9;margin-top:4px;">${Utils.escapeHtml(z.label)}</div>
+              </div>
+              <div style="padding:16px;">
+                <p style="color:#6c757d;font-size:13px;margin:0 0 16px 0;line-height:1.5;">
+                  ${Utils.escapeHtml(z.description || 'Aucune description')}
+                </p>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;${z.is_active ? 'background:#d4edda;color:#155724;' : 'background:#f8d7da;color:#721c24;'}">
+                    ${z.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-sm btn-primary edit-zone-btn" data-id="${z.id}" style="border-radius:8px;font-size:12px;padding:6px 14px;">Modifier</button>
+                    <button class="btn btn-sm btn-danger delete-zone-btn" data-id="${z.id}" style="border-radius:8px;font-size:12px;padding:6px 14px;">Supprimer</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+          <div class="add-zone-card" style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;min-height:220px;cursor:pointer;border:3px dashed #dee2e6;transition:all 0.3s ease;"
+               onmouseover="this.style.borderColor='#667eea';this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'"
+               onmouseout="this.style.borderColor='#dee2e6';this.style.transform='';this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)'">
+            <div style="text-align:center;color:#6c757d;">
+              <div style="font-size:48px;line-height:1;margin-bottom:8px;color:#667eea;">+</div>
+              <div style="font-size:14px;font-weight:600;">Ajouter une zone</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Event listeners
+      container.querySelector('.add-zone-card').addEventListener('click', () => MlcZonesManager.showZoneForm(null));
+
+      container.querySelectorAll('.edit-zone-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const zone = zones.find(z => z.id == btn.dataset.id);
+          if (zone) MlcZonesManager.showZoneForm(zone);
+        });
+      });
+
+      container.querySelectorAll('.delete-zone-btn').forEach(btn => {
+        btn.addEventListener('click', () => MlcZonesManager.deleteZone(btn.dataset.id));
+      });
+
+    } catch (err) {
+      console.error('Erreur chargement zones:', err);
+      container.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Erreur lors du chargement des zones.</p>';
+    }
+  }
+
+  static showZoneForm(zone) {
+    const isEdit = !!zone;
+    const title = isEdit ? 'Modifier la zone' : 'Ajouter une zone';
+
+    ModalManager.show(title, `
+      <form id="zone-form">
+        <div class="form-group">
+          <label>Nom *</label>
+          <input type="text" id="zone-name" value="${isEdit ? Utils.escapeHtml(zone.name) : ''}" required placeholder="Ex: Zone 5">
+        </div>
+        <div class="form-group">
+          <label>Label *</label>
+          <input type="text" id="zone-label" value="${isEdit ? Utils.escapeHtml(zone.label) : ''}" required placeholder="Ex: Thiès">
+        </div>
+        <div class="form-group">
+          <label>Prix (FCFA)</label>
+          <input type="number" id="zone-price" value="${isEdit && zone.price ? zone.price : ''}" min="0" placeholder="Laisser vide si prix libre">
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="zone-custom-price" ${isEdit && zone.is_custom_price ? 'checked' : ''}> Prix libre (le livreur saisit le prix)
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="zone-description" rows="3" placeholder="Quartiers couverts, etc.">${isEdit ? Utils.escapeHtml(zone.description || '') : ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Ordre d'affichage</label>
+          <input type="number" id="zone-sort-order" value="${isEdit ? zone.sort_order : 0}" min="0">
+        </div>
+        ${isEdit ? `
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="zone-active" ${zone.is_active ? 'checked' : ''}> Active
+          </label>
+        </div>
+        ` : ''}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
+          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">Annuler</button>
+        </div>
+      </form>
+    `);
+
+    document.getElementById('zone-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        name: document.getElementById('zone-name').value.trim(),
+        label: document.getElementById('zone-label').value.trim(),
+        price: document.getElementById('zone-price').value ? parseInt(document.getElementById('zone-price').value) : null,
+        is_custom_price: document.getElementById('zone-custom-price').checked,
+        description: document.getElementById('zone-description').value.trim(),
+        sort_order: parseInt(document.getElementById('zone-sort-order').value) || 0,
+      };
+
+      if (isEdit) {
+        const activeEl = document.getElementById('zone-active');
+        data.is_active = activeEl ? activeEl.checked : true;
+      }
+
+      try {
+        if (isEdit) {
+          await ApiClient.updateMlcZone(zone.id, data);
+          ToastManager.success('Zone modifiée');
+        } else {
+          await ApiClient.createMlcZone(data);
+          ToastManager.success('Zone ajoutée');
+        }
+        ModalManager.hide();
+        await MlcZonesManager.loadZones();
+      } catch (err) {
+        ToastManager.error(err.message || 'Erreur lors de la sauvegarde');
+      }
+    });
+  }
+
+  static async deleteZone(id) {
+    ModalManager.confirm(
+      'Supprimer la zone',
+      'Êtes-vous sûr de vouloir supprimer cette zone ?',
+      async () => {
+        try {
+          await ApiClient.deleteMlcZone(id);
+          ToastManager.success('Zone supprimée');
+          await MlcZonesManager.loadZones();
+        } catch (err) {
+          ToastManager.error(err.message || 'Erreur lors de la suppression');
+        }
+      }
+    );
+  }
+}
+
 // ===== GESTIONNAIRE DE PROFIL =====
 class ProfileManager {
   static async loadProfile() {
@@ -6560,6 +6821,7 @@ class App {
         const useSubscription = document.getElementById('use-subscription').checked;
         if (!useSubscription) {
           mlcZoneGroup.style.display = 'block';
+          loadMlcZones();
           coursePriceInput.readOnly = true; // Lecture seule car géré par les zones
         }
       } else {
@@ -6624,6 +6886,7 @@ class App {
         supplementOptionsGroup.style.display = 'none';
         supplementCustomGroup.style.display = 'none';
         mlcZoneGroup.style.display = 'block';
+        loadMlcZones();
         document.getElementById('add-supplement').checked = false;
         coursePriceInput.value = '';
         coursePriceInput.readOnly = true; // Lecture seule car géré par les zones
@@ -6762,40 +7025,36 @@ class App {
 
     // Gestion de la sélection des zones MLC
     document.getElementById('mlc-zone').addEventListener('change', (e) => {
-      const selectedZone = e.target.value;
       const selectedOption = e.target.selectedOptions[0];
       const coursePriceInput = document.getElementById('course-price');
       const zoneInfo = document.getElementById('zone-info');
-      
+
       // Masquer toutes les infos de zones
       document.querySelectorAll('.zone-detail').forEach(detail => {
         detail.style.display = 'none';
       });
-      
-      if (selectedZone) {
+
+      if (e.target.value && selectedOption) {
+        const isCustom = selectedOption.dataset.custom === 'true';
         // Afficher l'info de la zone sélectionnée
-        const zoneInfoElement = document.getElementById(`${selectedZone}-info`);
+        const zoneInfoElement = document.getElementById(`zone-${selectedOption.value}-info`);
         if (zoneInfoElement) {
           zoneInfoElement.style.display = 'block';
           zoneInfo.style.display = 'block';
         }
-        
-        if (selectedZone === 'zone4') {
-          // Zone 4 : prix libre - rendre le champ éditable
+
+        if (isCustom) {
           coursePriceInput.value = '';
           coursePriceInput.readOnly = false;
           coursePriceInput.placeholder = 'Entrer le prix de la course';
           coursePriceInput.required = true;
         } else {
-          // Zones 1, 2, 3 : prix prédéfini
-          const price = selectedOption.dataset.price;
-          coursePriceInput.value = price;
+          coursePriceInput.value = selectedOption.dataset.price;
           coursePriceInput.readOnly = true;
           coursePriceInput.placeholder = '';
           coursePriceInput.required = false;
         }
       } else {
-        // Aucune zone sélectionnée
         zoneInfo.style.display = 'none';
         coursePriceInput.value = '';
         coursePriceInput.readOnly = true;

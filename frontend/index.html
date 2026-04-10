@@ -102,6 +102,10 @@
                 <span class="icon">📈</span>
                 <span class="text">Mes Performances</span>
             </button>
+            <button class="nav-item hidden" id="nav-mlc-zones" data-page="mlc-zones">
+                <span class="icon">📍</span>
+                <span class="text">Zones MLC</span>
+            </button>
             <button class="nav-item" data-page="profile">
                 <span class="icon">👤</span>
                 <span class="text">Profil</span>
@@ -569,30 +573,11 @@
                     <label for="mlc-zone">Sélectionner la zone de livraison *</label>
                     <select id="mlc-zone" name="mlc_zone">
                         <option value="">Sélectionner une zone</option>
-                        <option value="zone1" data-price="1000">Zone 1 - Dakar (1000 FCFA)</option>
-                        <option value="zone2" data-price="1750">Zone 2 - Proche (1750 FCFA)</option>
-                        <option value="zone3" data-price="2500">Zone 3 - Banlieue (2500 FCFA)</option>
-                        <option value="zone4" data-price="custom">Zone 4 - Autre (prix libre)</option>
+                        <!-- Zones chargées dynamiquement depuis la base -->
                     </select>
-                    
-                    <!-- Informations des zones -->
+
+                    <!-- Informations des zones (chargées dynamiquement) -->
                     <div class="zone-info" id="zone-info" style="display: none; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; font-size: 14px;">
-                        <div id="zone1-info" class="zone-detail" style="display: none;">
-                            <strong>Zone 1 - Dakar (1750 FCFA):</strong><br>
-                            Sacré-Cœur, Sicap, Almadies, Yoff, Point E, Fann, Mermoz, etc.
-                        </div>
-                        <div id="zone2-info" class="zone-detail" style="display: none;">
-                            <strong>Zone 2 - Proche (2000 FCFA):</strong><br>
-                            Parcelles, Guédiawaye, Pikine, Grand Yoff, HLM, etc.
-                        </div>
-                        <div id="zone3-info" class="zone-detail" style="display: none;">
-                            <strong>Zone 3 - Banlieue (3000 FCFA):</strong><br>
-                            Keur Massar, Rufisque, Mbao, Sangalkam, Bargny, etc.
-                        </div>
-                        <div id="zone4-info" class="zone-detail" style="display: none;">
-                            <strong>Zone 4 - Autre (prix libre):</strong><br>
-                            Pour les destinations non couvertes par les zones 1, 2 et 3. Veuillez saisir le prix manuellement.
-                        </div>
                     </div>
                 </div>
 
@@ -1135,6 +1120,20 @@
                 <div class="gps-map-container" id="gps-map">
                     🗺️ Carte GPS - OpenStreetMap sera intégrée ici prochainement
                 </div>
+            </div>
+        </div>
+
+        <!-- Page Zones MLC -->
+        <div id="mlc-zones-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des Zones MLC</h2>
+                <button class="btn btn-primary" id="add-zone-btn" style="border-radius:10px;padding:10px 24px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:18px;">+</span> Ajouter une zone
+                </button>
+            </div>
+            <p style="color:#6c757d;margin:-20px 0 24px 4px;">Configurez les zones de livraison et leurs tarifs. Les livreurs verront ces zones lors de la creation d'une commande MLC.</p>
+            <div id="mlc-zones-list">
+                <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
             </div>
         </div>
 
