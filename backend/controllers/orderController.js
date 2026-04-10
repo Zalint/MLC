@@ -8,7 +8,7 @@ class OrderController {
   // Créer une nouvelle commande
   static async createOrder(req, res) {
     try {
-      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, interne, created_at } = req.body;
+      const { client_name, phone_number, adresse_source, adresse_destination, point_de_vente, address, description, amount, course_price, order_type, created_by, interne, created_at, commande_en_cours_id } = req.body;
       
       // Debug: logger les données reçues
       console.log('🔍 Données reçues pour création de commande:', {
@@ -73,7 +73,8 @@ class OrderController {
       }
 
       // Vérifier que le livreur a accès à ce type de commande
-      if (req.user.role === 'LIVREUR') {
+      // Bypass si la commande vient de "Prendre la livraison" (commande en cours)
+      if (req.user.role === 'LIVREUR' && !commande_en_cours_id) {
         const orderTypesConfig = require('../config/order-types.json');
         const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
         const defaultAllowed = allTypes.filter(t => t !== 'MATA');

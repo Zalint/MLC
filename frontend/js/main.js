@@ -6925,6 +6925,12 @@ class App {
         delete orderData.created_at;
       }
 
+      // Si la commande vient de "Prendre la livraison", inclure l'ID pour bypasser la restriction de type
+      const commandeEnCoursId = sessionStorage.getItem('commande_en_cours_to_complete');
+      if (commandeEnCoursId) {
+        orderData.commande_en_cours_id = commandeEnCoursId;
+      }
+
       // Convertir les montants en nombres
       if (orderData.course_price) {
         orderData.course_price = parseFloat(orderData.course_price);
