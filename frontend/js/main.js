@@ -3762,8 +3762,24 @@ class OrderManager {
       if (orderData.order_type) {
         const orderTypeSelect = document.getElementById('order-type');
         if (orderTypeSelect) {
+          // S'assurer que l'option existe (peut être masquée par permissions livreur)
+          const optionExists = Array.from(orderTypeSelect.options).some(o => o.value === orderData.order_type);
+          if (!optionExists) {
+            const opt = document.createElement('option');
+            opt.value = orderData.order_type;
+            opt.textContent = orderData.order_type;
+            orderTypeSelect.appendChild(opt);
+          }
+
           orderTypeSelect.value = orderData.order_type;
-          orderTypeSelect.dispatchEvent(new Event('change')); // Trigger les events pour afficher les bons champs
+
+          // Verrouiller le dropdown (commande en cours = type imposé)
+          orderTypeSelect.style.pointerEvents = 'none';
+          orderTypeSelect.style.opacity = '0.6';
+          orderTypeSelect.style.backgroundColor = '#e9ecef';
+          orderTypeSelect.dataset.locked = 'true';
+
+          orderTypeSelect.dispatchEvent(new Event('change'));
         }
       }
 
