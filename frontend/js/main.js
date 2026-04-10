@@ -956,19 +956,7 @@ class PageManager {
           break;
         case 'new-order':
           await OrderManager.loadLastUserOrders();
-          
-          // Vérifier s'il y a des données pré-remplies depuis "Prendre la livraison"
-          const prefilledData = sessionStorage.getItem('prefilledOrderData');
-          if (prefilledData) {
-            try {
-              const orderData = JSON.parse(prefilledData);
-              OrderManager.prefillOrderForm(orderData);
-              sessionStorage.removeItem('prefilledOrderData'); // Nettoyer après utilisation
-            } catch (error) {
-              console.error('Erreur lors du pré-remplissage:', error);
-            }
-          }
-          
+
           // Affichage du champ livreur pour managers/admins
           const livreurGroup = document.getElementById('livreur-select-group');
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
@@ -994,10 +982,10 @@ class PageManager {
           }
 
           // Population dynamique du dropdown type de commande (filtré par permissions)
+          // IMPORTANT: doit tourner AVANT le prefill pour que le dropdown soit prêt
           (function populateOrderTypeDropdownFiltered() {
             const sel = document.getElementById('order-type');
             if (!sel) return;
-            const currentVal = sel.value;
             sel.innerHTML = '<option value="">Sélectionner un type</option>';
             const allOptions = getOrderTypeOptions();
             let options = allOptions;
@@ -1010,10 +998,22 @@ class PageManager {
               const opt = document.createElement('option');
               opt.value = value;
               opt.textContent = label;
-              if (value === currentVal) opt.selected = true;
               sel.appendChild(opt);
             });
           })();
+
+          // Vérifier s'il y a des données pré-remplies depuis "Prendre la livraison"
+          // APRÈS la population du dropdown pour ne pas se faire écraser
+          const prefilledData = sessionStorage.getItem('prefilledOrderData');
+          if (prefilledData) {
+            try {
+              const orderData = JSON.parse(prefilledData);
+              OrderManager.prefillOrderForm(orderData);
+              sessionStorage.removeItem('prefilledOrderData');
+            } catch (error) {
+              console.error('Erreur lors du pré-remplissage:', error);
+            }
+          }
           break;
         case 'orders':
           await OrderManager.loadOrders();
