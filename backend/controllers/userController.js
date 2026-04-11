@@ -240,12 +240,13 @@ class UserController {
   static async resetUserPassword(req, res) {
     try {
       const { id } = req.params;
-      const { newPassword } = req.body;
+      const { newPassword, adminCode } = req.body;
 
-      // Seuls les admins peuvent réinitialiser les mots de passe
-      if (req.user.role !== 'ADMIN') {
+      // Vérifier le code secret admin
+      const expectedCode = process.env.ADMIN_RESET_CODE;
+      if (!expectedCode || adminCode !== expectedCode) {
         return res.status(403).json({
-          error: 'Seuls les administrateurs peuvent réinitialiser les mots de passe'
+          error: 'Code secret incorrect'
         });
       }
 

@@ -7,12 +7,13 @@ const {
   requireManagerOrAdmin, 
   requireAdmin 
 } = require('../middleware/auth');
-const { 
+const {
   validateUserCreation,
   validateUserUpdate,
   validateUUID,
   validatePasswordChange,
-  sanitizeInput 
+  validateAdminPasswordReset,
+  sanitizeInput
 } = require('../middleware/validation');
 
 // Toutes les routes nécessitent une authentification
@@ -57,12 +58,12 @@ router.delete('/:id',
   UserController.deleteUser
 );
 
-// Réinitialisation de mot de passe (admins seulement)
-router.post('/:id/reset-password', 
-  requireAdmin, 
-  validateUUID, 
+// Réinitialisation de mot de passe (managers/admins avec code secret)
+router.post('/:id/reset-password',
+  requireManagerOrAdmin,
+  validateUUID,
   sanitizeInput,
-  validatePasswordChange,
+  validateAdminPasswordReset,
   UserController.resetUserPassword
 );
 

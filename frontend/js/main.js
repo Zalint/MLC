@@ -5267,6 +5267,27 @@ class UserManager {
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
           </div>
         </form>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #dee2e6;">
+
+        <div id="reset-password-section">
+          <button type="button" id="show-reset-password-btn" class="btn btn-warning" style="width:100%;">Réinitialiser le mot de passe</button>
+          <div id="reset-password-form-container" style="display:none;margin-top:16px;">
+            <div class="form-group">
+              <label>Code secret *</label>
+              <input type="password" id="reset-admin-code" required placeholder="Votre code secret">
+            </div>
+            <div class="form-group">
+              <label>Nouveau mot de passe *</label>
+              <input type="password" id="reset-new-password" required placeholder="Min 8 car., maj, min, chiffre, spécial">
+            </div>
+            <div class="form-group">
+              <label>Confirmer le mot de passe *</label>
+              <input type="password" id="reset-confirm-password" required placeholder="Confirmer">
+            </div>
+            <button type="button" id="reset-password-submit-btn" class="btn btn-danger" style="width:100%;">Confirmer le changement</button>
+          </div>
+        </div>
       `;
 
       ModalManager.show('Modifier l\'utilisateur', content);
@@ -5276,9 +5297,47 @@ class UserManager {
         ModalManager.hide();
       });
 
+      // Toggle affichage du formulaire de reset
+      document.getElementById('show-reset-password-btn').addEventListener('click', () => {
+        const container = document.getElementById('reset-password-form-container');
+        container.style.display = container.style.display === 'none' ? 'block' : 'none';
+      });
+
+      // Submit reset password
+      document.getElementById('reset-password-submit-btn').addEventListener('click', async () => {
+        const adminCode = document.getElementById('reset-admin-code').value;
+        const newPassword = document.getElementById('reset-new-password').value;
+        const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+        if (!adminCode || !newPassword || !confirmPassword) {
+          ToastManager.error('Tous les champs sont requis');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          ToastManager.error('Les mots de passe ne correspondent pas');
+          return;
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+        if (!passwordRegex.test(newPassword) || newPassword.length < 8) {
+          ToastManager.error('Le mot de passe doit contenir min 8 car., 1 majuscule, 1 minuscule, 1 chiffre, 1 spécial');
+          return;
+        }
+
+        try {
+          await ApiClient.request(`/users/${userId}/reset-password`, {
+            method: 'POST',
+            body: JSON.stringify({ newPassword, confirmPassword, adminCode })
+          });
+          ToastManager.success('Mot de passe réinitialisé avec succès');
+          ModalManager.hide();
+        } catch (error) {
+          ToastManager.error(error.message || 'Erreur : code incorrect ou mot de passe invalide');
+        }
+      });
+
       document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
         const userData = Object.fromEntries(formData.entries());
 

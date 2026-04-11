@@ -66,6 +66,29 @@ const validatePasswordChange = [
   handleValidationErrors
 ];
 
+// Validation pour la réinitialisation de mot de passe par admin (pas de currentPassword)
+const validateAdminPasswordReset = [
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Le nouveau mot de passe doit contenir au moins une minuscule, une majuscule, un chiffre et un caractère spécial'),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('La confirmation du mot de passe ne correspond pas');
+      }
+      return true;
+    }),
+
+  body('adminCode')
+    .notEmpty()
+    .withMessage('Le code secret est requis'),
+
+  handleValidationErrors
+];
+
 // Validation pour la création d'utilisateur
 const validateUserCreation = [
   body('username')
@@ -496,6 +519,7 @@ module.exports = {
   handleValidationErrors,
   validateLogin,
   validatePasswordChange,
+  validateAdminPasswordReset,
   validateUserCreation,
   validateUserUpdate,
   validateOrderCreation,
