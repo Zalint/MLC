@@ -29,6 +29,7 @@ const clientCreditsRoutes = require('./routes/clientCredits');
 const timesheetRoutes = require('./routes/timesheets');
 const versementsRoutes = require('./routes/versements');
 const mlcZonesRoutes = require('./routes/mlcZones');
+const rankingRoutes = require('./routes/ranking');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -117,6 +118,7 @@ app.use('/api/v1/clients', clientCreditsRoutes);
 app.use('/api/v1/timesheets', timesheetRoutes);
 app.use('/api/v1/versements', versementsRoutes);
 app.use('/api/v1/mlc-zones', mlcZonesRoutes);
+app.use('/api/v1/ranking', rankingRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
 // Routes pour les commandes en cours (externe et interne)

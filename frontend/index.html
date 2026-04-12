@@ -106,6 +106,10 @@
                 <span class="icon">📍</span>
                 <span class="text">Zones MLC</span>
             </button>
+            <button class="nav-item" data-page="ranking">
+                <span class="icon">🏆</span>
+                <span class="text">Classement</span>
+            </button>
             <button class="nav-item" data-page="profile">
                 <span class="icon">👤</span>
                 <span class="text">Profil</span>
@@ -1124,6 +1128,21 @@
         </div>
 
         <!-- Page Zones MLC -->
+        <!-- Page Classement -->
+        <div id="ranking-page" class="page">
+            <div class="page-header">
+                <h2>Classement des Livreurs</h2>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+                <button class="btn ranking-period-btn active" data-period="month" style="border-radius:20px;padding:8px 20px;font-weight:600;">Ce mois</button>
+                <button class="btn ranking-period-btn" data-period="week" style="border-radius:20px;padding:8px 20px;font-weight:600;">Cette semaine</button>
+                <button class="btn ranking-period-btn" data-period="day" style="border-radius:20px;padding:8px 20px;font-weight:600;">Aujourd'hui</button>
+            </div>
+            <div id="ranking-list">
+                <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
+            </div>
+        </div>
+
         <div id="mlc-zones-page" class="page">
             <div class="page-header">
                 <h2>Gestion des Zones MLC</h2>
