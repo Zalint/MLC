@@ -19,11 +19,11 @@ router.get('/', authenticateToken, async (req, res) => {
 
     let expenseDateFilter = '';
     if (period === 'month') {
-      expenseDateFilter = "AND e.date >= date_trunc('month', CURRENT_DATE)";
+      expenseDateFilter = "AND e.expense_date >= date_trunc('month', CURRENT_DATE)";
     } else if (period === 'week') {
-      expenseDateFilter = "AND e.date >= date_trunc('week', CURRENT_DATE)";
+      expenseDateFilter = "AND e.expense_date >= date_trunc('week', CURRENT_DATE)";
     } else if (period === 'day') {
-      expenseDateFilter = "AND e.date >= date_trunc('day', CURRENT_DATE)";
+      expenseDateFilter = "AND e.expense_date >= date_trunc('day', CURRENT_DATE)";
     }
 
     const query = `
@@ -34,12 +34,12 @@ router.get('/', authenticateToken, async (req, res) => {
         GROUP BY o.created_by
       ),
       expense_totals AS (
-        SELECT e.user_id, COALESCE(SUM(
+        SELECT e.livreur_id, COALESCE(SUM(
           COALESCE(e.carburant, 0) + COALESCE(e.reparations, 0) + COALESCE(e.police, 0) + COALESCE(e.autres, 0)
         ), 0) AS total_depenses
         FROM expenses e
-        WHERE e.user_id IS NOT NULL ${expenseDateFilter}
-        GROUP BY e.user_id
+        WHERE e.livreur_id IS NOT NULL ${expenseDateFilter}
+        GROUP BY e.livreur_id
       )
       SELECT
         u.id,
@@ -48,7 +48,7 @@ router.get('/', authenticateToken, async (req, res) => {
         COALESCE(ot.total_cmd, 0) AS total_cmd
       FROM users u
       LEFT JOIN order_totals ot ON ot.created_by = u.id
-      LEFT JOIN expense_totals et ON et.user_id = u.id
+      LEFT JOIN expense_totals et ON et.livreur_id = u.id
       WHERE u.is_active = true AND u.role = 'LIVREUR'
         AND (COALESCE(ot.total_cmd, 0) > 0 OR COALESCE(et.total_depenses, 0) > 0)
       ORDER BY benefice DESC

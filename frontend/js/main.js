@@ -6470,49 +6470,45 @@ class RankingManager {
         return;
       }
 
-      // Top 3 en cartes
-      const top3 = ranking.slice(0, 3);
-      const rest = ranking.slice(3);
+      const total = ranking.length;
+      const dangerStart = Math.max(total - 2, 4); // Les 3 derniers (si plus de 3 livreurs)
 
-      const top3Html = top3.length > 0 ? `
-        <div style="display:flex;justify-content:center;align-items:flex-end;gap:16px;margin-bottom:32px;flex-wrap:wrap;">
-          ${top3.map((r, i) => {
-            // Reorder: 2nd, 1st, 3rd for podium effect
-            const order = [1, 0, 2];
-            const idx = order[i] !== undefined ? order[i] : i;
-            const entry = top3[idx];
-            if (!entry) return '';
-            const medal = RankingManager.getMedalStyle(entry.rank);
-            const isFirst = entry.rank === 1;
-            const isCurrentUser = AppState.user && entry.username === AppState.user.username;
-            return `
-              <div style="text-align:center;padding:${isFirst ? '24px 32px' : '20px 24px'};background:white;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);min-width:140px;${isFirst ? 'transform:scale(1.1);z-index:1;' : ''}${isCurrentUser ? 'border:3px solid #4361ee;' : ''}transition:transform 0.3s ease;"
-                   onmouseover="this.style.transform='${isFirst ? 'scale(1.15)' : 'scale(1.05)'}'" onmouseout="this.style.transform='${isFirst ? 'scale(1.1)' : ''}'">
-                <div style="font-size:${medal.size};line-height:1;margin-bottom:8px;">${medal.icon}</div>
-                <div style="font-size:${isFirst ? '20px' : '16px'};font-weight:700;color:#2d3436;margin-bottom:4px;">${Utils.escapeHtml(entry.username)}</div>
-                <div style="font-size:13px;color:#6c757d;">${entry.total_cmd} course${entry.total_cmd > 1 ? 's' : ''}</div>
-              </div>`;
-          }).join('')}
-        </div>` : '';
-
-      // Reste du classement
-      const restHtml = rest.length > 0 ? `
+      container.innerHTML = `
         <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;">
-          ${rest.map(r => {
+          ${ranking.map(r => {
             const isCurrentUser = AppState.user && r.username === AppState.user.username;
-            return `
-            <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #f1f3f5;${isCurrentUser ? 'background:#eef2ff;' : ''}transition:background 0.2s;"
-                 onmouseover="this.style.background='${isCurrentUser ? '#dde4ff' : '#f8f9fa'}'" onmouseout="this.style.background='${isCurrentUser ? '#eef2ff' : ''}'">
-              <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:16px;flex-shrink:0;">
+            const isTop3 = r.rank <= 3;
+            const isDanger = total > 3 && r.rank >= dangerStart;
+            const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '';
+            const dangerIcon = isDanger ? '⚠️' : '';
+
+            let bgCircle = 'linear-gradient(135deg, #667eea, #764ba2)';
+            if (r.rank === 1) bgCircle = 'linear-gradient(135deg, #FFD700, #FFA500)';
+            else if (r.rank === 2) bgCircle = 'linear-gradient(135deg, #C0C0C0, #A0A0A0)';
+            else if (r.rank === 3) bgCircle = 'linear-gradient(135deg, #CD7F32, #A0522D)';
+            else if (isDanger) bgCircle = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+
+            let rowBg = '';
+            if (isCurrentUser) rowBg = 'background:#eef2ff;';
+            else if (isDanger) rowBg = 'background:#fff5f5;';
+
+            // Separator before danger zone
+            const separator = (r.rank === dangerStart && total > 3) ?
+              '<div style="display:flex;align-items:center;padding:8px 20px;background:#fff5f5;"><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div><span style="padding:0 12px;font-size:11px;color:#e74c3c;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Zone de relegation</span><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div></div>' : '';
+
+            return separator + `
+            <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #f1f3f5;${rowBg}transition:background 0.2s;">
+              <div style="width:40px;height:40px;border-radius:50%;background:${bgCircle};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:16px;flex-shrink:0;">
                 ${r.rank}
               </div>
-              <div style="flex:1;font-weight:600;font-size:15px;color:#2d3436;">${Utils.escapeHtml(r.username)}</div>
-              <div style="font-size:13px;color:#6c757d;font-weight:500;">${r.total_cmd} course${r.total_cmd > 1 ? 's' : ''}</div>
+              <div style="flex:1;">
+                <span style="font-weight:${isTop3 ? '700' : '600'};font-size:${isTop3 ? '16px' : '15px'};color:${isDanger ? '#c0392b' : '#2d3436'};">${medal}${dangerIcon} ${Utils.escapeHtml(r.username)}</span>
+              </div>
+              <div style="font-size:13px;color:${isDanger ? '#e74c3c' : '#6c757d'};font-weight:500;">${r.total_cmd} course${r.total_cmd > 1 ? 's' : ''}</div>
             </div>`;
           }).join('')}
-        </div>` : '';
-
-      container.innerHTML = top3Html + restHtml;
+        </div>
+      `;
 
     } catch (err) {
       console.error('Erreur classement:', err);
