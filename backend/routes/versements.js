@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const VersementsController = require('../controllers/versementsController');
-const { authenticateToken, requireManagerOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireManagerOrAdmin, requireViewer } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
 // GET /api/v1/versements?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&livreur_id=...
-router.get('/', requireManagerOrAdmin, VersementsController.getVersements);
+router.get('/', requireViewer, VersementsController.getVersements);
 
 // GET /api/v1/versements/export?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&livreur_id=...
-router.get('/export', requireManagerOrAdmin, VersementsController.exportVersements);
+router.get('/export', requireViewer, VersementsController.exportVersements);
 
 // POST /api/v1/versements
 router.post('/', requireManagerOrAdmin, VersementsController.createVersement);

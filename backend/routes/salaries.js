@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/database');
-const { authenticateToken, requireManagerOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireManagerOrAdmin, requireViewer } = require('../middleware/auth');
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
 // GET /api/salaries - Obtenir l'historique des salaires
-router.get('/', requireManagerOrAdmin, async (req, res) => {
+router.get('/', requireViewer, async (req, res) => {
     try {
         const { livreurId } = req.query;
         
@@ -39,7 +39,7 @@ router.get('/', requireManagerOrAdmin, async (req, res) => {
 });
 
 // GET /api/salaries/current - Obtenir les salaires actuels de tous les livreurs
-router.get('/current', requireManagerOrAdmin, async (req, res) => {
+router.get('/current', requireViewer, async (req, res) => {
     try {
         const result = await db.query(`
             SELECT 

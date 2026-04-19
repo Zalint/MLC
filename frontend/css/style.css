@@ -3332,3 +3332,52 @@
 }
 
 /* ===== FIN STYLES CONFIGURATION TRACKING ===== */
+/* ===== MODE READONLY (lecture seule) ===== */
+/* Cache les éléments d'écriture pour les users READONLY */
+body[data-role="READONLY"] .nav-item[data-page="new-order"],
+body[data-role="READONLY"] #new-order-form,
+body[data-role="READONLY"] #enregistrer-versement-form,
+body[data-role="READONLY"] .enregistrer-versement,
+body[data-role="READONLY"] #add-zone-btn,
+body[data-role="READONLY"] .add-zone-card,
+body[data-role="READONLY"] .edit-zone-btn,
+body[data-role="READONLY"] .delete-zone-btn,
+body[data-role="READONLY"] .edit-order-btn,
+body[data-role="READONLY"] .delete-order-btn,
+body[data-role="READONLY"] .edit-user-btn,
+body[data-role="READONLY"] .delete-user-btn,
+body[data-role="READONLY"] .edit-livreur-btn,
+body[data-role="READONLY"] .delete-livreur-btn,
+body[data-role="READONLY"] .edit-expense-btn,
+body[data-role="READONLY"] .delete-expense-btn,
+body[data-role="READONLY"] .edit-subscription-btn,
+body[data-role="READONLY"] .delete-subscription-btn,
+body[data-role="READONLY"] .delete-versement-btn,
+body[data-role="READONLY"] #create-user-btn,
+body[data-role="READONLY"] #add-livreur-btn,
+body[data-role="READONLY"] #add-subscription-btn,
+body[data-role="READONLY"] #show-reset-password-btn,
+body[data-role="READONLY"] #reset-password-form-container,
+body[data-role="READONLY"] button[onclick*="showCreate"],
+body[data-role="READONLY"] button[onclick*="ModalManager.show"],
+body[data-role="READONLY"] .delete-btn,
+body[data-role="READONLY"] .edit-btn,
+body[data-role="READONLY"] .prendre-livraison-btn {
+    display: none !important;
+}
+
+/* Badge visible pour signaler le mode lecture seule */
+body[data-role="READONLY"] #header::after {
+    content: '🔒 Lecture seule';
+    position: fixed;
+    top: 12px;
+    right: 120px;
+    background: #ffc107;
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    z-index: 10000;
+}
+/* ===== FIN MODE READONLY ===== */

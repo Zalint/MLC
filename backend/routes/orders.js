@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 
 const OrderController = require('../controllers/orderController');
-const { 
-  authenticateToken, 
+const {
+  authenticateToken,
   requireManagerOrAdmin,
   requireManagerAdminOrLivreur,
   requireDeleteAllPermission,
-  requireOwnership 
+  requireOwnership,
+  requireViewer
 } = require('../middleware/auth');
 const { 
   validateOrderCreation,
@@ -36,22 +37,22 @@ router.get('/stats', validateDateRange, OrderController.getOrderStats);
 router.get('/dashboard-data', validateDate, OrderController.getDashboardData);
 
 // Route pour le récapitulatif (managers et admins seulement)
-router.get('/summary', requireManagerOrAdmin, validateDate, OrderController.getTodayOrdersSummary);
+router.get('/summary', requireViewer, validateDate, OrderController.getTodayOrdersSummary);
 
 // Route pour le récapitulatif mensuel (managers et admins seulement)
-router.get('/monthly-summary', requireManagerOrAdmin, OrderController.getMonthlyOrdersSummary);
+router.get('/monthly-summary', requireViewer, OrderController.getMonthlyOrdersSummary);
 
 // Route pour l'export Excel mensuel (managers et admins seulement)
-router.get('/monthly-export', requireManagerOrAdmin, OrderController.exportMonthlyToExcel);
+router.get('/monthly-export', requireViewer, OrderController.exportMonthlyToExcel);
 
 // Route pour le tableau de bord mensuel MATA (managers et admins seulement)
-router.get('/mata-monthly-dashboard', requireManagerOrAdmin, OrderController.getMataMonthlyDashboard);
+router.get('/mata-monthly-dashboard', requireViewer, OrderController.getMataMonthlyDashboard);
 
 // Route pour l'export Excel du tableau de bord MATA mensuel (managers et admins seulement)
-router.get('/mata-monthly-export', requireManagerOrAdmin, OrderController.exportMataMonthlyToExcel);
+router.get('/mata-monthly-export', requireViewer, OrderController.exportMataMonthlyToExcel);
 
 // Route pour l'analyse de sentiment IA des commandes MATA (managers et admins seulement)
-router.get('/mata-sentiment-analysis', requireManagerOrAdmin, OrderController.getMatasentimentAnalysis);
+router.get('/mata-sentiment-analysis', requireViewer, OrderController.getMatasentimentAnalysis);
 
 // Route pour l'analyse approfondie avec IA (managers et admins seulement)
 const DeepAnalysisController = require('../controllers/deepAnalysisController');
@@ -61,16 +62,16 @@ router.post('/mata-deep-analysis', requireManagerOrAdmin, DeepAnalysisController
 router.get('/client-history', requireManagerAdminOrLivreur, OrderController.getClientOrderHistory);
 
 // Route pour l'export Excel du récapitulatif par livreur (managers et admins seulement)
-router.get('/monthly-summary-export', requireManagerOrAdmin, OrderController.exportMonthlySummaryToExcel);
+router.get('/monthly-summary-export', requireViewer, OrderController.exportMonthlySummaryToExcel);
 
 // Route pour les détails des courses d'un livreur (managers et admins seulement)
-router.get('/livreur/:livreurId/details', requireManagerOrAdmin, validateLivreurId, validateDate, OrderController.getLivreurOrderDetails);
+router.get('/livreur/:livreurId/details', requireViewer, validateLivreurId, validateDate, OrderController.getLivreurOrderDetails);
 
 // Route pour l'export Excel (managers et admins seulement)
-router.get('/export', requireManagerOrAdmin, validateDateRange, OrderController.exportToExcel);
+router.get('/export', requireViewer, validateDateRange, OrderController.exportToExcel);
 
 // Route pour l'export Excel des détails d'un livreur (managers et admins seulement)
-router.get('/livreur/:livreurId/export', requireManagerOrAdmin, validateLivreurId, validateDate, OrderController.exportLivreurDetailsToExcel);
+router.get('/livreur/:livreurId/export', requireViewer, validateLivreurId, validateDate, OrderController.exportLivreurDetailsToExcel);
 
 // Création de commande
 router.post('/', 
@@ -84,10 +85,10 @@ router.get('/search-clients', OrderController.searchClients);
 router.get('/client/:phoneNumber', OrderController.getClientByPhone);
 
 // Routes pour le tableau MLC (AVANT les routes avec :id)
-router.get('/mlc-table', requireManagerOrAdmin, OrderController.getMlcTable);
-router.get('/mlc-table/client-details', requireManagerOrAdmin, OrderController.getMlcClientDetails);
-router.get('/export-mlc-client-details', requireManagerOrAdmin, OrderController.exportMlcClientDetailsToExcel);
-router.get('/export-mlc-table', requireManagerOrAdmin, OrderController.exportMlcTableToExcel);
+router.get('/mlc-table', requireViewer, OrderController.getMlcTable);
+router.get('/mlc-table/client-details', requireViewer, OrderController.getMlcClientDetails);
+router.get('/export-mlc-client-details', requireViewer, OrderController.exportMlcClientDetailsToExcel);
+router.get('/export-mlc-table', requireViewer, OrderController.exportMlcTableToExcel);
 
 // Routes avec ID spécifique
 router.get('/:id', validateUUID, OrderController.getOrderById);

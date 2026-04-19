@@ -1014,7 +1014,7 @@ class PageManager {
 
           // Affichage du champ livreur pour managers/admins
           const livreurGroup = document.getElementById('livreur-select-group');
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             livreurGroup.style.display = 'block';
             // Charger la liste des livreurs actifs
             const select = document.getElementById('livreur-select');
@@ -1077,17 +1077,17 @@ class PageManager {
           await ExpenseManager.loadExpenses();
           break;
         case 'users':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             await UserManager.loadUsers();
           }
           break;
         case 'subscriptions':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             await SubscriptionManager.loadSubscriptions();
           }
           break;
         case 'mlc-table':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             await MlcTableManager.init();
           }
           break;
@@ -1098,12 +1098,12 @@ class PageManager {
           }
           break;
         case 'livreurs':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             await LivreurManager.loadLivreurs();
           }
           break;
         case 'gps-tracking':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             console.log('🗺️ === INITIALISATION PAGE GPS TRACKING ===');
             console.log('🗺️ Utilisateur:', AppState.user);
             console.log('🗺️ Rôle:', AppState.user.role);
@@ -1179,7 +1179,7 @@ class PageManager {
           }
           break;
         case 'audit':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             console.log('📊 Redirection vers Audit...');
             window.location.href = 'audit.html';
           } else {
@@ -1187,7 +1187,7 @@ class PageManager {
           }
           break;
         case 'gps-analytics':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             console.log('📊 Initialisation GPS Analytics...');
             console.log('📊 Vérification des dépendances:', {
               GpsAnalyticsManager: !!window.GpsAnalyticsManager,
@@ -1225,7 +1225,7 @@ class PageManager {
           }
           break;
         case 'versements':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             if (window.VersementsModule) {
               await window.VersementsModule.init();
             }
@@ -1237,7 +1237,7 @@ class PageManager {
           await ProfileManager.loadProfile();
           break;
         case 'mlc-zones':
-          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
             await MlcZonesManager.loadZones();
           }
           break;
@@ -1333,6 +1333,11 @@ class AuthManager {
     document.getElementById('navigation').classList.remove('hidden');
     document.getElementById('main-content').classList.remove('hidden');
 
+    // Ajouter le rôle sur le body pour appliquer les règles CSS (ex: READONLY cache les boutons)
+    if (AppState.user) {
+      document.body.setAttribute('data-role', AppState.user.role);
+    }
+
     // Force navigation visibility
     const navigation = document.getElementById('navigation');
     navigation.style.display = 'block';
@@ -1361,7 +1366,7 @@ class AuthManager {
     const statLivreurs = document.getElementById('stat-livreurs');
     const managerSummary = document.getElementById('manager-summary-section');
 
-    if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN') {
+    if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY') {
       if (navUsers) {
         navUsers.classList.remove('hidden');
         navUsers.style.display = 'flex';
@@ -1528,7 +1533,7 @@ class AuthManager {
   }
 
   static ensureManagerElementsVisible() {
-    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
       console.log('🎯 Vérification supplémentaire des éléments manager...');
       
       const navLivreurs = document.getElementById('nav-livreurs');
@@ -1763,7 +1768,7 @@ class DashboardManager {
         } else {
           console.error('❌ TimesheetsLivreurManager non disponible');
         }
-      } else if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN') {
+      } else if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY') {
         // Afficher widget manager
         console.log('📊 Initialisation widget MANAGER');
         if (widgetLivreur) widgetLivreur.style.display = 'none';
@@ -5207,6 +5212,7 @@ class UserManager {
             <option value="">Sélectionner un rôle</option>
             <option value="LIVREUR">LIVREUR</option>
             <option value="MANAGER">MANAGER</option>
+            <option value="READONLY">READONLY (lecture seule)</option>
             ${AppState.user.role === 'ADMIN' ? '<option value="ADMIN">ADMIN</option>' : ''}
           </select>
         </div>
@@ -5262,6 +5268,7 @@ class UserManager {
             <select id="edit-role" name="role" required>
               <option value="LIVREUR" ${user.role === 'LIVREUR' ? 'selected' : ''}>LIVREUR</option>
               <option value="MANAGER" ${user.role === 'MANAGER' ? 'selected' : ''}>MANAGER</option>
+              <option value="READONLY" ${user.role === 'READONLY' ? 'selected' : ''}>READONLY (lecture seule)</option>
               ${AppState.user.role === 'ADMIN' ? `<option value="ADMIN" ${user.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>` : ''}
             </select>
           </div>
@@ -6058,7 +6065,7 @@ class SubscriptionManager {
   }
 
   static canEditSubscription(subscription) {
-    return AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN');
+    return AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY');
   }
 
   static setupEventListeners() {
@@ -7321,7 +7328,7 @@ class App {
       }
       
       // Validation côté client : managers/admins doivent sélectionner un livreur
-      if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+      if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
         if (!orderData.created_by) {
           ToastManager.error('Vous devez sélectionner un livreur pour cette commande');
           resetButton();
@@ -7743,7 +7750,7 @@ class App {
     });
 
     // Affichage du champ livreur pour managers/admins
-    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+    if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
       const livreurGroup = document.getElementById('livreur-select-group');
       livreurGroup.style.display = 'block';
       // Charger la liste des livreurs

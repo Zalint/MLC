@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const AuditController = require('../controllers/auditController');
-const { 
-  authenticateToken, 
-  requireManagerOrAdmin 
+const {
+  authenticateToken,
+  requireManagerOrAdmin,
+  requireViewer
 } = require('../middleware/auth');
 const { sanitizeInput } = require('../middleware/validation');
 
@@ -29,13 +30,13 @@ router.put('/client-history/:log_id/close',
 
 // Récupérer tous les logs d'audit
 router.get('/client-history/logs',
-  requireManagerOrAdmin,
+  requireViewer,
   AuditController.getClientHistoryLogs
 );
 
 // Récupérer les statistiques d'audit
 router.get('/client-history/stats',
-  requireManagerOrAdmin,
+  requireViewer,
   AuditController.getClientHistoryStats
 );
 

@@ -107,8 +107,8 @@ const validateUserCreation = [
     .withMessage('Le mot de passe doit contenir au moins une minuscule, une majuscule, un chiffre et un caractère spécial'),
     
   body('role')
-    .isIn(['LIVREUR', 'MANAGER', 'ADMIN'])
-    .withMessage('Le rôle doit être LIVREUR, MANAGER ou ADMIN'),
+    .isIn(['LIVREUR', 'MANAGER', 'ADMIN', 'READONLY'])
+    .withMessage('Le rôle doit être LIVREUR, MANAGER, ADMIN ou READONLY'),
     
   handleValidationErrors
 ];
@@ -125,8 +125,8 @@ const validateUserUpdate = [
     
   body('role')
     .optional()
-    .isIn(['LIVREUR', 'MANAGER', 'ADMIN'])
-    .withMessage('Le rôle doit être LIVREUR, MANAGER ou ADMIN'),
+    .isIn(['LIVREUR', 'MANAGER', 'ADMIN', 'READONLY'])
+    .withMessage('Le rôle doit être LIVREUR, MANAGER, ADMIN ou READONLY'),
     
   handleValidationErrors
 ];

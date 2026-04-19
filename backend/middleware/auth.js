@@ -102,6 +102,9 @@ const requireManagerAdminOrLivreur = requireRole(['MANAGER', 'ADMIN', 'LIVREUR']
 // Middleware pour les admins uniquement
 const requireAdmin = requireRole(['ADMIN']);
 
+// Middleware pour la lecture — managers, admins et readonly
+const requireViewer = requireRole(['MANAGER', 'ADMIN', 'READONLY']);
+
 // Middleware pour vérifier si l'utilisateur peut supprimer toutes les commandes
 const requireDeleteAllPermission = (req, res, next) => {
   if (!req.user) {
@@ -228,6 +231,7 @@ module.exports = {
   requireManagerOrAdmin,
   requireManagerAdminOrLivreur,
   requireAdmin,
+  requireViewer,
   requireDeleteAllPermission,
   requireOwnership,
   generateToken,

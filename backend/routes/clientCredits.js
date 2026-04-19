@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireViewer } = require('../middleware/auth');
 const ClientCreditsController = require('../controllers/clientCreditsController');
 
 /**
@@ -21,7 +21,7 @@ const requireManagerOrAdmin = (req, res, next) => {
 };
 
 // GET /api/v1/clients/mata-list - Liste de tous les clients MATA avec noms alternatifs
-router.get('/mata-list', authenticateToken, requireManagerOrAdmin, ClientCreditsController.getMataClientsList);
+router.get('/mata-list', authenticateToken, requireViewer, ClientCreditsController.getMataClientsList);
 
 // POST /api/v1/clients/credits/use - Utiliser/déduire un crédit (DOIT ÊTRE AVANT /credits)
 router.post('/credits/use', authenticateToken, requireManagerOrAdmin, ClientCreditsController.useClientCredit);
@@ -33,13 +33,13 @@ router.post('/credits/refund', authenticateToken, requireManagerOrAdmin, ClientC
 router.post('/credits', authenticateToken, requireManagerOrAdmin, ClientCreditsController.setClientCredit);
 
 // GET /api/v1/clients/credits/:phone_number - Récupérer le crédit d'un client
-router.get('/credits/:phone_number', authenticateToken, requireManagerOrAdmin, ClientCreditsController.getClientCredit);
+router.get('/credits/:phone_number', authenticateToken, requireViewer, ClientCreditsController.getClientCredit);
 
 // DELETE /api/v1/clients/credits/:phone_number - Supprimer le crédit d'un client
 router.delete('/credits/:phone_number', authenticateToken, requireManagerOrAdmin, ClientCreditsController.deleteClientCredit);
 
 // GET /api/v1/clients/credits/history/:phone_number - Historique des transactions d'un client
-router.get('/credits/history/:phone_number', authenticateToken, requireManagerOrAdmin, ClientCreditsController.getClientCreditHistory);
+router.get('/credits/history/:phone_number', authenticateToken, requireViewer, ClientCreditsController.getClientCreditHistory);
 
 module.exports = router;
 

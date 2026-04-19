@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const UserController = require('../controllers/userController');
-const { 
-  authenticateToken, 
-  requireManagerOrAdmin, 
-  requireAdmin 
+const {
+  authenticateToken,
+  requireManagerOrAdmin,
+  requireAdmin,
+  requireViewer
 } = require('../middleware/auth');
 const {
   validateUserCreation,
@@ -19,13 +20,14 @@ const {
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
-// Routes pour les managers et admins
-router.get('/', requireManagerOrAdmin, UserController.getAllUsers);
-router.get('/stats', requireManagerOrAdmin, UserController.getUserStats);
-router.get('/role/:role', requireManagerOrAdmin, UserController.getUsersByRole);
-router.get('/livreurs', requireManagerOrAdmin, UserController.getAllLivreurs);
-router.get('/livreurs/active', requireManagerOrAdmin, UserController.getActiveLivreurs);
-router.get('/:id', requireManagerOrAdmin, validateUUID, UserController.getUserById);
+// Routes de lecture accessibles aux managers, admins et readonly
+router.get('/', requireViewer, UserController.getAllUsers);
+router.get('/stats', requireViewer, UserController.getUserStats);
+router.get('/role/:role', requireViewer, UserController.getUsersByRole);
+router.get('/livreurs', requireViewer, UserController.getAllLivreurs);
+router.get('/livreurs/active', requireViewer, UserController.getActiveLivreurs);
+router.get('/active', requireViewer, UserController.getAllActiveUsers);
+router.get('/:id', requireViewer, validateUUID, UserController.getUserById);
 
 // Création d'utilisateur (managers et admins)
 router.post('/', 

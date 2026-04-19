@@ -15,9 +15,10 @@
 const express = require('express');
 const router = express.Router();
 const GpsAnalyticsController = require('../controllers/gpsAnalyticsController');
-const { 
-  authenticateToken, 
-  requireManagerOrAdmin 
+const {
+  authenticateToken,
+  requireManagerOrAdmin,
+  requireViewer
 } = require('../middleware/auth');
 
 // Middleware d'authentification pour toutes les routes
@@ -43,37 +44,37 @@ router.get('/weekly-trends', GpsAnalyticsController.getWeeklyTrends);
  * 3. Classement des livreurs
  * GET /api/v1/analytics/gps/rankings?period=7
  */
-router.get('/rankings', requireManagerOrAdmin, GpsAnalyticsController.getLivreurRankings);
+router.get('/rankings', requireViewer, GpsAnalyticsController.getLivreurRankings);
 
 /**
  * 4. Comparaison entre livreurs
  * GET /api/v1/analytics/gps/comparison?livreur1=xxx&livreur2=yyy&period=30
  */
-router.get('/comparison', requireManagerOrAdmin, GpsAnalyticsController.getLivreurComparison);
+router.get('/comparison', requireViewer, GpsAnalyticsController.getLivreurComparison);
 
 /**
  * 5. Résumé analytique général
  * GET /api/v1/analytics/gps/overview?startDate=2025-10-01&endDate=2025-10-11
  */
-router.get('/overview', requireManagerOrAdmin, GpsAnalyticsController.getAnalyticsOverview);
+router.get('/overview', requireViewer, GpsAnalyticsController.getAnalyticsOverview);
 
 /**
  * 6. Résumé GPS quotidien
  * GET /api/v1/analytics/gps/daily-summary?date=2025-10-11
  */
-router.get('/daily-summary', requireManagerOrAdmin, GpsAnalyticsController.getDailyGpsSummary);
+router.get('/daily-summary', requireViewer, GpsAnalyticsController.getDailyGpsSummary);
 
 /**
  * 7. Résumé GPS mensuel
  * GET /api/v1/analytics/gps/monthly-summary?month=2025-10
  */
-router.get('/monthly-summary', requireManagerOrAdmin, GpsAnalyticsController.getMonthlyGpsSummary);
+router.get('/monthly-summary', requireViewer, GpsAnalyticsController.getMonthlyGpsSummary);
 
 /**
  * 8. Analytique par zone
  * GET /api/v1/analytics/gps/zones?startDate=2025-10-01&endDate=2025-10-11
  */
-router.get('/zones', requireManagerOrAdmin, GpsAnalyticsController.getZoneAnalytics);
+router.get('/zones', requireViewer, GpsAnalyticsController.getZoneAnalytics);
 
 /**
  * 9. Calcul manuel des métriques quotidiennes
@@ -85,7 +86,7 @@ router.post('/calculate-metrics', requireManagerOrAdmin, GpsAnalyticsController.
  * 10. Export des données GPS
  * GET /api/v1/analytics/gps/export?type=daily_performance&startDate=2025-10-01&endDate=2025-10-11&livreurId=xxx
  */
-router.get('/export', requireManagerOrAdmin, GpsAnalyticsController.exportAnalytics);
+router.get('/export', requireViewer, GpsAnalyticsController.exportAnalytics);
 
 module.exports = router;
 

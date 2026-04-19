@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireManagerOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireManagerOrAdmin, requireViewer } = require('../middleware/auth');
 const db = require('../models/database');
 
 // GET /api/v1/mlc-zones — tous les utilisateurs authentifiés (pour le formulaire)
@@ -17,7 +17,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // GET /api/v1/mlc-zones/all — admin: inclut les zones inactives
-router.get('/all', authenticateToken, requireManagerOrAdmin, async (req, res) => {
+router.get('/all', authenticateToken, requireViewer, async (req, res) => {
   try {
     const { rows } = await db.query(
       'SELECT * FROM mlc_zones ORDER BY sort_order ASC'

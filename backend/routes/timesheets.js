@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const timesheetController = require('../controllers/timesheetController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireViewer } = require('../middleware/auth');
 
 // Middleware pour vérifier que l'utilisateur est manager ou admin
 const requireManagerOrAdmin = (req, res, next) => {
@@ -77,19 +77,19 @@ router.put(
 
 // Récupérer TOUS les pointages d'une date (manager uniquement)
 // GET /api/timesheets/all?date=2026-02-05
-router.get('/all', requireManagerOrAdmin, timesheetController.getAllTimesheetsForDate);
+router.get('/all', requireViewer, timesheetController.getAllTimesheetsForDate);
 
 // Récupérer les pointages pour une plage de dates (manager uniquement)
 // GET /api/timesheets/date-range?start_date=2026-02-01&end_date=2026-02-28
-router.get('/date-range', requireManagerOrAdmin, timesheetController.getTimesheetsForDateRange);
+router.get('/date-range', requireViewer, timesheetController.getTimesheetsForDateRange);
 
 // Exporter les pointages en Excel (manager uniquement)
 // GET /api/timesheets/export?date=2026-02-05
-router.get('/export', requireManagerOrAdmin, timesheetController.exportTimesheetsToExcel);
+router.get('/export', requireViewer, timesheetController.exportTimesheetsToExcel);
 
 // Exporter les pointages d'une plage de dates en Excel (manager uniquement)
 // GET /api/timesheets/export-range?start_date=2026-02-01&end_date=2026-02-28
-router.get('/export-range', requireManagerOrAdmin, timesheetController.exportTimesheetsRangeToExcel);
+router.get('/export-range', requireViewer, timesheetController.exportTimesheetsRangeToExcel);
 
 // Pointer le début pour UN livreur spécifique (manager uniquement)
 // POST /api/timesheets/start-for-user (FormData: user_id, date, km, photo)

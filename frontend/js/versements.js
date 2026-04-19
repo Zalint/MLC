@@ -32,8 +32,11 @@ const VersementsModule = (() => {
 
   async function loadLivreurs() {
     try {
-      const data = await ApiClient.request('/users/livreurs/active');
-      livreurs = data.livreurs || [];
+      // Charger TOUS les utilisateurs actifs (livreurs, managers, admins) pour permettre
+      // d'assigner un versement a n'importe quel utilisateur
+      const data = await ApiClient.request('/users/active');
+      // Mapper au format attendu (id, username)
+      livreurs = (data.users || []).map(u => ({ id: u.id, username: u.username, role: u.role }));
     } catch {
       livreurs = [];
     }
@@ -79,11 +82,11 @@ const VersementsModule = (() => {
       const isFilter = select.id === 'versement-filter-livreur';
       select.innerHTML = isFilter
         ? '<option value="">-- Tous --</option>'
-        : '<option value="">-- Sélectionner un livreur --</option>';
+        : '<option value="">-- Sélectionner un utilisateur --</option>';
       livreurs.forEach(l => {
         const opt = document.createElement('option');
         opt.value = l.id;
-        opt.textContent = l.username;
+        opt.textContent = l.role && l.role !== 'LIVREUR' ? `${l.username} (${l.role})` : l.username;
         select.appendChild(opt);
       });
       if (savedValue) select.value = savedValue;

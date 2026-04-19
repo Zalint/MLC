@@ -322,7 +322,7 @@ class UserController {
   static async getActiveLivreurs(req, res) {
     try {
       const activeLivreurs = await User.findActiveLivreurs();
-      
+
       res.json({
         livreurs: activeLivreurs.map(user => user.toJSON()),
         total: activeLivreurs.length
@@ -333,6 +333,20 @@ class UserController {
       res.status(500).json({
         error: 'Erreur interne du serveur'
       });
+    }
+  }
+
+  // Tous les utilisateurs actifs (peu importe le rôle) — pour assigner des versements à n'importe qui
+  static async getAllActiveUsers(req, res) {
+    try {
+      const db = require('../models/database');
+      const { rows } = await db.query(
+        "SELECT id, username, role FROM users WHERE is_active = true ORDER BY username"
+      );
+      res.json({ users: rows, total: rows.length });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs actifs:', error);
+      res.status(500).json({ error: 'Erreur interne du serveur' });
     }
   }
 
