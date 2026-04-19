@@ -11,6 +11,7 @@ const VersementsModule = (() => {
     await Promise.all([loadVersementModes(), loadLivreurs()]);
     bindFormEvents();
     bindFilterEvents();
+    attachRoleFilterListeners();
     setDefaultDates();
     loadVersements();
   }
@@ -72,7 +73,15 @@ const VersementsModule = (() => {
     if (first) first.dispatchEvent(new Event('change'));
   }
 
+  function getActiveRoleFilters() {
+    const boxes = document.querySelectorAll('.versement-role-filter:checked');
+    if (boxes.length === 0) return null; // Aucun filtre = tous
+    return Array.from(boxes).map(b => b.value);
+  }
+
   function renderLivreurSelects() {
+    const activeFilters = getActiveRoleFilters();
+
     [
       document.getElementById('versement-livreur-select'),
       document.getElementById('versement-filter-livreur')
@@ -80,16 +89,29 @@ const VersementsModule = (() => {
       if (!select) return;
       const savedValue = select.value;
       const isFilter = select.id === 'versement-filter-livreur';
+
+      // Le select du formulaire utilise les filtres de role, le filtre historique liste tout
+      const filtered = (!isFilter && activeFilters)
+        ? livreurs.filter(l => activeFilters.includes(l.role || 'LIVREUR'))
+        : livreurs;
+
       select.innerHTML = isFilter
         ? '<option value="">-- Tous --</option>'
         : '<option value="">-- Sélectionner un utilisateur --</option>';
-      livreurs.forEach(l => {
+      filtered.forEach(l => {
         const opt = document.createElement('option');
         opt.value = l.id;
         opt.textContent = l.role && l.role !== 'LIVREUR' ? `${l.username} (${l.role})` : l.username;
         select.appendChild(opt);
       });
       if (savedValue) select.value = savedValue;
+    });
+  }
+
+  // Ecouter les changements de checkboxes de role
+  function attachRoleFilterListeners() {
+    document.querySelectorAll('.versement-role-filter').forEach(cb => {
+      cb.addEventListener('change', renderLivreurSelects);
     });
   }
 
