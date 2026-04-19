@@ -44,8 +44,7 @@ router.get('/', authenticateToken, async (req, res) => {
                COALESCE(SUM(
                  COALESCE(e.carburant, 0) + COALESCE(e.reparations, 0) +
                  COALESCE(e.police, 0) + COALESCE(e.autres, 0)
-               ), 0) AS total_depenses,
-               COALESCE(SUM(e.km_parcourus), 0) AS total_km
+               ), 0) AS total_depenses
         FROM expenses e
         WHERE e.livreur_id IS NOT NULL ${expenseDateFilter}
         GROUP BY e.livreur_id
@@ -54,7 +53,8 @@ router.get('/', authenticateToken, async (req, res) => {
         SELECT t.user_id,
                COUNT(*) FILTER (WHERE t.start_time IS NOT NULL AND t.end_time IS NOT NULL) AS complets,
                COUNT(*) FILTER (WHERE t.start_time IS NOT NULL AND t.end_time IS NULL) AS incomplets,
-               COUNT(*) AS total_pointages
+               COUNT(*) AS total_pointages,
+               COALESCE(SUM(t.total_km), 0) AS total_km
         FROM delivery_timesheets t
         WHERE 1=1 ${timesheetDateFilter}
         GROUP BY t.user_id
@@ -64,7 +64,7 @@ router.get('/', authenticateToken, async (req, res) => {
         u.username,
         COALESCE(ot.total_cmd, 0) AS total_cmd,
         COALESCE(ot.total_courses, 0) - COALESCE(et.total_depenses, 0) AS benefice,
-        COALESCE(et.total_km, 0) AS total_km,
+        COALESCE(ts.total_km, 0) AS total_km,
         COALESCE(ts.complets, 0) AS complets,
         COALESCE(ts.incomplets, 0) AS incomplets,
         GREATEST(${daysInPeriodExpr} - COALESCE(ts.total_pointages, 0), 0) AS absents
