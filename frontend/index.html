@@ -1158,6 +1158,42 @@
             <div id="ranking-list">
                 <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
             </div>
+
+            <!-- Explication du calcul -->
+            <div style="margin-top:32px;padding:20px;background:#f8f9fa;border-radius:12px;border-left:4px solid #4361ee;">
+                <h3 style="margin:0 0 12px 0;font-size:15px;color:#2d3436;display:flex;align-items:center;gap:8px;">
+                    <span>ℹ️</span> Comment le score est calcule
+                </h3>
+                <div style="font-size:13px;color:#495057;line-height:1.7;">
+                    <p style="margin:0 0 10px 0;">Le classement se calcule en 3 etapes :</p>
+
+                    <div style="margin-bottom:10px;padding:10px 14px;background:white;border-radius:8px;">
+                        <strong style="color:#4361ee;">1. Score Benefice (sur 50)</strong><br>
+                        Le livreur avec le plus gros benefice obtient 50, celui avec le plus petit obtient 0.
+                        Les autres sont interpoles lineairement entre les deux.
+                        <br><em style="color:#6c757d;font-size:12px;">Benefice = total courses - total depenses (carburant, reparations, police, autres)</em>
+                    </div>
+
+                    <div style="margin-bottom:10px;padding:10px 14px;background:white;border-radius:8px;">
+                        <strong style="color:#43a047;">2. Score Efficacite (sur 50)</strong><br>
+                        Ratio <code style="background:#eef2ff;padding:2px 6px;border-radius:4px;">Benefice / Kilometres</code> parcourus (depuis les pointages).
+                        Le meilleur ratio obtient 50, le pire 0.
+                        <br><em style="color:#6c757d;font-size:12px;">Un livreur qui gagne plus avec moins de km est favorise.</em>
+                    </div>
+
+                    <div style="margin-bottom:10px;padding:10px 14px;background:white;border-radius:8px;">
+                        <strong style="color:#9b59b6;">3. Facteur Pointage</strong><br>
+                        Le livreur avec le plus de <strong>pointages complets</strong> (start + end) a un facteur de 100%.
+                        Les autres ont un facteur proportionnel : <code style="background:#eef2ff;padding:2px 6px;border-radius:4px;">complets / max(complets)</code>.
+                        <br><em style="color:#6c757d;font-size:12px;">Exemple : si le top a 18 pointages complets et qu'un livreur en a 9, son facteur est 50%.</em>
+                    </div>
+
+                    <div style="padding:12px 16px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;color:white;margin-top:14px;">
+                        <strong>Score Total</strong> = (Benefice + Efficacite) × Facteur Pointage<br>
+                        <span style="font-size:12px;opacity:0.9;">Maximum theorique : 100 points. Cochez la case ci-dessus pour desactiver le facteur pointage.</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="mlc-zones-page" class="page">
