@@ -6458,12 +6458,28 @@ class RankingManager {
   static currentSort = 'total';  // total | benefice | efficacite
   static rankingData = [];       // Cache du dernier chargement
   static expandedUser = null;    // Nom du livreur dont les details sont visibles
+  static disablePointagePenalty = false;
+
+  // Applique le multiplicateur de pointage au score_total
+  static applyPointageFactor(data) {
+    const maxComplets = Math.max(...data.map(r => r.complets || 0), 1);
+    return data.map(r => {
+      const raw = (r.score_benefice || 0) + (r.score_efficacite || 0);
+      const factor = this.disablePointagePenalty ? 1 : (maxComplets > 0 ? (r.complets || 0) / maxComplets : 1);
+      return {
+        ...r,
+        pointage_factor: Math.round(factor * 100) / 100,
+        score_total_adjusted: Math.round(raw * factor * 10) / 10
+      };
+    });
+  }
 
   static sortRanking(data, sortKey) {
-    const sorted = [...data].sort((a, b) => {
+    const enriched = this.applyPointageFactor(data);
+    const sorted = [...enriched].sort((a, b) => {
       const key = sortKey === 'benefice' ? 'score_benefice'
                : sortKey === 'efficacite' ? 'score_efficacite'
-               : 'score_total';
+               : 'score_total_adjusted';
       return b[key] - a[key] || a.username.localeCompare(b.username);
     });
     sorted.forEach((r, i) => { r.rank = i + 1; });
@@ -6552,6 +6568,7 @@ class RankingManager {
           const separator = (r.rank === dangerStart && total > 3) ?
             '<div style="display:flex;align-items:center;padding:8px 20px;background:#fff5f5;"><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div><span style="padding:0 12px;font-size:11px;color:#e74c3c;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Zone de relegation</span><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div></div>' : '';
 
+          const rawSum = (r.score_benefice || 0) + (r.score_efficacite || 0);
           const detailsPanel = isExpanded ? `
             <div style="padding:16px 20px;background:#f8f9fa;border-bottom:1px solid #f1f3f5;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
               <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
@@ -6566,9 +6583,15 @@ class RankingManager {
                 <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Kilometres</div>
                 <div style="font-size:22px;font-weight:800;color:#e67e22;">${(r.total_km || 0).toLocaleString('fr-FR')} <span style="font-size:13px;color:#6c757d;">km</span></div>
               </div>
+              <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
+                <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Facteur pointage</div>
+                <div style="font-size:22px;font-weight:800;color:${RankingManager.disablePointagePenalty ? '#adb5bd' : '#9b59b6'};">${(r.pointage_factor * 100).toFixed(0)}<span style="font-size:13px;color:#6c757d;">%</span></div>
+                <div style="font-size:10px;color:#6c757d;margin-top:2px;">${RankingManager.disablePointagePenalty ? 'Desactive' : `${r.complets} / ${Math.max(...RankingManager.rankingData.map(x => x.complets || 0), 1)}`}</div>
+              </div>
               <div style="text-align:center;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;color:white;">
                 <div style="font-size:11px;opacity:0.9;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Score total</div>
-                <div style="font-size:22px;font-weight:800;">${r.score_total} <span style="font-size:13px;opacity:0.9;">/ 100</span></div>
+                <div style="font-size:22px;font-weight:800;">${r.score_total_adjusted} <span style="font-size:13px;opacity:0.9;">/ 100</span></div>
+                <div style="font-size:10px;opacity:0.9;margin-top:2px;">${rawSum.toFixed(1)} × ${(r.pointage_factor * 100).toFixed(0)}%</div>
               </div>
             </div>` : '';
 
@@ -6608,6 +6631,13 @@ class RankingManager {
     document.querySelectorAll('.ranking-sort-btn').forEach(btn => {
       btn.addEventListener('click', () => RankingManager.setSort(btn.dataset.sort));
     });
+    const penaltyCheckbox = document.getElementById('ranking-disable-pointage-penalty');
+    if (penaltyCheckbox) {
+      penaltyCheckbox.addEventListener('change', (e) => {
+        RankingManager.disablePointagePenalty = e.target.checked;
+        RankingManager.render();
+      });
+    }
   }
 }
 
