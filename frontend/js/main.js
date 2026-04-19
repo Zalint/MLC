@@ -5203,7 +5203,14 @@ class UserManager {
         
         <div class="form-group">
           <label for="create-password">Mot de passe *</label>
-          <input type="password" id="create-password" name="password" required>
+          <input type="password" id="create-password" name="password" required placeholder="Ex: Mlc2024!" autocomplete="new-password">
+          <small style="display:block;margin-top:6px;color:#6c757d;font-size:12px;line-height:1.5;">
+            Minimum 8 caracteres, avec au moins :<br>
+            • 1 majuscule (A-Z)<br>
+            • 1 minuscule (a-z)<br>
+            • 1 chiffre (0-9)<br>
+            • 1 caractere special (@$!%*?&)
+          </small>
         </div>
         
         <div class="form-group">
@@ -5290,7 +5297,10 @@ class UserManager {
             </div>
             <div class="form-group">
               <label>Nouveau mot de passe *</label>
-              <input type="password" id="reset-new-password" required placeholder="Min 8 car., maj, min, chiffre, spécial">
+              <input type="password" id="reset-new-password" required placeholder="Ex: Mlc2024!" autocomplete="new-password">
+              <small style="display:block;margin-top:6px;color:#6c757d;font-size:12px;line-height:1.5;">
+                Min 8 caracteres, 1 majuscule, 1 minuscule, 1 chiffre, 1 special (@$!%*?&)
+              </small>
             </div>
             <div class="form-group">
               <label>Confirmer le mot de passe *</label>
@@ -7600,6 +7610,10 @@ class App {
     document.getElementById('add-user-btn').addEventListener('click', () => {
       UserManager.createUser();
     });
+    const addUserBtnBottom = document.getElementById('add-user-btn-bottom');
+    if (addUserBtnBottom) {
+      addUserBtnBottom.addEventListener('click', () => UserManager.createUser());
+    }
 
     // Boutons livreurs
     document.getElementById('add-livreur-btn').addEventListener('click', () => {

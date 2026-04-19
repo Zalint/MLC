@@ -792,6 +792,11 @@
                 <div id="users-list" class="users-list">
                     <!-- Les utilisateurs seront chargés ici -->
                 </div>
+                <div style="text-align:center;margin-top:24px;padding:20px 0;">
+                    <button id="add-user-btn-bottom" class="btn btn-primary" style="padding:12px 28px;font-weight:600;border-radius:10px;display:inline-flex;align-items:center;gap:8px;font-size:14px;">
+                        <span style="font-size:18px;">+</span> Ajouter un utilisateur
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1798,10 +1803,24 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="versement-livreur-select">Livreur</label>
+                            <label for="versement-livreur-select">Utilisateur</label>
                             <select id="versement-livreur-select" class="form-control" required>
-                                <option value="">-- Sélectionner un livreur --</option>
+                                <option value="">-- Sélectionner un utilisateur --</option>
                             </select>
+                            <div id="versement-role-filters" style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;font-size:13px;">
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                                    <input type="checkbox" class="versement-role-filter" value="LIVREUR" checked> Livreur
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                                    <input type="checkbox" class="versement-role-filter" value="READONLY" checked> Lecture seule
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                                    <input type="checkbox" class="versement-role-filter" value="MANAGER"> Manager
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                                    <input type="checkbox" class="versement-role-filter" value="ADMIN"> Admin
+                                </label>
+                            </div>
                         </div>
 
                         <div class="form-group">

@@ -240,6 +240,15 @@ async function runStartupMigrations() {
   } catch (err) {
     console.error('⚠️ Migration mlc_zones:', err.message);
   }
+
+  // Mise à jour contrainte users_role_check pour inclure READONLY
+  try {
+    await db.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+    await db.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('LIVREUR', 'MANAGER', 'ADMIN', 'READONLY'))`);
+    console.log('✅ Migration: users_role_check (READONLY) OK');
+  } catch (err) {
+    console.error('⚠️ Migration users_role_check:', err.message);
+  }
 }
 
 // Démarrage du serveur
