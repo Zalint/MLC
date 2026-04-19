@@ -6452,16 +6452,22 @@ class SubscriptionManager {
   }
 }
 
-// ===== GESTIONNAIRE DES ZONES MLC =====
 // ===== GESTIONNAIRE DU CLASSEMENT =====
 class RankingManager {
   static currentPeriod = 'month';
+  static currentSort = 'total';  // total | benefice | efficacite
+  static rankingData = [];       // Cache du dernier chargement
+  static expandedUser = null;    // Nom du livreur dont les details sont visibles
 
-  static getMedalStyle(rank) {
-    if (rank === 1) return { bg: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', icon: '🥇', size: '64px' };
-    if (rank === 2) return { bg: 'linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%)', icon: '🥈', size: '56px' };
-    if (rank === 3) return { bg: 'linear-gradient(135deg, #CD7F32 0%, #A0522D 100%)', icon: '🥉', size: '52px' };
-    return { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: `#${rank}`, size: '44px' };
+  static sortRanking(data, sortKey) {
+    const sorted = [...data].sort((a, b) => {
+      const key = sortKey === 'benefice' ? 'score_benefice'
+               : sortKey === 'efficacite' ? 'score_efficacite'
+               : 'score_total';
+      return b[key] - a[key] || a.username.localeCompare(b.username);
+    });
+    sorted.forEach((r, i) => { r.rank = i + 1; });
+    return sorted;
   }
 
   static async loadRanking(period) {
@@ -6469,7 +6475,6 @@ class RankingManager {
     const container = document.getElementById('ranking-list');
     if (!container) return;
 
-    // Update active button
     document.querySelectorAll('.ranking-period-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.period === this.currentPeriod);
       btn.style.background = btn.dataset.period === this.currentPeriod ? '#4361ee' : '#e9ecef';
@@ -6480,62 +6485,124 @@ class RankingManager {
 
     try {
       const response = await ApiClient.request(`/ranking?period=${this.currentPeriod}`);
-      const ranking = response.ranking || [];
-
-      if (ranking.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:60px;color:#6c757d;"><div style="font-size:48px;margin-bottom:16px;">🏆</div><p>Aucune donnee pour cette periode.</p></div>';
-        return;
-      }
-
-      const total = ranking.length;
-      const dangerStart = Math.max(total - 2, 4); // Les 3 derniers (si plus de 3 livreurs)
-
-      container.innerHTML = `
-        <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;">
-          ${ranking.map(r => {
-            const isCurrentUser = AppState.user && r.username === AppState.user.username;
-            const isTop3 = r.rank <= 3;
-            const isDanger = total > 3 && r.rank >= dangerStart;
-            const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '';
-            const dangerIcon = isDanger ? '⚠️' : '';
-
-            let bgCircle = 'linear-gradient(135deg, #667eea, #764ba2)';
-            if (r.rank === 1) bgCircle = 'linear-gradient(135deg, #FFD700, #FFA500)';
-            else if (r.rank === 2) bgCircle = 'linear-gradient(135deg, #C0C0C0, #A0A0A0)';
-            else if (r.rank === 3) bgCircle = 'linear-gradient(135deg, #CD7F32, #A0522D)';
-            else if (isDanger) bgCircle = 'linear-gradient(135deg, #e74c3c, #c0392b)';
-
-            let rowBg = '';
-            if (isCurrentUser) rowBg = 'background:#eef2ff;';
-            else if (isDanger) rowBg = 'background:#fff5f5;';
-
-            // Separator before danger zone
-            const separator = (r.rank === dangerStart && total > 3) ?
-              '<div style="display:flex;align-items:center;padding:8px 20px;background:#fff5f5;"><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div><span style="padding:0 12px;font-size:11px;color:#e74c3c;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Zone de relegation</span><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div></div>' : '';
-
-            return separator + `
-            <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #f1f3f5;${rowBg}transition:background 0.2s;">
-              <div style="width:40px;height:40px;border-radius:50%;background:${bgCircle};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:16px;flex-shrink:0;">
-                ${r.rank}
-              </div>
-              <div style="flex:1;">
-                <span style="font-weight:${isTop3 ? '700' : '600'};font-size:${isTop3 ? '16px' : '15px'};color:${isDanger ? '#c0392b' : '#2d3436'};">${medal}${dangerIcon} ${Utils.escapeHtml(r.username)}</span>
-              </div>
-              <div style="font-size:13px;color:${isDanger ? '#e74c3c' : '#6c757d'};font-weight:500;">${r.total_cmd} course${r.total_cmd > 1 ? 's' : ''}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      `;
-
+      this.rankingData = response.ranking || [];
+      this.expandedUser = null;
+      this.render();
     } catch (err) {
       console.error('Erreur classement:', err);
       container.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Erreur lors du chargement du classement.</p>';
     }
   }
 
+  static setSort(sortKey) {
+    this.currentSort = sortKey;
+    this.render();
+  }
+
+  static toggleDetails(username) {
+    this.expandedUser = this.expandedUser === username ? null : username;
+    this.render();
+  }
+
+  static render() {
+    const container = document.getElementById('ranking-list');
+    if (!container) return;
+
+    if (this.rankingData.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:60px;color:#6c757d;"><div style="font-size:48px;margin-bottom:16px;">🏆</div><p>Aucune donnee pour cette periode.</p></div>';
+      return;
+    }
+
+    // Update active sort button
+    document.querySelectorAll('.ranking-sort-btn').forEach(btn => {
+      const isActive = btn.dataset.sort === this.currentSort;
+      btn.style.background = isActive ? '#4361ee' : '#e9ecef';
+      btn.style.color = isActive ? '#fff' : '#333';
+    });
+
+    const ranking = this.sortRanking(this.rankingData, this.currentSort);
+    const total = ranking.length;
+    const dangerStart = Math.max(total - 2, 4);
+
+    const sortLabel = this.currentSort === 'benefice' ? 'Benefice'
+                   : this.currentSort === 'efficacite' ? 'Efficacite (benef/km)'
+                   : 'Total';
+
+    container.innerHTML = `
+      <div style="margin-bottom:12px;font-size:13px;color:#6c757d;">Tri : <strong>${sortLabel}</strong></div>
+      <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;">
+        ${ranking.map(r => {
+          const isCurrentUser = AppState.user && r.username === AppState.user.username;
+          const isTop3 = r.rank <= 3;
+          const isDanger = total > 3 && r.rank >= dangerStart;
+          const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '';
+          const dangerIcon = isDanger ? '⚠️' : '';
+          const isExpanded = this.expandedUser === r.username;
+
+          let bgCircle = 'linear-gradient(135deg, #667eea, #764ba2)';
+          if (r.rank === 1) bgCircle = 'linear-gradient(135deg, #FFD700, #FFA500)';
+          else if (r.rank === 2) bgCircle = 'linear-gradient(135deg, #C0C0C0, #A0A0A0)';
+          else if (r.rank === 3) bgCircle = 'linear-gradient(135deg, #CD7F32, #A0522D)';
+          else if (isDanger) bgCircle = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+
+          let rowBg = '';
+          if (isCurrentUser) rowBg = 'background:#eef2ff;';
+          else if (isDanger) rowBg = 'background:#fff5f5;';
+
+          const separator = (r.rank === dangerStart && total > 3) ?
+            '<div style="display:flex;align-items:center;padding:8px 20px;background:#fff5f5;"><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div><span style="padding:0 12px;font-size:11px;color:#e74c3c;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Zone de relegation</span><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div></div>' : '';
+
+          const detailsPanel = isExpanded ? `
+            <div style="padding:16px 20px;background:#f8f9fa;border-bottom:1px solid #f1f3f5;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+              <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
+                <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Benefice</div>
+                <div style="font-size:22px;font-weight:800;color:#4361ee;">${r.score_benefice} <span style="font-size:13px;color:#6c757d;">/ 50</span></div>
+              </div>
+              <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
+                <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Efficacite</div>
+                <div style="font-size:22px;font-weight:800;color:#43a047;">${r.score_efficacite} <span style="font-size:13px;color:#6c757d;">/ 50</span></div>
+              </div>
+              <div style="text-align:center;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;color:white;">
+                <div style="font-size:11px;opacity:0.9;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Score total</div>
+                <div style="font-size:22px;font-weight:800;">${r.score_total} <span style="font-size:13px;opacity:0.9;">/ 100</span></div>
+              </div>
+            </div>` : '';
+
+          return separator + `
+          <div>
+            <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #f1f3f5;${rowBg}transition:background 0.2s;">
+              <div style="width:40px;height:40px;border-radius:50%;background:${bgCircle};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:16px;flex-shrink:0;">
+                ${r.rank}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:${isTop3 ? '700' : '600'};font-size:${isTop3 ? '16px' : '15px'};color:${isDanger ? '#c0392b' : '#2d3436'};">${medal}${dangerIcon} ${Utils.escapeHtml(r.username)}</div>
+                <div style="font-size:11px;color:#6c757d;margin-top:2px;">
+                  Pointages : <span style="color:#28a745;font-weight:600;">${r.complets} complets</span> · <span style="color:#ffc107;font-weight:600;">${r.incomplets} incomplets</span> · <span style="color:#dc3545;font-weight:600;">${r.absents} absents</span>
+                </div>
+              </div>
+              <div style="font-size:13px;color:${isDanger ? '#e74c3c' : '#6c757d'};font-weight:500;margin-right:12px;">${r.total_cmd} course${r.total_cmd > 1 ? 's' : ''}</div>
+              <button class="ranking-details-btn" data-username="${Utils.escapeHtml(r.username)}" style="background:${isExpanded ? '#4361ee' : '#e9ecef'};color:${isExpanded ? '#fff' : '#495057'};border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                ${isExpanded ? 'Masquer' : 'Details'}
+              </button>
+            </div>
+            ${detailsPanel}
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+
+    // Listeners on details buttons
+    container.querySelectorAll('.ranking-details-btn').forEach(btn => {
+      btn.addEventListener('click', () => RankingManager.toggleDetails(btn.dataset.username));
+    });
+  }
+
   static init() {
     document.querySelectorAll('.ranking-period-btn').forEach(btn => {
       btn.addEventListener('click', () => RankingManager.loadRanking(btn.dataset.period));
+    });
+    document.querySelectorAll('.ranking-sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => RankingManager.setSort(btn.dataset.sort));
     });
   }
 }
