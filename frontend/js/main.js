@@ -6553,7 +6553,7 @@ class RankingManager {
             '<div style="display:flex;align-items:center;padding:8px 20px;background:#fff5f5;"><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div><span style="padding:0 12px;font-size:11px;color:#e74c3c;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Zone de relegation</span><div style="flex:1;height:1px;background:#e74c3c;opacity:0.3;"></div></div>' : '';
 
           const detailsPanel = isExpanded ? `
-            <div style="padding:16px 20px;background:#f8f9fa;border-bottom:1px solid #f1f3f5;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+            <div style="padding:16px 20px;background:#f8f9fa;border-bottom:1px solid #f1f3f5;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
               <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
                 <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Benefice</div>
                 <div style="font-size:22px;font-weight:800;color:#4361ee;">${r.score_benefice} <span style="font-size:13px;color:#6c757d;">/ 50</span></div>
@@ -6561,6 +6561,10 @@ class RankingManager {
               <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
                 <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Efficacite</div>
                 <div style="font-size:22px;font-weight:800;color:#43a047;">${r.score_efficacite} <span style="font-size:13px;color:#6c757d;">/ 50</span></div>
+              </div>
+              <div style="text-align:center;padding:12px;background:white;border-radius:8px;">
+                <div style="font-size:11px;color:#6c757d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Kilometres</div>
+                <div style="font-size:22px;font-weight:800;color:#e67e22;">${(r.total_km || 0).toLocaleString('fr-FR')} <span style="font-size:13px;color:#6c757d;">km</span></div>
               </div>
               <div style="text-align:center;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;color:white;">
                 <div style="font-size:11px;opacity:0.9;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Score total</div>

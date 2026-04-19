@@ -117,6 +117,7 @@ router.get('/', authenticateToken, async (req, res) => {
       return {
         username: r.username,
         total_cmd: parseInt(r.total_cmd),
+        total_km: Math.round(parseFloat(r.total_km) || 0),
         complets: parseInt(r.complets),
         incomplets: parseInt(r.incomplets),
         absents: parseInt(r.absents),
