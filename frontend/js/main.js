@@ -7416,33 +7416,65 @@ class App {
           ToastManager.warning('Veuillez selectionner un abonnement');
           return;
         }
-        // Utiliser par defaut le numero de l'abonnement, sinon celui du champ
-        const phoneRaw = selected.dataset.phoneNumber || document.getElementById('phone-number').value;
-        const phoneClean = (phoneRaw || '').replace(/\D/g, '');
-        if (phoneClean.length < 8) {
-          ToastManager.error('Numero de telephone invalide');
-          return;
-        }
+        const subPhone = (selected.dataset.phoneNumber || '').trim();
+        const formPhone = (document.getElementById('phone-number').value || '').trim();
+
         const clientName = selected.dataset.clientName || document.getElementById('client-name').value || 'Client';
         const cardNumber = selected.dataset.cardNumber || '';
         const remaining = parseInt(selected.dataset.remainingDeliveries) || 0;
         const total = parseInt(selected.dataset.totalDeliveries) || 0;
 
-        let message = `Bonjour ${clientName},\n\n`;
-        message += `Merci pour votre confiance avec MLC Livraison !\n\n`;
-        message += `📋 Etat de votre abonnement :\n`;
-        message += `🎫 Carte : ${cardNumber}\n`;
-        message += `✅ Livraisons restantes : *${remaining}* / ${total}\n\n`;
-        if (remaining <= 2 && remaining > 0) {
-          message += `⚠️ Il ne vous reste plus que ${remaining} livraison${remaining > 1 ? 's' : ''}. Pensez a renouveler votre carte !\n\n`;
-        } else if (remaining === 0) {
-          message += `⚠️ Votre abonnement est epuise. Contactez-nous pour renouveler.\n\n`;
-        }
-        message += `Merci de votre confiance !\nMLC - www.mlc-livraison.com`;
+        // Fonction d'envoi commune
+        const sendTo = (phoneRaw) => {
+          const phoneClean = (phoneRaw || '').replace(/\D/g, '');
+          if (phoneClean.length < 8) {
+            ToastManager.error('Numero de telephone invalide');
+            return;
+          }
+          let message = `Bonjour ${clientName},\n\n`;
+          message += `Merci pour votre confiance avec MLC Livraison !\n\n`;
+          message += `📋 Etat de votre abonnement :\n`;
+          message += `🎫 Carte : ${cardNumber}\n`;
+          message += `✅ Livraisons restantes : *${remaining}* / ${total}\n\n`;
+          if (remaining <= 2 && remaining > 0) {
+            message += `⚠️ Il ne vous reste plus que ${remaining} livraison${remaining > 1 ? 's' : ''}. Pensez a renouveler votre carte !\n\n`;
+          } else if (remaining === 0) {
+            message += `⚠️ Votre abonnement est epuise. Contactez-nous pour renouveler.\n\n`;
+          }
+          message += `Merci de votre confiance !`;
 
-        const tel = phoneClean.startsWith('221') ? phoneClean : '221' + phoneClean;
-        const whatsappUrl = `https://wa.me/${tel}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+          const tel = phoneClean.startsWith('221') ? phoneClean : '221' + phoneClean;
+          const whatsappUrl = `https://wa.me/${tel}?text=${encodeURIComponent(message)}`;
+          window.open(whatsappUrl, '_blank');
+          ModalManager.hide();
+        };
+
+        // Si un seul numero est disponible, envoyer directement
+        if (!subPhone && !formPhone) {
+          ToastManager.error('Aucun numero de telephone disponible');
+          return;
+        }
+        if (!subPhone) return sendTo(formPhone);
+        if (!formPhone || formPhone === subPhone) return sendTo(subPhone);
+
+        // Sinon, demander a l'utilisateur de choisir
+        ModalManager.show('Choisir le numero WhatsApp', `
+          <div style="margin-bottom:20px;color:#495057;">A quel numero envoyer le message WhatsApp ?</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <button type="button" id="wa-choice-sub" class="btn btn-primary" style="padding:14px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:4px;">
+              <span style="font-weight:700;">📇 Numero de l'abonnement</span>
+              <span style="font-size:13px;opacity:0.9;">${Utils.escapeHtml(subPhone)}</span>
+            </button>
+            <button type="button" id="wa-choice-form" class="btn btn-success" style="padding:14px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#25D366;border-color:#25D366;">
+              <span style="font-weight:700;">📱 Numero du formulaire</span>
+              <span style="font-size:13px;opacity:0.9;">${Utils.escapeHtml(formPhone)}</span>
+            </button>
+            <button type="button" id="wa-choice-cancel" class="btn btn-secondary" style="margin-top:8px;">Annuler</button>
+          </div>
+        `);
+        document.getElementById('wa-choice-sub').addEventListener('click', () => sendTo(subPhone));
+        document.getElementById('wa-choice-form').addEventListener('click', () => sendTo(formPhone));
+        document.getElementById('wa-choice-cancel').addEventListener('click', () => ModalManager.hide());
       });
     }
 
