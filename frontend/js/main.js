@@ -7432,6 +7432,7 @@ class App {
     document.getElementById('subscription-select').addEventListener('change', (e) => {
       const selectedOption = e.target.selectedOptions[0];
       const whatsappBtn = document.getElementById('whatsapp-subscription-btn');
+      const submitBtn = document.getElementById('submit-order-btn');
       if (selectedOption.value) {
         document.getElementById('client-name').value = selectedOption.dataset.clientName;
         document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
@@ -7445,8 +7446,22 @@ class App {
         }
         // Afficher le bouton WhatsApp
         if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
+        // Desactiver le bouton Creer la commande tant que WhatsApp n'est pas envoye
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.5';
+          submitBtn.style.cursor = 'not-allowed';
+          submitBtn.title = 'Envoyez d\'abord le WhatsApp au client';
+        }
       } else {
         if (whatsappBtn) whatsappBtn.style.display = 'none';
+        // Reactiver le bouton si l'abonnement est deselectionne
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '';
+          submitBtn.style.cursor = '';
+          submitBtn.title = '';
+        }
       }
     });
 
@@ -7491,6 +7506,14 @@ class App {
           const whatsappUrl = `https://wa.me/${tel}?text=${encodeURIComponent(message)}`;
           window.open(whatsappUrl, '_blank');
           ModalManager.hide();
+          // Reactiver le bouton Creer la commande apres envoi WhatsApp
+          const submitBtn = document.getElementById('submit-order-btn');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '';
+            submitBtn.style.cursor = '';
+            submitBtn.title = '';
+          }
         };
 
         // Si un seul numero est disponible, envoyer directement
