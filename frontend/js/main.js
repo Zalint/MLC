@@ -7416,14 +7416,14 @@ class App {
           ToastManager.warning('Veuillez selectionner un abonnement');
           return;
         }
-        // Utiliser le numero actuellement saisi dans le champ Numero de telephone (pas celui de l'abonnement)
-        const phoneRaw = document.getElementById('phone-number').value;
+        // Utiliser par defaut le numero de l'abonnement, sinon celui du champ
+        const phoneRaw = selected.dataset.phoneNumber || document.getElementById('phone-number').value;
         const phoneClean = (phoneRaw || '').replace(/\D/g, '');
         if (phoneClean.length < 8) {
-          ToastManager.error('Numero de telephone invalide dans le champ Numero de telephone');
+          ToastManager.error('Numero de telephone invalide');
           return;
         }
-        const clientName = document.getElementById('client-name').value || selected.dataset.clientName || 'Client';
+        const clientName = selected.dataset.clientName || document.getElementById('client-name').value || 'Client';
         const cardNumber = selected.dataset.cardNumber || '';
         const remaining = parseInt(selected.dataset.remainingDeliveries) || 0;
         const total = parseInt(selected.dataset.totalDeliveries) || 0;
