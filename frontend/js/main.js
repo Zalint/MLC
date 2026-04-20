@@ -6011,10 +6011,16 @@ class SubscriptionManager {
                   <span class="icon">▶️</span>
                 </button>
               `}
-              <button class="btn btn-sm btn-primary check-card-btn" 
+              <button class="btn btn-sm btn-primary check-card-btn"
                       data-card-number="${subscription.card_number}"
                       title="Vérifier la carte">
                 <span class="icon">🔍</span>
+              </button>
+              <button class="btn btn-sm whatsapp-subscription-card-btn"
+                      data-subscription-id="${subscription.id}"
+                      style="background:#25D366;color:white;border:none;"
+                      title="Envoyer WhatsApp au client">
+                <span class="icon">💬</span>
               </button>
             </div>
           </div>
@@ -6149,6 +6155,44 @@ class SubscriptionManager {
         this.checkCardValidity(cardNumber);
       });
     });
+
+    // WhatsApp buttons
+    document.querySelectorAll('.whatsapp-subscription-card-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const subscriptionId = e.currentTarget.dataset.subscriptionId;
+        this.sendWhatsAppToSubscription(subscriptionId);
+      });
+    });
+  }
+
+  static sendWhatsAppToSubscription(subscriptionId) {
+    const sub = (this.subscriptions || []).find(s => s.id === subscriptionId);
+    if (!sub) {
+      ToastManager.error('Abonnement introuvable');
+      return;
+    }
+    const phoneRaw = (sub.phone_number || '').trim();
+    const phoneClean = phoneRaw.replace(/\D/g, '');
+    if (phoneClean.length < 8) {
+      ToastManager.error('Numero de telephone invalide');
+      return;
+    }
+
+    let message = `Bonjour ${sub.client_name || 'Client'},\n\n`;
+    message += `Merci pour votre confiance avec MLC Livraison !\n\n`;
+    message += `📋 Etat de votre abonnement :\n`;
+    message += `🎫 Carte : ${sub.card_number}\n`;
+    message += `✅ Livraisons restantes : *${sub.remaining_deliveries}* / ${sub.total_deliveries}\n\n`;
+    if (sub.remaining_deliveries <= 2 && sub.remaining_deliveries > 0) {
+      message += `⚠️ Il ne vous reste plus que ${sub.remaining_deliveries} livraison${sub.remaining_deliveries > 1 ? 's' : ''}. Pensez a renouveler votre carte !\n\n`;
+    } else if (sub.remaining_deliveries === 0) {
+      message += `⚠️ Votre abonnement est epuise. Contactez-nous pour renouveler.\n\n`;
+    }
+    message += `Merci de votre confiance !`;
+
+    const tel = phoneClean.startsWith('221') ? phoneClean : '221' + phoneClean;
+    const whatsappUrl = `https://wa.me/${tel}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   }
 
   static async handleSearch(query) {
