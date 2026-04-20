@@ -1138,10 +1138,17 @@
             <div class="page-header">
                 <h2>Classement des Livreurs</h2>
             </div>
-            <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
                 <button class="btn ranking-period-btn active" data-period="month" style="border-radius:20px;padding:8px 20px;font-weight:600;">Ce mois</button>
                 <button class="btn ranking-period-btn" data-period="week" style="border-radius:20px;padding:8px 20px;font-weight:600;">Cette semaine</button>
                 <button class="btn ranking-period-btn" data-period="day" style="border-radius:20px;padding:8px 20px;font-weight:600;">Aujourd'hui</button>
+                <div style="display:flex;gap:6px;align-items:center;padding:4px 12px;border:1px solid #dee2e6;border-radius:20px;background:white;">
+                    <span style="font-size:12px;color:#6c757d;font-weight:600;">Du</span>
+                    <input type="date" id="ranking-start-date" style="border:none;outline:none;padding:2px;font-size:13px;">
+                    <span style="font-size:12px;color:#6c757d;font-weight:600;">au</span>
+                    <input type="date" id="ranking-end-date" style="border:none;outline:none;padding:2px;font-size:13px;">
+                    <button id="ranking-apply-range" class="btn" style="background:#4361ee;color:#fff;border-radius:14px;padding:4px 12px;font-size:12px;font-weight:600;">Appliquer</button>
+                </div>
             </div>
             <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
                 <span style="font-size:13px;color:#6c757d;font-weight:600;margin-right:4px;">Classement :</span>
