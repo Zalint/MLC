@@ -3,21 +3,25 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const db = require('../models/database');
 
-// GET /api/v1/ranking?period=month|week|day
+// GET /api/v1/ranking?period=month|week|day OR ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const period = req.query.period || 'month';
+    const { period, startDate, endDate } = req.query;
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
     let orderDateFilter = '';
     let expenseDateFilter = '';
     let timesheetDateFilter = '';
-    let daysInPeriodExpr = ''; // Nombre de jours attendus dans la période
+    let daysInPeriodExpr = '';
+    const params = [];
 
-    if (period === 'month') {
-      orderDateFilter = "AND o.created_at >= date_trunc('month', CURRENT_DATE)";
-      expenseDateFilter = "AND e.expense_date >= date_trunc('month', CURRENT_DATE)";
-      timesheetDateFilter = "AND t.date >= date_trunc('month', CURRENT_DATE)";
-      daysInPeriodExpr = "(CURRENT_DATE - date_trunc('month', CURRENT_DATE)::date + 1)";
+    // Mode plage de dates personnalisée
+    if (startDate && endDate && isoDateRegex.test(startDate) && isoDateRegex.test(endDate)) {
+      params.push(startDate, endDate);
+      orderDateFilter = `AND o.created_at::date BETWEEN $1::date AND $2::date`;
+      expenseDateFilter = `AND e.expense_date BETWEEN $1::date AND $2::date`;
+      timesheetDateFilter = `AND t.date BETWEEN $1::date AND $2::date`;
+      daysInPeriodExpr = `($2::date - $1::date + 1)`;
     } else if (period === 'week') {
       orderDateFilter = "AND o.created_at >= date_trunc('week', CURRENT_DATE)";
       expenseDateFilter = "AND e.expense_date >= date_trunc('week', CURRENT_DATE)";
@@ -28,6 +32,12 @@ router.get('/', authenticateToken, async (req, res) => {
       expenseDateFilter = "AND e.expense_date >= date_trunc('day', CURRENT_DATE)";
       timesheetDateFilter = "AND t.date = CURRENT_DATE";
       daysInPeriodExpr = "1";
+    } else {
+      // month par défaut
+      orderDateFilter = "AND o.created_at >= date_trunc('month', CURRENT_DATE)";
+      expenseDateFilter = "AND e.expense_date >= date_trunc('month', CURRENT_DATE)";
+      timesheetDateFilter = "AND t.date >= date_trunc('month', CURRENT_DATE)";
+      daysInPeriodExpr = "(CURRENT_DATE - date_trunc('month', CURRENT_DATE)::date + 1)";
     }
 
     const query = `
@@ -76,10 +86,10 @@ router.get('/', authenticateToken, async (req, res) => {
         AND (COALESCE(ot.total_cmd, 0) > 0 OR COALESCE(et.total_depenses, 0) > 0)
     `;
 
-    const { rows } = await db.query(query);
+    const { rows } = await db.query(query, params);
 
     if (rows.length === 0) {
-      return res.json({ ranking: [], period });
+      return res.json({ ranking: [], period: period || (startDate && endDate ? 'custom' : 'month') });
     }
 
     // Calcul des scores normalisés
@@ -131,7 +141,7 @@ router.get('/', authenticateToken, async (req, res) => {
     scored.sort((a, b) => b.score_total - a.score_total || a.username.localeCompare(b.username));
     scored.forEach((r, i) => { r.rank = i + 1; });
 
-    res.json({ ranking: scored, period });
+    res.json({ ranking: scored, period: period || (startDate && endDate ? 'custom' : 'month') });
   } catch (err) {
     console.error('Erreur ranking:', err);
     res.status(500).json({ error: 'Erreur serveur' });

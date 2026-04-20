@@ -6459,6 +6459,7 @@ class RankingManager {
   static rankingData = [];       // Cache du dernier chargement
   static expandedUser = null;    // Nom du livreur dont les details sont visibles
   static disablePointagePenalty = false;
+  static customRange = null;     // { startDate, endDate } si mode custom
 
   // Applique le multiplicateur de pointage au score_total
   static applyPointageFactor(data) {
@@ -6487,20 +6488,28 @@ class RankingManager {
   }
 
   static async loadRanking(period) {
-    if (period) this.currentPeriod = period;
+    if (period) {
+      this.currentPeriod = period;
+      this.customRange = null; // reset custom range si on choisit une periode predefinie
+    }
     const container = document.getElementById('ranking-list');
     if (!container) return;
 
+    // Update active button (desactive tous si custom)
     document.querySelectorAll('.ranking-period-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.period === this.currentPeriod);
-      btn.style.background = btn.dataset.period === this.currentPeriod ? '#4361ee' : '#e9ecef';
-      btn.style.color = btn.dataset.period === this.currentPeriod ? '#fff' : '#333';
+      const isActive = !this.customRange && btn.dataset.period === this.currentPeriod;
+      btn.classList.toggle('active', isActive);
+      btn.style.background = isActive ? '#4361ee' : '#e9ecef';
+      btn.style.color = isActive ? '#fff' : '#333';
     });
 
     container.innerHTML = '<p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>';
 
     try {
-      const response = await ApiClient.request(`/ranking?period=${this.currentPeriod}`);
+      const url = this.customRange
+        ? `/ranking?startDate=${this.customRange.startDate}&endDate=${this.customRange.endDate}`
+        : `/ranking?period=${this.currentPeriod}`;
+      const response = await ApiClient.request(url);
       this.rankingData = response.ranking || [];
       this.expandedUser = null;
       this.render();
@@ -6508,6 +6517,21 @@ class RankingManager {
       console.error('Erreur classement:', err);
       container.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Erreur lors du chargement du classement.</p>';
     }
+  }
+
+  static applyCustomRange() {
+    const startDate = document.getElementById('ranking-start-date').value;
+    const endDate = document.getElementById('ranking-end-date').value;
+    if (!startDate || !endDate) {
+      ToastManager.warning('Veuillez saisir les deux dates');
+      return;
+    }
+    if (startDate > endDate) {
+      ToastManager.error('La date de debut doit etre anterieure a la date de fin');
+      return;
+    }
+    this.customRange = { startDate, endDate };
+    this.loadRanking();
   }
 
   static setSort(sortKey) {
@@ -6544,8 +6568,14 @@ class RankingManager {
                    : this.currentSort === 'efficacite' ? 'Efficacite (benef/km)'
                    : 'Total';
 
+    const periodLabel = this.customRange
+      ? `Du ${this.customRange.startDate} au ${this.customRange.endDate}`
+      : this.currentPeriod === 'week' ? 'Cette semaine'
+      : this.currentPeriod === 'day' ? 'Aujourd\'hui'
+      : 'Ce mois';
+
     container.innerHTML = `
-      <div style="margin-bottom:12px;font-size:13px;color:#6c757d;">Tri : <strong>${sortLabel}</strong></div>
+      <div style="margin-bottom:12px;font-size:13px;color:#6c757d;">Periode : <strong>${periodLabel}</strong> &middot; Tri : <strong>${sortLabel}</strong></div>
       <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden;">
         ${ranking.map(r => {
           const isCurrentUser = AppState.user && r.username === AppState.user.username;
@@ -6637,6 +6667,10 @@ class RankingManager {
         RankingManager.disablePointagePenalty = e.target.checked;
         RankingManager.render();
       });
+    }
+    const applyBtn = document.getElementById('ranking-apply-range');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', () => RankingManager.applyCustomRange());
     }
   }
 }
