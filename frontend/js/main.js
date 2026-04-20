@@ -7100,7 +7100,7 @@ class App {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'block';
         subscriptionToggleGroup.style.display = 'none';
-        subscriptionSelectGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none'; const _wa = document.getElementById('whatsapp-subscription-btn'); if (_wa) _wa.style.display = 'none';
         mataHorsZoneGroup.style.display = 'block';
         document.getElementById('interne-toggle-group').style.display = 'block';
         coursePriceInput.value = '1000';
@@ -7130,7 +7130,7 @@ class App {
         coursePriceGroup.style.display = 'block';
         amountGroup.style.display = 'none';
         subscriptionToggleGroup.style.display = 'none';
-        subscriptionSelectGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none'; const _wa = document.getElementById('whatsapp-subscription-btn'); if (_wa) _wa.style.display = 'none';
         coursePriceInput.value = '';
         coursePriceInput.readOnly = false;
         
@@ -7176,6 +7176,8 @@ class App {
             option.dataset.price = sub.price;
             option.dataset.totalDeliveries = sub.total_deliveries;
             option.dataset.address = sub.address || '';
+            option.dataset.cardNumber = sub.card_number;
+            option.dataset.remainingDeliveries = sub.remaining_deliveries;
             select.appendChild(option);
           });
         } catch (error) {
@@ -7183,7 +7185,7 @@ class App {
           ToastManager.error('Erreur lors du chargement des abonnements');
         }
       } else {
-        subscriptionSelectGroup.style.display = 'none';
+        subscriptionSelectGroup.style.display = 'none'; const _wa = document.getElementById('whatsapp-subscription-btn'); if (_wa) _wa.style.display = 'none';
         supplementToggleGroup.style.display = 'none';
         supplementOptionsGroup.style.display = 'none';
         supplementCustomGroup.style.display = 'none';
@@ -7385,6 +7387,7 @@ class App {
     // Gestion de la sélection d'un abonnement
     document.getElementById('subscription-select').addEventListener('change', (e) => {
       const selectedOption = e.target.selectedOptions[0];
+      const whatsappBtn = document.getElementById('whatsapp-subscription-btn');
       if (selectedOption.value) {
         document.getElementById('client-name').value = selectedOption.dataset.clientName;
         document.getElementById('phone-number').value = selectedOption.dataset.phoneNumber;
@@ -7396,8 +7399,52 @@ class App {
           const coursePrice = Math.round(price / totalDeliveries);
           document.getElementById('course-price').value = coursePrice;
         }
+        // Afficher le bouton WhatsApp
+        if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
+      } else {
+        if (whatsappBtn) whatsappBtn.style.display = 'none';
       }
     });
+
+    // Bouton WhatsApp pour notifier le client sur l'etat de son abonnement
+    const whatsappBtn = document.getElementById('whatsapp-subscription-btn');
+    if (whatsappBtn) {
+      whatsappBtn.addEventListener('click', () => {
+        const subSelect = document.getElementById('subscription-select');
+        const selected = subSelect.selectedOptions[0];
+        if (!selected || !selected.value) {
+          ToastManager.warning('Veuillez selectionner un abonnement');
+          return;
+        }
+        // Utiliser le numero actuellement saisi dans le champ Numero de telephone (pas celui de l'abonnement)
+        const phoneRaw = document.getElementById('phone-number').value;
+        const phoneClean = (phoneRaw || '').replace(/\D/g, '');
+        if (phoneClean.length < 8) {
+          ToastManager.error('Numero de telephone invalide dans le champ Numero de telephone');
+          return;
+        }
+        const clientName = document.getElementById('client-name').value || selected.dataset.clientName || 'Client';
+        const cardNumber = selected.dataset.cardNumber || '';
+        const remaining = parseInt(selected.dataset.remainingDeliveries) || 0;
+        const total = parseInt(selected.dataset.totalDeliveries) || 0;
+
+        let message = `Bonjour ${clientName},\n\n`;
+        message += `Merci pour votre confiance avec MLC Livraison !\n\n`;
+        message += `📋 Etat de votre abonnement :\n`;
+        message += `🎫 Carte : ${cardNumber}\n`;
+        message += `✅ Livraisons restantes : *${remaining}* / ${total}\n\n`;
+        if (remaining <= 2 && remaining > 0) {
+          message += `⚠️ Il ne vous reste plus que ${remaining} livraison${remaining > 1 ? 's' : ''}. Pensez a renouveler votre carte !\n\n`;
+        } else if (remaining === 0) {
+          message += `⚠️ Votre abonnement est epuise. Contactez-nous pour renouveler.\n\n`;
+        }
+        message += `Merci de votre confiance !\nMLC - www.mlc-livraison.com`;
+
+        const tel = phoneClean.startsWith('221') ? phoneClean : '221' + phoneClean;
+        const whatsappUrl = `https://wa.me/${tel}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+      });
+    }
 
     // Gestion du bouton de sélection de contacts
     const selectContactBtn = document.getElementById('select-contact-btn');
