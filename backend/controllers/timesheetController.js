@@ -141,11 +141,11 @@ const startActivity = async (req, res) => {
     const { date, km, scooter_id } = req.body;
     const photo = req.file;
 
-    // Validations
-    if (!date || !km || !photo) {
+    // Validations (photo optionnelle)
+    if (!date || !km) {
       return res.status(400).json({
         success: false,
-        message: 'Date, kilométrage et photo sont requis.'
+        message: 'Date et kilométrage sont requis.'
       });
     }
 
@@ -199,8 +199,14 @@ const startActivity = async (req, res) => {
       }
     }
 
-    // Upload de la photo
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, date, 'start');
+    // Upload de la photo (optionnelle)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, userId, date, 'start');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Créer le pointage
     let timesheet;
@@ -269,16 +275,16 @@ const endActivity = async (req, res) => {
       bodyKeys: Object.keys(req.body)
     });
 
-    // Validations
-    if (!timesheet_id || !km || !photo) {
-      console.log('❌ Validation échouée:', { 
-        hasTimesheetId: !!timesheet_id, 
-        hasKm: !!km, 
-        hasPhoto: !!photo 
+    // Validations (photo optionnelle)
+    if (!timesheet_id || !km) {
+      console.log('❌ Validation échouée:', {
+        hasTimesheetId: !!timesheet_id,
+        hasKm: !!km,
+        hasPhoto: !!photo
       });
       return res.status(400).json({
         success: false,
-        message: 'ID du pointage, kilométrage et photo sont requis.'
+        message: 'ID du pointage et kilométrage sont requis.'
       });
     }
 
@@ -342,8 +348,14 @@ const endActivity = async (req, res) => {
       });
     }
 
-    // Upload de la photo (utiliser timesheet.date au lieu de date)
-    const { filePath, fileName } = await uploadTimesheetPhoto(photo, userId, timesheet.date, 'end');
+    // Upload de la photo (optionnelle)
+    let filePath = null;
+    let fileName = null;
+    if (photo) {
+      const uploaded = await uploadTimesheetPhoto(photo, userId, timesheet.date, 'end');
+      filePath = uploaded.filePath;
+      fileName = uploaded.fileName;
+    }
 
     // Mettre à jour le pointage
     const updatedTimesheet = await Timesheet.updateEnd(timesheet.id, {

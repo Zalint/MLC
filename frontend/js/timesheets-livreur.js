@@ -603,11 +603,7 @@ const TimesheetsLivreurManager = (() => {
       return;
     }
 
-    // Photo obligatoire en mode création, optionnelle en mode modification
-    if (!isEditMode && !startPhotoFile) {
-      showNotification('Veuillez ajouter une photo', 'error');
-      return;
-    }
+    // Photo optionnelle (aucune validation requise)
 
     const kmNumber = parseFloat(km);
     if (isNaN(kmNumber) || kmNumber < 0) {
@@ -710,11 +706,7 @@ const TimesheetsLivreurManager = (() => {
       return;
     }
 
-    // Photo obligatoire en mode création, optionnelle en mode modification
-    if (!isEditMode && !endPhotoFile) {
-      showNotification('Veuillez ajouter une photo', 'error');
-      return;
-    }
+    // Photo optionnelle (aucune validation requise)
 
     const kmNumber = parseFloat(km);
     if (isNaN(kmNumber) || kmNumber < 0) {
