@@ -8,6 +8,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 // Log loaded environment variables for debugging (can be removed once stable)
 console.log('--- CHECKING Environment Variables ---');
 console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_NAME:', process.env.DB_NAME);
 console.log('BACKEND_PORT:', process.env.BACKEND_PORT);
 console.log('JWT_SECRET is set:', !!process.env.JWT_SECRET);
 console.log('----------------------------------');

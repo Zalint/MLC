@@ -2290,8 +2290,8 @@ class MonthlyDashboardManager {
       };
     });
 
-    // Pour chaque date, livreur et type avec des données
-    Array.from(rowDates).sort().forEach(date => {
+    // Pour chaque date, livreur et type avec des données (tri décroissant : dates récentes en premier)
+    Array.from(rowDates).sort((a, b) => b.localeCompare(a)).forEach(date => {
       const formattedDate = new Date(date).toLocaleDateString('fr-FR', { 
         day: '2-digit', 
         month: '2-digit' 
@@ -2364,7 +2364,7 @@ class MonthlyDashboardManager {
       });
     });
 
-    const RENDER_LIMIT = 500;
+    const RENDER_LIMIT = 2000;
     const hasMoreRows = rowParts.length > RENDER_LIMIT;
     const initialRows = hasMoreRows ? rowParts.slice(0, RENDER_LIMIT).join('') : rowParts.join('');
 
