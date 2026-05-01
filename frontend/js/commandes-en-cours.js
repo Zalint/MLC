@@ -269,7 +269,14 @@ function renderCommandeCard(commande) {
           <span class="info-label">🏪 Point de vente:</span>
           <span class="info-value">${commande.point_vente}</span>
         </div>
-        
+
+        ${commande.point_vente_executant ? `
+        <div class="info-row">
+          <span class="info-label">🏭 Point de vente exécutant:</span>
+          <span class="info-value">${commande.point_vente_executant}</span>
+        </div>
+        ` : ''}
+
         <div class="info-row">
           <span class="info-label">📅 Date:</span>
           <span class="info-value">${dateFormatted}</span>
@@ -452,9 +459,18 @@ async function prendreLivraison(id) {
       console.log('📞 [prendreLivraison] Téléphone sans code pays:', cleanPhone);
     }
 
-    // Construire la description avec les détails des articles
-    const description = `Commande ${commande.commande_id}\n` +
-      `Articles:\n${commande.articles.map(a => `- ${a.produit} x${a.quantite} (${a.prix.toLocaleString()} FCFA)`).join('\n')}`;
+    // Construire la description avec les détails des articles + points de vente
+    const descriptionParts = [`Commande ${commande.commande_id}`];
+    if (commande.point_vente) {
+      descriptionParts.push(`Point de vente: ${commande.point_vente}`);
+    }
+    if (commande.point_vente_executant) {
+      descriptionParts.push(`Point de vente exécutant: ${commande.point_vente_executant}`);
+    }
+    descriptionParts.push(
+      `Articles:\n${commande.articles.map(a => `- ${a.produit} x${a.quantite} (${a.prix.toLocaleString()} FCFA)`).join('\n')}`
+    );
+    const description = descriptionParts.join('\n');
     
     console.log('📝 [prendreLivraison] Description créée:', description);
 

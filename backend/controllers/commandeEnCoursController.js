@@ -23,6 +23,10 @@ const createCommandeEnCours = async (req, res) => {
       statut
     } = req.body;
 
+    // Champ optionnel : point de vente qui exécute la livraison
+    // Accepte les deux formats (camelCase de l'API externe + snake_case)
+    const point_vente_executant = req.body.pointVenteExecutant || req.body.point_vente_executant || null;
+
     // Validation des données obligatoires
     if (!commande_id || !livreur_id || !livreur_nom || !client || !articles || !total || !point_vente || !date_commande || !statut) {
       return res.status(400).json({
@@ -110,7 +114,7 @@ const createCommandeEnCours = async (req, res) => {
       // Mettre à jour la commande existante
       const updateQuery = `
         UPDATE commandes_en_cours
-        SET 
+        SET
           livreur_id = $2,
           livreur_nom = $3,
           client_nom = $4,
@@ -121,6 +125,7 @@ const createCommandeEnCours = async (req, res) => {
           point_vente = $9,
           date_commande = $10,
           statut = $11,
+          point_vente_executant = $12,
           updated_at = NOW()
         WHERE commande_id = $1
         RETURNING *
@@ -137,7 +142,8 @@ const createCommandeEnCours = async (req, res) => {
         total,
         point_vente,
         date_commande,
-        statut
+        statut,
+        point_vente_executant
       ]);
 
       console.log(`✅ Commande en cours mise à jour: ${commande_id}`);
@@ -168,8 +174,9 @@ const createCommandeEnCours = async (req, res) => {
         total,
         point_vente,
         date_commande,
-        statut
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        statut,
+        point_vente_executant
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
 
@@ -184,7 +191,8 @@ const createCommandeEnCours = async (req, res) => {
       total,
       point_vente,
       date_commande,
-      statut
+      statut,
+      point_vente_executant
     ]);
 
     console.log(`✅ Nouvelle commande en cours créée: ${commande_id}`);
@@ -234,6 +242,7 @@ const getCommandesEnCours = async (req, res) => {
         articles,
         total,
         point_vente,
+        point_vente_executant,
         date_commande,
         statut,
         created_at,
