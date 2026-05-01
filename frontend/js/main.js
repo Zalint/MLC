@@ -49,6 +49,58 @@ async function loadOrderTypesConfig() {
   }
 }
 
+// ===== CONFIGURATION DES POINTS DE VENTE =====
+// Chargé dynamiquement depuis backend/config/points-de-vente.json
+window.POINTS_DE_VENTE_CONFIG = null;
+
+async function loadPointsDeVenteConfig() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/config/points-de-vente`);
+    if (!res.ok) throw new Error('Erreur chargement config points de vente');
+    window.POINTS_DE_VENTE_CONFIG = await res.json();
+  } catch (e) {
+    // Fallback si l'API est inaccessible
+    window.POINTS_DE_VENTE_CONFIG = {
+      points: [
+        { value: 'O.Foire', label: 'O.Foire' },
+        { value: 'Mbao', label: 'Mbao' },
+        { value: 'Keur Massar', label: 'Keur Massar' },
+        { value: 'Sacre Coeur', label: 'Sacre Coeur' },
+        { value: 'Centre de Decoupe Dakar', label: 'Centre de Decoupe Dakar' },
+        { value: 'Centre de Decoupe Banlieue', label: 'Centre de Decoupe Banlieue' }
+      ]
+    };
+  }
+}
+
+// Remplit tous les <select data-pdv-select> avec les points de vente
+function populatePointsDeVenteSelects() {
+  const config = window.POINTS_DE_VENTE_CONFIG;
+  if (!config || !Array.isArray(config.points)) return;
+  const selects = document.querySelectorAll('select[data-pdv-select]');
+  selects.forEach(select => {
+    const previousValue = select.value;
+    const presetValue = select.getAttribute('data-pdv-selected') || '';
+    const placeholder = select.getAttribute('data-pdv-placeholder') || '';
+    select.innerHTML = '';
+    const placeholderOpt = document.createElement('option');
+    placeholderOpt.value = '';
+    placeholderOpt.textContent = placeholder;
+    select.appendChild(placeholderOpt);
+    config.points.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.value;
+      opt.textContent = p.label || p.value;
+      select.appendChild(opt);
+    });
+    const valueToApply = presetValue || previousValue;
+    if (valueToApply) select.value = valueToApply;
+  });
+}
+
+// Expose populator globally so dynamically injected HTML can refresh selects
+window.populatePointsDeVenteSelects = populatePointsDeVenteSelects;
+
 // Retourne toutes les options pour les dropdowns de formulaire
 function getOrderTypeOptions() {
   const config = window.ORDER_TYPES_CONFIG;
@@ -4102,6 +4154,7 @@ class OrderManager {
             ${order.order_type === 'MATA' ? `<span class="order-amount">Montant : <b>${Utils.formatAmount(order.amount)}</b></span>` : ''}
           </div>
           <div class="order-type">Type : <b>${Utils.escapeHtml(order.order_type)}</b></div>
+          ${order.order_type === 'MATA' && order.point_de_vente ? `<div class="order-point-vente">Point de vente : <b>${Utils.escapeHtml(order.point_de_vente)}</b></div>` : ''}
           ${order.order_type === 'MATA' && order.phone_number && !order.interne ? `
             <button class="btn btn-info-outline btn-client-history-card" data-phone="${Utils.escapeHtml(order.phone_number)}" data-client-name="${Utils.escapeHtml(order.client_name)}" style="margin-top: 10px;">
               📋 Voir l'historique de ce client
@@ -4221,6 +4274,7 @@ class OrderManager {
               </p>
               <p><strong>Date:</strong> ${Utils.formatDate(order.created_at)}</p>
               ${order.creator_username ? `<p><strong>Créé par:</strong> ${Utils.escapeHtml(order.creator_username)}</p>` : ''}
+              ${order.point_de_vente ? `<p><strong>Point de vente:</strong> ${Utils.escapeHtml(order.point_de_vente)}</p>` : ''}
             </div>
 
             <div class="detail-group">
@@ -4582,12 +4636,8 @@ class OrderManager {
           </div>
           <div class="form-group" id="edit-point-vente-group" style="display: none;">
             <label for="edit-point-vente">Point de vente *</label>
-            <select id="edit-point-vente" name="point_de_vente">
+            <select id="edit-point-vente" name="point_de_vente" data-pdv-select="form" data-pdv-placeholder="Sélectionner un point de vente" data-pdv-selected="${order.point_de_vente ? Utils.escapeHtml(order.point_de_vente) : ''}">
               <option value="">Sélectionner un point de vente</option>
-              <option value="O.Foire" ${order.point_de_vente === 'O.Foire' ? 'selected' : ''}>O.Foire</option>
-              <option value="Mbao" ${order.point_de_vente === 'Mbao' ? 'selected' : ''}>Mbao</option>
-              <option value="Keur Massar" ${order.point_de_vente === 'Keur Massar' ? 'selected' : ''}>Keur Massar</option>
-               <option value="Keur Massar" ${order.point_de_vente === 'Sacre Coeur' ? 'selected' : ''}>Sacre Coeur</option>
             </select>
           </div>
           <div class="form-group" id="edit-description-group">
@@ -4615,6 +4665,11 @@ class OrderManager {
       `;
 
       ModalManager.show('Modifier la commande', content);
+
+      // Remplir le dropdown "Point de vente" depuis la config JSON
+      if (typeof populatePointsDeVenteSelects === 'function') {
+        populatePointsDeVenteSelects();
+      }
 
       // Ajouter la validation en temps réel pour le numéro de téléphone
       const editPhoneInput = document.getElementById('edit-phone-number');
@@ -8178,6 +8233,8 @@ class App {
 // ===== DÉMARRAGE DE L'APPLICATION =====
 document.addEventListener('DOMContentLoaded', async () => {
   await loadOrderTypesConfig();
+  await loadPointsDeVenteConfig();
+  populatePointsDeVenteSelects();
   App.init();
   
   // Vérifier l'API Contacts après l'initialisation

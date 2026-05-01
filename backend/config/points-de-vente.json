@@ -1,0 +1,10 @@
+{
+  "points": [
+    { "value": "O.Foire", "label": "O.Foire" },
+    { "value": "Mbao", "label": "Mbao" },
+    { "value": "Keur Massar", "label": "Keur Massar" },
+    { "value": "Sacre Coeur", "label": "Sacre Coeur" },
+    { "value": "Centre de Decoupe Dakar", "label": "Centre de Decoupe Dakar" },
+    { "value": "Centre de Decoupe Banlieue", "label": "Centre de Decoupe Banlieue" }
+  ]
+}

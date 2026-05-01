@@ -1,11 +1,15 @@
 const { body, param, query, validationResult } = require('express-validator');
 const orderTypesConfig = require('../config/order-types.json');
+const pointsDeVenteConfig = require('../config/points-de-vente.json');
 
 // Build valid order types from config (case-insensitive matching)
 const validOrderTypes = [
   ...orderTypesConfig.coreTypes,
   ...orderTypesConfig.extensions.map(e => e.value)
 ];
+
+// Build valid points de vente from config
+const validPointsDeVente = pointsDeVenteConfig.points.map(p => p.value);
 
 // Middleware pour gérer les erreurs de validation
 const handleValidationErrors = (req, res, next) => {
@@ -218,7 +222,7 @@ const validateOrderCreation = [
   body('point_de_vente')
     .if(body('order_type').equals('MATA'))
     .notEmpty().withMessage('Le point de vente est obligatoire pour MATA')
-    .isIn(['O.Foire', 'Mbao', 'Keur Massar','Sacre Coeur']).withMessage('Point de vente invalide'),
+    .isIn(validPointsDeVente).withMessage('Point de vente invalide'),
 
   body('created_at')
     .optional({ values: 'falsy' })
@@ -281,7 +285,12 @@ const validateOrderUpdate = [
     .customSanitizer(val => typeof val === 'string' ? val.toUpperCase() : val)
     .isIn(validOrderTypes)
     .withMessage(`Le type de commande doit être ${validOrderTypes.join(', ')}`),
-    
+
+  body('point_de_vente')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isIn(validPointsDeVente).withMessage('Point de vente invalide'),
+
   body('commentaire')
     .optional()
     .trim()

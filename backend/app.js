@@ -135,6 +135,16 @@ app.get('/api/v1/config/order-types', (req, res) => {
   }
 });
 
+// Route config : points de vente (public, lu depuis points-de-vente.json)
+app.get('/api/v1/config/points-de-vente', (req, res) => {
+  try {
+    const config = require('./config/points-de-vente.json');
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de charger la configuration des points de vente' });
+  }
+});
+
 // Route config : modes de versement (lu depuis versement-modes.json)
 app.get('/api/v1/config/versement-modes', (req, res) => {
   try {
