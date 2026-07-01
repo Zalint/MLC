@@ -64,7 +64,8 @@ class AuthController {
           id: user.id,
           username: user.username,
           role: user.role,
-          allowed_order_types: user.allowed_order_types || null
+          allowed_order_types: user.allowed_order_types || null,
+          is_chef_livreur: user.is_chef_livreur === true
         },
         token: token // Include token for mobile fallback
       });
@@ -112,7 +113,8 @@ class AuthController {
           id: req.user.id,
           username: req.user.username,
           role: req.user.role,
-          allowed_order_types: req.user.allowed_order_types || null
+          allowed_order_types: req.user.allowed_order_types || null,
+          is_chef_livreur: req.user.is_chef_livreur === true
         }
       });
 

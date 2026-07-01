@@ -113,7 +113,12 @@ const validateUserCreation = [
   body('role')
     .isIn(['LIVREUR', 'MANAGER', 'ADMIN', 'READONLY'])
     .withMessage('Le rôle doit être LIVREUR, MANAGER, ADMIN ou READONLY'),
-    
+
+  body('is_chef_livreur')
+    .optional()
+    .isBoolean()
+    .withMessage('is_chef_livreur doit être un booléen'),
+
   handleValidationErrors
 ];
 
@@ -131,7 +136,12 @@ const validateUserUpdate = [
     .optional()
     .isIn(['LIVREUR', 'MANAGER', 'ADMIN', 'READONLY'])
     .withMessage('Le rôle doit être LIVREUR, MANAGER, ADMIN ou READONLY'),
-    
+
+  body('is_chef_livreur')
+    .optional()
+    .isBoolean()
+    .withMessage('is_chef_livreur doit être un booléen'),
+
   handleValidationErrors
 ];
 

@@ -12,21 +12,23 @@ class User {
     this.created_at = data.created_at;
     this.updated_at = data.updated_at;
     this.allowed_order_types = data.allowed_order_types || null;
+    this.is_chef_livreur = data.is_chef_livreur === true;
   }
 
   // Créer un nouvel utilisateur
-  static async create({ username, password, role, is_active = true }) {
+  static async create({ username, password, role, is_active = true, is_chef_livreur = false }) {
     const id = uuidv4();
     const password_hash = await bcrypt.hash(password, 12);
-    
+
     const query = `
-      INSERT INTO users (id, username, password_hash, role, is_active)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO users (id, username, password_hash, role, is_active, is_chef_livreur)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    
+
     try {
-      const result = await db.query(query, [id, username, password_hash, role, is_active]);
+      // Le flag "chef livreur" n'a de sens que pour un LIVREUR
+      const result = await db.query(query, [id, username, password_hash, role, is_active, role === 'LIVREUR' ? (is_chef_livreur === true || is_chef_livreur === 'true') : false]);
       return new User(result.rows[0]);
     } catch (error) {
       if (error.code === '23505') { // Violation de contrainte unique
@@ -94,7 +96,7 @@ class User {
 
   // Mettre à jour un utilisateur
   static async update(id, updates) {
-    const allowedFields = ['username', 'role', 'is_active', 'allowed_order_types'];
+    const allowedFields = ['username', 'role', 'is_active', 'allowed_order_types', 'is_chef_livreur'];
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -210,6 +212,11 @@ class User {
       result: this.role === 'MANAGER' || this.role === 'ADMIN'
     });
     return this.role === 'MANAGER' || this.role === 'ADMIN';
+  }
+
+  // Vérifier si l'utilisateur est un chef livreur (livreur avec droits de réassignation)
+  isChefLivreur() {
+    return this.role === 'LIVREUR' && this.is_chef_livreur === true;
   }
 
   // Vérifier si l'utilisateur est admin

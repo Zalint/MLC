@@ -17,6 +17,17 @@ const {
   sanitizeInput
 } = require('../middleware/validation');
 
+// Autorise MANAGER/ADMIN/READONLY et les chefs livreurs (LIVREUR + is_chef_livreur).
+// Utilisé uniquement pour la liste des livreurs actifs (modale de réassignation),
+// sans élargir l'accès à la liste complète des utilisateurs.
+const requireViewerOrChefLivreur = (req, res, next) => {
+  const u = req.user;
+  if (u && (['MANAGER', 'ADMIN', 'READONLY'].includes(u.role) || (u.role === 'LIVREUR' && u.is_chef_livreur === true))) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Permissions insuffisantes' });
+};
+
 // Toutes les routes nécessitent une authentification
 router.use(authenticateToken);
 
@@ -25,7 +36,7 @@ router.get('/', requireViewer, UserController.getAllUsers);
 router.get('/stats', requireViewer, UserController.getUserStats);
 router.get('/role/:role', requireViewer, UserController.getUsersByRole);
 router.get('/livreurs', requireViewer, UserController.getAllLivreurs);
-router.get('/livreurs/active', requireViewer, UserController.getActiveLivreurs);
+router.get('/livreurs/active', requireViewerOrChefLivreur, UserController.getActiveLivreurs);
 router.get('/active', requireViewer, UserController.getAllActiveUsers);
 router.get('/:id', requireViewer, validateUUID, UserController.getUserById);
 

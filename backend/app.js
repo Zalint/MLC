@@ -221,6 +221,14 @@ async function runStartupMigrations() {
     console.error('⚠️ Migration allowed_order_types:', err.message);
   }
 
+  // Flag "chef livreur" (livreur pouvant voir et réassigner toutes les commandes en cours)
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_chef_livreur BOOLEAN NOT NULL DEFAULT false`);
+    console.log('✅ Migration: is_chef_livreur OK');
+  } catch (err) {
+    console.error('⚠️ Migration is_chef_livreur:', err.message);
+  }
+
   // Table mlc_zones
   try {
     await db.query(`
