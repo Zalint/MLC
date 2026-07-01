@@ -6,6 +6,43 @@ const DailySentimentAnalyzer = require('../utils/sentimentAnalyzer');
 const ExternalMataAuditController = require('../controllers/externalMataAuditController');
 const { validateApiKey } = require('../middleware/apiKeyAuth');
 
+// Prix historiques des zones MLC, utilisés uniquement en repli si la table mlc_zones
+// est indisponible (Zone 1 = 1000, Zone 2 = 1750, Zone 3 = 2500).
+const DEFAULT_MLC_ZONE_PRICES = [1000, 1750, 2500];
+
+// Récupère les prix des 3 zones MLC "standard" depuis la table mlc_zones (source de vérité),
+// pour classer les commandes MLC sans abonnement en zone1 / zone2 / zone3.
+// On prend les 3 premières zones à prix fixe (is_custom_price = false) triées par sort_order ;
+// toute commande dont le prix ne correspond à aucune de ces 3 zones tombe dans "autre zone"
+// (ce qui couvre la zone à prix personnalisé ainsi que toute zone supplémentaire éventuelle).
+// Ces prix remplacent les anciennes constantes codées en dur (1000/1750/2500), qui devenaient
+// fausses dès qu'un admin modifiait une zone via la page "Zones MLC".
+async function getMlcZonePrices() {
+  try {
+    const result = await db.query(
+      `SELECT price FROM mlc_zones
+       WHERE is_active = true AND is_custom_price = false AND price IS NOT NULL
+       ORDER BY sort_order ASC
+       LIMIT 3`
+    );
+    const prices = result.rows
+      .map(r => parseInt(r.price, 10))
+      .filter(p => !Number.isNaN(p));
+    // Table vide/inattendue : repli sur les valeurs historiques pour ne pas tout basculer en "autre".
+    if (prices.length === 0) {
+      return [...DEFAULT_MLC_ZONE_PRICES];
+    }
+    // Compléter les emplacements manquants avec une sentinelle qui ne peut correspondre à aucun prix réel.
+    while (prices.length < 3) {
+      prices.push(-1);
+    }
+    return prices; // [prixZone1, prixZone2, prixZone3]
+  } catch (err) {
+    console.error('⚠️ Impossible de charger les prix des zones MLC, repli sur les valeurs par défaut:', err.message);
+    return [...DEFAULT_MLC_ZONE_PRICES];
+  }
+}
+
 // GET /api/external/mlc/livreurStats/daily - Statistiques journalières des livreurs
 router.get('/mlc/livreurStats/daily', async (req, res) => {
   try {
@@ -80,10 +117,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
           -- Zones pour MLC sans abonnement
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000, 1750, 2500) THEN 1 ELSE 0 END) as mlc_autre_zone
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $5 THEN 1 ELSE 0 END) as mlc_zone1,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $6 THEN 1 ELSE 0 END) as mlc_zone2,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $7 THEN 1 ELSE 0 END) as mlc_zone3,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN ($5, $6, $7) THEN 1 ELSE 0 END) as mlc_autre_zone
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE DATE(o.created_at) = $1 AND u.role = 'LIVREUR' AND u.is_active = true
@@ -169,10 +206,10 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
         -- Zones pour MLC sans abonnement par livreur
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000, 1750, 2500) THEN 1 ELSE 0 END) as mlc_autre_zone,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $5 THEN 1 ELSE 0 END) as mlc_zone1,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $6 THEN 1 ELSE 0 END) as mlc_zone2,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $7 THEN 1 ELSE 0 END) as mlc_zone3,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN ($5, $6, $7) THEN 1 ELSE 0 END) as mlc_autre_zone,
         -- Calcul des revenus et bénéfices
         COALESCE(SUM(o.course_price), 0) as total_revenus,
         COALESCE(e.carburant, 0) + COALESCE(e.reparations, 0) + COALESCE(e.police, 0) + COALESCE(e.autres, 0) as total_depenses,
@@ -243,9 +280,12 @@ router.get('/mlc/livreurStats/daily', async (req, res) => {
       ORDER BY u.username
     `;
 
+    // Prix des zones MLC (source de vérité: table mlc_zones) pour classer zone1/zone2/zone3.
+    const zonePrices = await getMlcZonePrices();
+
     const [summaryResult, detailsResult, extrasResult, typeStatsResult] = await Promise.all([
-      db.query(summaryQuery, [date, seuilMata, seuilMlc, seuilMataPanier]),
-      db.query(detailsQuery, [date, seuilMata, seuilMlc, seuilMataPanier]),
+      db.query(summaryQuery, [date, seuilMata, seuilMlc, seuilMataPanier, ...zonePrices]),
+      db.query(detailsQuery, [date, seuilMata, seuilMlc, seuilMataPanier, ...zonePrices]),
       db.query(extrasQuery, [date]),
       db.query(typeStatsQuery, [date])
     ]);
@@ -564,10 +604,10 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
           SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
           -- Zones pour MLC sans abonnement
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
-          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000,1750,2500) THEN 1 ELSE 0 END) as mlc_autre_zone
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $6 THEN 1 ELSE 0 END) as mlc_zone1,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $7 THEN 1 ELSE 0 END) as mlc_zone2,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $8 THEN 1 ELSE 0 END) as mlc_zone3,
+          SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN ($6, $7, $8) THEN 1 ELSE 0 END) as mlc_autre_zone
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE DATE(o.created_at) BETWEEN $1 AND $2 AND u.role = 'LIVREUR' AND u.is_active = true
@@ -648,10 +688,10 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN 1 ELSE 0 END) as courses_autre_nombre,
         SUM(CASE WHEN o.order_type = 'AUTRE' THEN COALESCE(o.course_price, 0) ELSE 0 END) as courses_autre_prix,
         -- Zones pour MLC sans abonnement par livreur
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1000 THEN 1 ELSE 0 END) as mlc_zone1,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 1750 THEN 1 ELSE 0 END) as mlc_zone2,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = 2500 THEN 1 ELSE 0 END) as mlc_zone3,
-        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN (1000,1750,2500) THEN 1 ELSE 0 END) as mlc_autre_zone,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $6 THEN 1 ELSE 0 END) as mlc_zone1,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $7 THEN 1 ELSE 0 END) as mlc_zone2,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price = $8 THEN 1 ELSE 0 END) as mlc_zone3,
+        SUM(CASE WHEN o.order_type = 'MLC' AND o.subscription_id IS NULL AND o.course_price NOT IN ($6, $7, $8) THEN 1 ELSE 0 END) as mlc_autre_zone,
         -- Calcul des revenus et bénéfices
         COALESCE(SUM(o.course_price), 0) as total_revenus,
         COALESCE(SUM(e.carburant), 0) + COALESCE(SUM(e.reparations), 0) + COALESCE(SUM(e.police), 0) + COALESCE(SUM(e.autres), 0) as total_depenses,
@@ -721,9 +761,12 @@ router.get('/mlc/livreurStats/monthtodate', async (req, res) => {
       ORDER BY u.username
     `;
 
+    // Prix des zones MLC (source de vérité: table mlc_zones) pour classer zone1/zone2/zone3.
+    const zonePrices = await getMlcZonePrices();
+
     const [summaryResult, detailsResult, extrasResult, typeStatsResult] = await Promise.all([
-      db.query(summaryQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier]),
-      db.query(detailsQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier]),
+      db.query(summaryQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier, ...zonePrices]),
+      db.query(detailsQuery, [startDate, endDate, seuilMata, seuilMlc, seuilMataPanier, ...zonePrices]),
       db.query(extrasQuery, [startDate, endDate]),
       db.query(typeStatsQuery, [startDate, endDate])
     ]);
