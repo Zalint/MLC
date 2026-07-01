@@ -368,7 +368,19 @@
                     <label for="mata-monthly-date-filter" style="font-weight: bold;">Afficher pour le:</label>
                     <input type="month" id="mata-monthly-date-filter" name="mata-monthly-date" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
-                
+
+                <!-- Export MATA sur une plage de dates (export seulement — n'affecte pas le tableau à l'écran) -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="mata-export-start" style="font-weight: bold;">Exporter du:</label>
+                    <input type="date" id="mata-export-start" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <label for="mata-export-end" style="font-weight: bold;">au:</label>
+                    <input type="date" id="mata-export-end" class="form-control" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <button id="export-mata-period-excel" class="btn btn-primary btn-sm" style="padding: 0.5rem 1rem;">
+                        <span class="icon">📊</span>
+                        Exporter la période
+                    </button>
+                </div>
+
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <label for="mata-date-range-filter" style="font-weight: bold;">Date:</label>
                     <input type="date" id="mata-date-range-filter" class="form-control" placeholder="Filtrer par date" style="width: auto; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">

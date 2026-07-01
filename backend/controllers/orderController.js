@@ -2308,12 +2308,59 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
   // Exporter le tableau de bord MATA mensuel en Excel
   static async exportMataMonthlyToExcel(req, res) {
     try {
-      const month = req.query.month || new Date().toISOString().slice(0, 7);
       const orderType = 'MATA'; // Could be made configurable via environment variable if needed
-      
+      const db = require('../models/database');
+
+      // Mode "plage de dates" si startDate OU endDate est fourni ; sinon mode mensuel (rétrocompatible ?month=YYYY-MM).
+      const rawStart = req.query.startDate;
+      const rawEnd = req.query.endDate;
+      const isRange = !!(rawStart || rawEnd);
+
+      let startDate, endDate, month; // startDate/endDate = bornes 'YYYY-MM-DD' (endDate = dernier jour inclus)
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+      const MONTH_RE = /^\d{4}-\d{2}$/;
+
+      if (isRange) {
+        if (!rawStart || !rawEnd) {
+          return res.status(400).json({ error: 'startDate et endDate sont requis (format YYYY-MM-DD).' });
+        }
+        if (!DATE_RE.test(rawStart) || !DATE_RE.test(rawEnd)) {
+          return res.status(400).json({ error: 'Dates invalides (format attendu YYYY-MM-DD).' });
+        }
+        const ds = new Date(rawStart + 'T00:00:00Z');
+        const de = new Date(rawEnd + 'T00:00:00Z');
+        // Contrôle strict : rejette aussi les dates "impossibles" (ex: 2026-02-30) que JS ramènerait
+        // silencieusement au mois suivant — sinon le cast ::date échouerait côté Postgres (erreur 500).
+        if (isNaN(ds.getTime()) || isNaN(de.getTime()) ||
+            ds.toISOString().slice(0, 10) !== rawStart ||
+            de.toISOString().slice(0, 10) !== rawEnd) {
+          return res.status(400).json({ error: 'Dates invalides.' });
+        }
+        if (rawStart > rawEnd) { // comparaison lexicographique fiable pour du YYYY-MM-DD zéro-paddé
+          return res.status(400).json({ error: 'La date de début doit précéder la date de fin.' });
+        }
+        const maxEnd = new Date(ds);
+        maxEnd.setUTCFullYear(maxEnd.getUTCFullYear() + 1); // plafond de 1 an
+        if (de.getTime() > maxEnd.getTime()) {
+          return res.status(400).json({ error: 'La plage de dates ne peut pas dépasser 1 an.' });
+        }
+        startDate = rawStart;
+        endDate = rawEnd;
+      } else {
+        month = req.query.month || new Date().toISOString().slice(0, 7);
+        if (!MONTH_RE.test(month)) {
+          return res.status(400).json({ error: 'Mois invalide (format attendu YYYY-MM).' });
+        }
+        startDate = month + '-01';
+        const [yy, mm] = month.split('-').map(Number);
+        const last = new Date(Date.UTC(yy, mm, 0)); // mm en base 1 ; jour 0 = dernier jour du mois mm
+        endDate = `${last.getUTCFullYear()}-${String(last.getUTCMonth() + 1).padStart(2, '0')}-${String(last.getUTCDate()).padStart(2, '0')}`;
+      }
+
       // Build query based on user permissions (same logic as getMataMonthlyDashboard)
+      // Filtre sargable sur created_at (intervalle demi-ouvert [start, end+1j)) -> utilise l'index, pas de TO_CHAR.
       const baseQuery = `
-        SELECT 
+        SELECT
           o.id,
           TO_CHAR(DATE(o.created_at), 'YYYY-MM-DD') as date,
           o.phone_number,
@@ -2334,7 +2381,8 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
         FROM orders o
         JOIN users u ON o.created_by = u.id
         WHERE o.order_type = $1
-          AND TO_CHAR(o.created_at, 'YYYY-MM') = $2
+          AND o.created_at >= $2::date
+          AND o.created_at < ($3::date + INTERVAL '1 day')
       `;
 
       let query;
@@ -2343,73 +2391,66 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       if (req.user.isManagerOrAdmin()) {
         // Managers and Admins can export ALL orders of this type
         query = baseQuery + ' ORDER BY o.created_at ASC';
-        queryParams = [orderType, month];
+        queryParams = [orderType, startDate, endDate];
       } else {
         // Other users can only export their own orders of this type
-        query = baseQuery + ' AND o.created_by = $3 ORDER BY o.created_at ASC';
-        queryParams = [orderType, month, req.user.id];
+        query = baseQuery + ' AND o.created_by = $4 ORDER BY o.created_at ASC';
+        queryParams = [orderType, startDate, endDate, req.user.id];
       }
-      
-      const db = require('../models/database');
+
       const result = await db.query(query, queryParams);
       const mataOrders = result.rows;
 
-      // Enrichir chaque commande avec les informations client (même logique que getMataMonthlyDashboard)
-      const clientStats = {}; // Cache pour éviter les requêtes multiples par client
-      
-      for (let order of mataOrders) {
-        if (order.phone_number) {
-          // Utiliser le cache si déjà calculé pour ce numéro
-          if (!clientStats[order.phone_number]) {
-            // Compter le TOTAL de commandes pour ce numéro (tous les mois)
-            const totalOrdersQuery = `
-              SELECT COUNT(*) as count
-              FROM orders
-              WHERE phone_number = $1
-                AND order_type = 'MATA'
-            `;
-            const totalResult = await db.query(totalOrdersQuery, [order.phone_number]);
-            const totalOrders = parseInt(totalResult.rows[0].count);
-            
-            // Compter les commandes de ce client DANS LE MOIS ACTUEL
-            const thisMonthOrdersQuery = `
-              SELECT COUNT(*) as count
-              FROM orders
-              WHERE phone_number = $1
-                AND order_type = 'MATA'
-                AND TO_CHAR(created_at, 'YYYY-MM') = $2
-            `;
-            const thisMonthResult = await db.query(thisMonthOrdersQuery, [order.phone_number, month]);
-            const thisMonthOrders = parseInt(thisMonthResult.rows[0].count);
-            
-            // 🔍 RÉCUPÉRER LA SOURCE_CONNAISSANCE UNIFIÉE DU CLIENT
-            const sourceQuery = `
-              SELECT source_connaissance
-              FROM orders
-              WHERE phone_number = $1
-                AND order_type = 'MATA'
-                AND source_connaissance IS NOT NULL
-                AND source_connaissance != ''
-              LIMIT 1
-            `;
-            const sourceResult = await db.query(sourceQuery, [order.phone_number]);
-            const unifiedSource = sourceResult.rows.length > 0 ? sourceResult.rows[0].source_connaissance : null;
-            
-            clientStats[order.phone_number] = {
-              total_orders: totalOrders,
-              this_month_orders: thisMonthOrders,
-              is_new: totalOrders === 1 && thisMonthOrders === 1,
-              source_connaissance: unifiedSource
-            };
-          }
-          
-          const stats = clientStats[order.phone_number];
-          order.total_orders_count = stats.total_orders;
-          order.orders_this_month_count = stats.this_month_orders;
-          order.is_new_client = stats.is_new;
-          
-          // 🔄 APPLIQUER LA SOURCE_CONNAISSANCE UNIFIÉE
-          order.source_connaissance = stats.source_connaissance;
+      // Enrichissement client SANS N+1 : au lieu d'une boucle qui interrogeait la base 3 fois par client,
+      // on lance 3 requêtes ensemblistes bornées aux téléphones présents dans le résultat (nombre de
+      // requêtes constant, indépendant du nombre de clients ou de la longueur de la période).
+      const phones = [...new Set(mataOrders.map(o => o.phone_number).filter(p => p && p.trim() !== ''))];
+      const totalByPhone = new Map();   // total commandes MATA tous temps -> Nouveau/Récurrent
+      const periodByPhone = new Map();  // commandes MATA du client sur la période sélectionnée
+      const sourceByPhone = new Map();  // source_connaissance unifiée (déterministe)
+
+      if (phones.length > 0) {
+        // E1 : total tous temps par téléphone (non borné par la date ni par le créateur, comme l'export d'origine)
+        const totalsResult = await db.query(
+          `SELECT phone_number, COUNT(*)::int AS cnt
+           FROM orders
+           WHERE order_type = 'MATA' AND phone_number = ANY($1::text[])
+           GROUP BY phone_number`,
+          [phones]
+        );
+        totalsResult.rows.forEach(r => totalByPhone.set(r.phone_number, r.cnt));
+
+        // E2 : nombre de commandes du client SUR LA PÉRIODE (mêmes bornes sargables que la requête principale)
+        const periodResult = await db.query(
+          `SELECT phone_number, COUNT(*)::int AS cnt
+           FROM orders
+           WHERE order_type = 'MATA' AND phone_number = ANY($1::text[])
+             AND created_at >= $2::date AND created_at < ($3::date + INTERVAL '1 day')
+           GROUP BY phone_number`,
+          [phones, startDate, endDate]
+        );
+        periodResult.rows.forEach(r => periodByPhone.set(r.phone_number, r.cnt));
+
+        // E3 : source_connaissance unifiée et DÉTERMINISTE (plus ancienne source non vide) par téléphone
+        const sourceResult = await db.query(
+          `SELECT DISTINCT ON (phone_number) phone_number, source_connaissance
+           FROM orders
+           WHERE order_type = 'MATA' AND phone_number = ANY($1::text[])
+             AND source_connaissance IS NOT NULL AND source_connaissance <> ''
+           ORDER BY phone_number, created_at ASC, id ASC`,
+          [phones]
+        );
+        sourceResult.rows.forEach(r => sourceByPhone.set(r.phone_number, r.source_connaissance));
+      }
+
+      for (const order of mataOrders) {
+        if (order.phone_number && order.phone_number.trim() !== '') {
+          const total = totalByPhone.get(order.phone_number) || 0;
+          order.total_orders_count = total;
+          // Propriété réutilisée : contient le compte "sur la période" (l'en-tête Excel s'adapte via isRange)
+          order.orders_this_month_count = periodByPhone.get(order.phone_number) || 0;
+          order.is_new_client = total === 1; // Nouveau = toute première commande MATA du client
+          order.source_connaissance = sourceByPhone.get(order.phone_number) || null;
         } else {
           order.total_orders_count = 0;
           order.orders_this_month_count = 0;
@@ -2424,7 +2465,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       // Ajouter le titre
       worksheet.mergeCells('A1:S1');
       const titleCell = worksheet.getCell('A1');
-      titleCell.value = `Tableau de Bord Mensuel MATA - ${month}`;
+      titleCell.value = isRange
+        ? `Tableau de Bord MATA - Période du ${startDate} au ${endDate}`
+        : `Tableau de Bord Mensuel MATA - ${month}`;
       titleCell.font = { bold: true, size: 16 };
       titleCell.alignment = { horizontal: 'center' };
       titleCell.fill = {
@@ -2448,7 +2491,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
         'Montant commande (FCFA)',
         'Livreur assigné',
         'Type client',
-        'Commandes ce mois',
+        (isRange ? 'Commandes sur la période' : 'Commandes ce mois'),
         'Commandes total',
         'Commande interne',
         'Comment nous avez-vous connu ?',
@@ -2552,24 +2595,13 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
         }
       });
 
-      // Ajouter une ligne de total
+      // Ajouter une ligne de total (tableau explicite de 19 colonnes pour un alignement fiable)
       const totalMontant = mataOrders.reduce((sum, order) => sum + (parseFloat(order.montant_commande) || 0), 0);
-      const totalRow = worksheet.addRow([
-        '',                              // Date
-        '',                              // Numéro de téléphone
-        '',                              // Nom
-        'TOTAL',                         // Adresse source
-        '',                              // Adresse destination
-        '',                              // Point de vente
-        totalMontant,                    // Montant commande
-        `${mataOrders.length} commandes`, // Livreur
-        '',                              // Interne
-        '',                              // Commentaire
-        '',                              // Service livraison
-        '',                              // Qualité produits
-        '',                              // Niveau prix
-        ''                               // Note moyenne
-      ]);
+      const totalRowValues = new Array(19).fill('');
+      totalRowValues[3] = 'TOTAL';                          // Adresse de départ
+      totalRowValues[6] = totalMontant;                     // Montant commande (FCFA)
+      totalRowValues[7] = `${mataOrders.length} commandes`; // Livreur assigné
+      const totalRow = worksheet.addRow(totalRowValues);
       
       totalRow.font = { bold: true };
       totalRow.fill = {
@@ -2579,7 +2611,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       };
 
       // Définir les en-têtes de réponse
-      const filename = `mata_mensuel_${month}.xlsx`;
+      const filename = isRange
+        ? `mata_periode_${startDate}_${endDate}.xlsx`
+        : `mata_mensuel_${month}.xlsx`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 

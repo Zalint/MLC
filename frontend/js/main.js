@@ -764,6 +764,44 @@ class ApiClient {
     }
   }
 
+  // Export MATA sur une plage de dates (date début -> date fin), format YYYY-MM-DD
+  static async exportMataPeriodToExcel(startDate, endDate) {
+    try {
+      const qs = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+      const url = `${window.API_BASE_URL}/orders/mata-monthly-export?${qs}`;
+      const token = this.getStoredToken();
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `mata_periode_${startDate}_${endDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+
+      ToastManager.success('Export Excel MATA (période) téléchargé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'export période MATA:', error);
+      ToastManager.error('Erreur lors de l\'export Excel');
+    }
+  }
+
   static async exportMonthlySummaryToExcel(month) {
     try {
       const url = `${window.API_BASE_URL}/orders/monthly-summary-export?month=${month}`;
@@ -3836,6 +3874,25 @@ class MataMonthlyDashboardManager {
         const selectedMonth = monthInput.value || new Date().toISOString().slice(0, 7);
         ApiClient.exportMataMonthlyToExcel(selectedMonth);
         ToastManager.success('Export Excel MATA en cours...');
+      });
+    }
+
+    // Gestionnaire pour l'export Excel MATA sur une plage de dates (date début -> date fin)
+    const exportPeriodBtn = document.getElementById('export-mata-period-excel');
+    if (exportPeriodBtn) {
+      exportPeriodBtn.addEventListener('click', () => {
+        const start = document.getElementById('mata-export-start').value;
+        const end = document.getElementById('mata-export-end').value;
+        if (!start || !end) {
+          ToastManager.error('Sélectionnez une date de début et de fin.');
+          return;
+        }
+        if (start > end) {
+          ToastManager.error('La date de début doit précéder la date de fin.');
+          return;
+        }
+        ApiClient.exportMataPeriodToExcel(start, end);
+        ToastManager.success('Export Excel MATA (période) en cours...');
       });
     }
 
