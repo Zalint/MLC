@@ -497,8 +497,8 @@ class Order {
         SUM(COALESCE(o.course_price, 0)) as total_amount,
         SUM(
           CASE 
-            -- MATA hors zone : supplément au-dessus du prix de base (1000 FCFA)
-            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN o.course_price - 1000
+            -- MATA hors zone : supplément au-dessus du prix de base en vigueur à la date de la commande
+            WHEN o.order_type = 'MATA' AND o.course_price > COALESCE(mp.default_price, 1000) THEN o.course_price - COALESCE(mp.default_price, 1000)
             -- MLC avec abonnement : supplément au-dessus du prix unitaire de l'abonnement
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL THEN 
               GREATEST(0, o.course_price - (s.price / s.total_deliveries))
@@ -507,8 +507,8 @@ class Order {
         ) as total_supplements,
         STRING_AGG(
           DISTINCT CASE 
-            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN 
-              CONCAT('MATA Hors zone (+', ROUND(o.course_price - 1000), ')')
+            WHEN o.order_type = 'MATA' AND o.course_price > COALESCE(mp.default_price, 1000) THEN
+              CONCAT('MATA Hors zone (+', ROUND(o.course_price - COALESCE(mp.default_price, 1000)), ')')
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 
               CONCAT('MLC Extra (+', ROUND(o.course_price - (s.price / s.total_deliveries)), ')')
             ELSE NULL
@@ -516,7 +516,7 @@ class Order {
         ) as supplement_types,
         COUNT(
           CASE 
-            WHEN o.order_type = 'MATA' AND o.course_price > 1000 THEN 1
+            WHEN o.order_type = 'MATA' AND o.course_price > COALESCE(mp.default_price, 1000) THEN 1
             WHEN o.order_type = 'MLC' AND o.subscription_id IS NOT NULL AND s.id IS NOT NULL AND o.course_price > (s.price / s.total_deliveries) THEN 1
             ELSE NULL
           END
@@ -524,6 +524,13 @@ class Order {
       FROM orders o
       JOIN users u ON o.created_by = u.id
       LEFT JOIN subscriptions s ON o.subscription_id = s.id
+      LEFT JOIN LATERAL (
+        SELECT default_price
+        FROM order_type_prices otp
+        WHERE otp.order_type = 'MATA' AND otp.effective_from <= o.created_at::date
+        ORDER BY otp.effective_from DESC, otp.id DESC
+        LIMIT 1
+      ) mp ON true
       WHERE TO_CHAR(o.created_at, 'YYYY-MM') = $1
         AND u.role = 'LIVREUR' AND u.is_active = true
       GROUP BY TO_CHAR(o.created_at, 'YYYY-MM-DD'), u.username,

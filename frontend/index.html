@@ -106,6 +106,10 @@
                 <span class="icon">📍</span>
                 <span class="text">Zones MLC</span>
             </button>
+            <button class="nav-item hidden" id="nav-order-type-prices" data-page="order-type-prices">
+                <span class="icon">🏷️</span>
+                <span class="text">Prix des commandes</span>
+            </button>
             <button class="nav-item" data-page="ranking">
                 <span class="icon">🏆</span>
                 <span class="text">Classement</span>
@@ -1208,6 +1212,19 @@
             </div>
             <p style="color:#6c757d;margin:-20px 0 24px 4px;">Configurez les zones de livraison et leurs tarifs. Les livreurs verront ces zones lors de la creation d'une commande MLC.</p>
             <div id="mlc-zones-list">
+                <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
+            </div>
+        </div>
+
+        <div id="order-type-prices-page" class="page">
+            <div class="page-header">
+                <h2>🏷️ Prix des commandes</h2>
+                <button class="btn btn-primary" id="add-price-change-btn" style="border-radius:10px;padding:10px 24px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:18px;">+</span> Changer un prix
+                </button>
+            </div>
+            <p style="color:#6c757d;margin:-20px 0 24px 4px;">Prix par defaut pre-rempli a la creation d'une commande, par type. Chaque changement est date et historise : les rapports des mois passes conservent l'ancien prix.</p>
+            <div id="order-type-prices-list">
                 <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
             </div>
         </div>
