@@ -317,6 +317,15 @@ async function runStartupMigrations() {
   } catch (err) {
     console.error('⚠️ Migration users_role_check:', err.message);
   }
+
+  // Index composite (order_type, created_at) : accélère les filtres MATA par plage de dates
+  // (export période + tableau mensuel) à mesure que la table orders grandit.
+  try {
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_orders_type_created_at ON orders (order_type, created_at)`);
+    console.log('✅ Migration: idx_orders_type_created_at OK');
+  } catch (err) {
+    console.error('⚠️ Migration idx_orders_type_created_at:', err.message);
+  }
 }
 
 // Démarrage du serveur
