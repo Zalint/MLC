@@ -31,6 +31,7 @@ const timesheetRoutes = require('./routes/timesheets');
 const versementsRoutes = require('./routes/versements');
 const mlcZonesRoutes = require('./routes/mlcZones');
 const rankingRoutes = require('./routes/ranking');
+const orderTypePricesRoutes = require('./routes/orderTypePrices');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -119,6 +120,7 @@ app.use('/api/v1/clients', clientCreditsRoutes);
 app.use('/api/v1/timesheets', timesheetRoutes);
 app.use('/api/v1/versements', versementsRoutes);
 app.use('/api/v1/mlc-zones', mlcZonesRoutes);
+app.use('/api/v1/order-type-prices', orderTypePricesRoutes);
 app.use('/api/v1/ranking', rankingRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
@@ -250,6 +252,61 @@ async function runStartupMigrations() {
     console.log('✅ Migration: mlc_zones OK');
   } catch (err) {
     console.error('⚠️ Migration mlc_zones:', err.message);
+  }
+
+  // Table order_type_prices : prix par défaut des types de commandes, avec historisation par date d'effet
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS order_type_prices (
+        id SERIAL PRIMARY KEY,
+        order_type VARCHAR(50) NOT NULL,
+        default_price INTEGER,
+        hors_zone_supplement INTEGER,
+        effective_from DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        created_by UUID,
+        comment TEXT
+      )
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_order_type_prices_lookup
+      ON order_type_prices (order_type, effective_from DESC)
+    `);
+    // Sécurité : si une version antérieure a créé created_by en INTEGER, le convertir en UUID
+    // (users.id est un UUID). Sans valeurs non-NULL, la conversion est triviale.
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'order_type_prices' AND column_name = 'created_by' AND data_type <> 'uuid'
+        ) THEN
+          ALTER TABLE order_type_prices ALTER COLUMN created_by TYPE UUID USING NULLIF(created_by::text, '')::uuid;
+        END IF;
+      END $$;
+    `);
+    // Seed si la table est vide : reprend les valeurs actuelles avec une date d'effet très ancienne
+    // pour que toutes les commandes existantes conservent la base MATA = 1000 dans les rapports.
+    const { rows } = await db.query('SELECT COUNT(*) FROM order_type_prices');
+    if (parseInt(rows[0].count) === 0) {
+      const orderTypesConfig = require('./config/order-types.json');
+      const allTypes = [...orderTypesConfig.coreTypes, ...orderTypesConfig.extensions.map(e => e.value)];
+      for (const type of allTypes) {
+        // Seul MATA a un prix par défaut fixe (1000) et un supplément hors-zone (1000).
+        // Les autres types restent en saisie libre / pilotés par les zones (NULL).
+        const defaultPrice = type === 'MATA' ? 1000 : null;
+        const horsZoneSupplement = type === 'MATA' ? 1000 : null;
+        await db.query(
+          `INSERT INTO order_type_prices (order_type, default_price, hors_zone_supplement, effective_from, comment)
+           VALUES ($1, $2, $3, '2000-01-01', 'Valeur initiale (seed)')`,
+          [type, defaultPrice, horsZoneSupplement]
+        );
+      }
+      console.log('✅ Migration: order_type_prices seeded');
+    }
+    console.log('✅ Migration: order_type_prices OK');
+  } catch (err) {
+    console.error('⚠️ Migration order_type_prices:', err.message);
   }
 
   // Mise à jour contrainte users_role_check pour inclure READONLY

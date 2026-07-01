@@ -73,6 +73,40 @@ async function loadPointsDeVenteConfig() {
   }
 }
 
+// ===== CONFIGURATION DES PRIX PAR DÉFAUT DES TYPES DE COMMANDES =====
+// Prix courants chargés depuis la table order_type_prices (avec historisation par date d'effet)
+window.ORDER_TYPE_PRICES_CONFIG = null;
+
+async function loadOrderTypePricesConfig() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/order-type-prices/current`);
+    if (!res.ok) throw new Error('Erreur chargement config prix');
+    const data = await res.json();
+    window.ORDER_TYPE_PRICES_CONFIG = data.current || {};
+  } catch (e) {
+    // Fallback : comportement historique (MATA = 1000, supplément hors-zone = 1000)
+    window.ORDER_TYPE_PRICES_CONFIG = {
+      MATA: { default_price: 1000, hors_zone_supplement: 1000 }
+    };
+  }
+}
+
+// Prix par défaut à pré-remplir pour un type de commande (null = champ libre / non configuré)
+function getDefaultCoursePrice(orderType) {
+  const cfg = window.ORDER_TYPE_PRICES_CONFIG || {};
+  const entry = cfg[orderType];
+  return entry && entry.default_price != null ? Number(entry.default_price) : null;
+}
+window.getDefaultCoursePrice = getDefaultCoursePrice;
+
+// Supplément hors-zone pour MATA (fallback 1000 si non configuré)
+function getMataHorsZoneSupplement() {
+  const cfg = window.ORDER_TYPE_PRICES_CONFIG || {};
+  const entry = cfg['MATA'];
+  return entry && entry.hors_zone_supplement != null ? Number(entry.hors_zone_supplement) : 1000;
+}
+window.getMataHorsZoneSupplement = getMataHorsZoneSupplement;
+
 // Remplit tous les <select data-pdv-select> avec les points de vente
 function populatePointsDeVenteSelects() {
   const config = window.POINTS_DE_VENTE_CONFIG;
@@ -847,6 +881,23 @@ class ApiClient {
     return this.request(`/mlc-zones/${id}`, { method: 'DELETE' });
   }
 
+  // Prix par défaut des types de commandes (avec historisation)
+  static async getCurrentOrderTypePrices() {
+    return this.request('/order-type-prices/current');
+  }
+
+  static async getOrderTypePriceHistory() {
+    return this.request('/order-type-prices/history');
+  }
+
+  static async createOrderTypePrice(data) {
+    return this.request('/order-type-prices', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  static async deleteOrderTypePrice(id) {
+    return this.request(`/order-type-prices/${id}`, { method: 'DELETE' });
+  }
+
   static async createUser(userData) {
     return this.request('/users', {
       method: 'POST',
@@ -1293,6 +1344,11 @@ class PageManager {
             await MlcZonesManager.loadZones();
           }
           break;
+        case 'order-type-prices':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
+            await OrderTypePricesManager.loadPrices();
+          }
+          break;
         case 'ranking':
           RankingManager.init();
           await RankingManager.loadRanking();
@@ -1480,6 +1536,18 @@ class AuthManager {
       if (navMlcZones) {
         navMlcZones.classList.remove('hidden');
         navMlcZones.style.display = 'flex';
+      }
+
+      // Affichage du menu Prix des commandes : Manager/Admin uniquement (pas READONLY)
+      const navOrderTypePrices = document.getElementById('nav-order-type-prices');
+      if (navOrderTypePrices) {
+        if (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN') {
+          navOrderTypePrices.classList.remove('hidden');
+          navOrderTypePrices.style.display = 'flex';
+        } else {
+          navOrderTypePrices.classList.add('hidden');
+          navOrderTypePrices.style.display = 'none';
+        }
       }
       
       // Affichage des menus GPS pour managers/admins
@@ -4651,7 +4719,7 @@ class OrderManager {
           </div>
           <div class="form-group" id="edit-course-price-group" style="display: ${order.order_type ? 'block' : 'none'};">
             <label for="edit-course-price">Prix de la course (FCFA)</label>
-            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" value="${order.course_price || (order.order_type === 'MATA' ? 1000 : '')}" ${order.order_type === 'MATA' ? 'readonly' : ''}>
+            <input type="number" id="edit-course-price" name="course_price" step="0.01" min="0" value="${order.course_price || (order.order_type === 'MATA' ? (getDefaultCoursePrice('MATA') ?? 1000) : '')}" ${order.order_type === 'MATA' ? 'readonly' : ''}>
           </div>
           <div class="form-group" id="edit-amount-group" style="display: ${order.order_type === 'MATA' ? 'block' : 'none'};">
             <label for="edit-amount">Montant du panier (FCFA)</label>
@@ -6967,6 +7035,228 @@ class MlcZonesManager {
   }
 }
 
+// ===== GESTIONNAIRE DES PRIX PAR DÉFAUT DES TYPES DE COMMANDES =====
+class OrderTypePricesManager {
+  // Libellé lisible d'un type (depuis order-types.json)
+  static labelFor(value) {
+    const cfg = window.ORDER_TYPES_CONFIG;
+    if (!cfg) return value;
+    if ((cfg.coreTypes || []).includes(value)) return value;
+    const ext = (cfg.extensions || []).find(e => e.value === value);
+    return ext ? ext.label : value;
+  }
+
+  // Liste de tous les types de commandes configurables
+  static allTypes() {
+    const cfg = window.ORDER_TYPES_CONFIG;
+    if (!cfg) return ['MATA', 'MLC'];
+    return [...(cfg.coreTypes || []), ...((cfg.extensions || []).map(e => e.value))];
+  }
+
+  static fmtPrice(v) {
+    if (v === null || v === undefined) return '<span style="color:#adb5bd;">Saisie libre</span>';
+    return Number(v).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  // Formate une date 'YYYY-MM-DD' en 'JJ/MM/AAAA' sans passer par new Date() (évite les décalages de fuseau)
+  static fmtDate(ymd) {
+    if (!ymd) return '—';
+    const s = String(ymd).slice(0, 10);
+    const parts = s.split('-');
+    return (parts.length === 3) ? `${parts[2]}/${parts[1]}/${parts[0]}` : s;
+  }
+
+  static async loadPrices() {
+    const container = document.getElementById('order-type-prices-list');
+    if (!container) return;
+
+    const canEdit = AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN');
+
+    const addBtn = document.getElementById('add-price-change-btn');
+    if (addBtn) {
+      if (canEdit) {
+        addBtn.style.display = 'flex';
+        addBtn.onclick = () => OrderTypePricesManager.showPriceForm(null, OrderTypePricesManager._current || {});
+      } else {
+        addBtn.style.display = 'none';
+      }
+    }
+
+    try {
+      const [currentResp, historyResp] = await Promise.all([
+        ApiClient.getCurrentOrderTypePrices(),
+        ApiClient.getOrderTypePriceHistory()
+      ]);
+      const current = currentResp.current || {};
+      const history = historyResp.history || [];
+      OrderTypePricesManager._current = current;
+
+      // Cartes des prix courants (un par type)
+      const types = OrderTypePricesManager.allTypes();
+      const cards = types.map(type => {
+        const c = current[type] || {};
+        const isMata = type === 'MATA';
+        return `
+          <div style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h3 style="margin:0;font-size:17px;font-weight:700;color:#2c3e50;">${Utils.escapeHtml(OrderTypePricesManager.labelFor(type))}</h3>
+              <span style="background:#eef2ff;color:#4f46e5;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;">${Utils.escapeHtml(type)}</span>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:#2c3e50;">${OrderTypePricesManager.fmtPrice(c.default_price)}</div>
+            ${isMata ? `<div style="font-size:13px;color:#6c757d;margin-top:6px;">Supplément hors-zone : <b>${c.hors_zone_supplement != null ? Number(c.hors_zone_supplement).toLocaleString('fr-FR') + ' FCFA' : '—'}</b></div>` : ''}
+            <div style="font-size:12px;color:#adb5bd;margin-top:8px;">Depuis le ${OrderTypePricesManager.fmtDate(c.effective_from)}</div>
+            ${canEdit ? `<button class="btn btn-sm btn-primary change-price-btn" data-type="${Utils.escapeHtml(type)}" style="margin-top:14px;border-radius:8px;font-size:12px;padding:6px 14px;">Changer</button>` : ''}
+          </div>`;
+      }).join('');
+
+      const nbCols = canEdit ? 7 : 6;
+      const historyRows = history.map(h => `
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${Utils.escapeHtml(OrderTypePricesManager.labelFor(h.order_type))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${OrderTypePricesManager.fmtPrice(h.default_price)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${h.hors_zone_supplement != null ? Number(h.hors_zone_supplement).toLocaleString('fr-FR') + ' FCFA' : '—'}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${OrderTypePricesManager.fmtDate(h.effective_from)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#6c757d;">${h.created_by_username ? Utils.escapeHtml(h.created_by_username) : '—'}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#6c757d;">${h.comment ? Utils.escapeHtml(h.comment) : ''}</td>
+          ${canEdit ? `<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;"><button class="btn btn-sm btn-danger delete-price-btn" data-id="${h.id}" style="border-radius:6px;font-size:11px;padding:4px 10px;">Suppr.</button></td>` : ''}
+        </tr>`).join('');
+
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-bottom:32px;">
+          ${cards}
+        </div>
+        <h3 style="font-size:16px;font-weight:700;color:#2c3e50;margin:0 0 12px 4px;">Historique des changements</h3>
+        <div style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#f8f9fa;text-align:left;">
+                <th style="padding:12px;font-weight:600;color:#495057;">Type</th>
+                <th style="padding:12px;font-weight:600;color:#495057;">Prix par défaut</th>
+                <th style="padding:12px;font-weight:600;color:#495057;">Supplément hors-zone</th>
+                <th style="padding:12px;font-weight:600;color:#495057;">Date d'effet</th>
+                <th style="padding:12px;font-weight:600;color:#495057;">Par</th>
+                <th style="padding:12px;font-weight:600;color:#495057;">Commentaire</th>
+                ${canEdit ? '<th style="padding:12px;"></th>' : ''}
+              </tr>
+            </thead>
+            <tbody>
+              ${historyRows || `<tr><td colspan="${nbCols}" style="padding:20px;text-align:center;color:#6c757d;">Aucun historique.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      if (canEdit) {
+        container.querySelectorAll('.change-price-btn').forEach(btn => {
+          btn.addEventListener('click', () => OrderTypePricesManager.showPriceForm(btn.dataset.type, current));
+        });
+        container.querySelectorAll('.delete-price-btn').forEach(btn => {
+          btn.addEventListener('click', () => OrderTypePricesManager.deleteEntry(btn.dataset.id));
+        });
+      }
+    } catch (err) {
+      console.error('Erreur chargement prix:', err);
+      container.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Erreur lors du chargement des prix.</p>';
+    }
+  }
+
+  static showPriceForm(presetType, current) {
+    const types = OrderTypePricesManager.allTypes();
+    const cur = current || {};
+    const today = new Date().toISOString().slice(0, 10);
+    const selectedType = presetType || types[0];
+
+    const typeOptions = types.map(t =>
+      `<option value="${Utils.escapeHtml(t)}" ${t === selectedType ? 'selected' : ''}>${Utils.escapeHtml(OrderTypePricesManager.labelFor(t))} (${Utils.escapeHtml(t)})</option>`
+    ).join('');
+
+    ModalManager.show('Changer un prix', `
+      <form id="price-change-form">
+        <div class="form-group">
+          <label>Type de commande *</label>
+          <select id="price-type" required>${typeOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Prix par défaut (FCFA)</label>
+          <input type="number" id="price-default" min="0" step="1" placeholder="Vide = saisie libre">
+          <small style="color:#6c757d;">Laisser vide pour que le livreur saisisse le prix (ex : MLC piloté par zones).</small>
+        </div>
+        <div class="form-group" id="price-supplement-group">
+          <label>Supplément hors-zone (FCFA)</label>
+          <input type="number" id="price-supplement" min="0" step="1" placeholder="Ex : 1000">
+          <small style="color:#6c757d;">Ajouté au prix de base MATA quand « hors zone » est coché.</small>
+        </div>
+        <div class="form-group">
+          <label>Date d'effet *</label>
+          <input type="date" id="price-effective-from" value="${today}" required>
+          <small style="color:#6c757d;">Les commandes à partir de cette date utilisent le nouveau prix. Les rapports antérieurs ne changent pas.</small>
+        </div>
+        <div class="form-group">
+          <label>Commentaire</label>
+          <input type="text" id="price-comment" placeholder="Ex : baisse tarifaire juillet">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">Annuler</button>
+        </div>
+      </form>
+    `);
+
+    const typeSelect = document.getElementById('price-type');
+    const defaultInput = document.getElementById('price-default');
+    const supplementInput = document.getElementById('price-supplement');
+    const supplementGroup = document.getElementById('price-supplement-group');
+
+    const applyTypeDefaults = (type) => {
+      const c = cur[type] || {};
+      defaultInput.value = (c.default_price != null ? c.default_price : '');
+      supplementInput.value = (c.hors_zone_supplement != null ? c.hors_zone_supplement : '');
+      // Le supplément hors-zone ne concerne que MATA
+      supplementGroup.style.display = (type === 'MATA') ? 'block' : 'none';
+    };
+    applyTypeDefaults(selectedType);
+    typeSelect.addEventListener('change', () => applyTypeDefaults(typeSelect.value));
+
+    document.getElementById('price-change-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = typeSelect.value;
+      const data = {
+        order_type: type,
+        default_price: defaultInput.value === '' ? null : parseInt(defaultInput.value),
+        hors_zone_supplement: (type === 'MATA' && supplementInput.value !== '') ? parseInt(supplementInput.value) : null,
+        effective_from: document.getElementById('price-effective-from').value,
+        comment: document.getElementById('price-comment').value.trim() || null
+      };
+      try {
+        await ApiClient.createOrderTypePrice(data);
+        ToastManager.success('Prix enregistré');
+        ModalManager.hide();
+        await OrderTypePricesManager.loadPrices();
+        await loadOrderTypePricesConfig(); // recharge les prix courants pour les formulaires de commande
+      } catch (err) {
+        ToastManager.error(err.message || 'Erreur lors de l\'enregistrement');
+      }
+    });
+  }
+
+  static async deleteEntry(id) {
+    ModalManager.confirm(
+      'Supprimer cette entrée',
+      'Supprimer cette entrée d\'historique ? Si elle était déjà appliquée, les rapports concernés seront recalculés.',
+      async () => {
+        try {
+          await ApiClient.deleteOrderTypePrice(id);
+          ToastManager.success('Entrée supprimée');
+          await OrderTypePricesManager.loadPrices();
+          await loadOrderTypePricesConfig();
+        } catch (err) {
+          ToastManager.error(err.message || 'Erreur lors de la suppression');
+        }
+      }
+    );
+  }
+}
+
 // ===== GESTIONNAIRE DE PROFIL =====
 class ProfileManager {
   static async loadProfile() {
@@ -7202,8 +7492,12 @@ class App {
         subscriptionSelectGroup.style.display = 'none'; const _wa = document.getElementById('whatsapp-subscription-btn'); if (_wa) _wa.style.display = 'none';
         mataHorsZoneGroup.style.display = 'block';
         document.getElementById('interne-toggle-group').style.display = 'block';
-        coursePriceInput.value = '1000';
+        const mataDefault = getDefaultCoursePrice('MATA');
+        coursePriceInput.value = (mataDefault != null ? mataDefault : 1000);
         coursePriceInput.readOnly = true;
+        // Libellé du supplément hors-zone selon la config
+        const horsZoneLabelEl = document.querySelector('label[for="mata-hors-zone"]');
+        if (horsZoneLabelEl) horsZoneLabelEl.textContent = `Hors zone (+${getMataHorsZoneSupplement()} FCFA)`;
         
         // Afficher le groupe du bouton historique pour MATA
         const historyButtonGroup = document.getElementById('client-history-button-group');
@@ -7230,9 +7524,10 @@ class App {
         amountGroup.style.display = 'none';
         subscriptionToggleGroup.style.display = 'none';
         subscriptionSelectGroup.style.display = 'none'; const _wa = document.getElementById('whatsapp-subscription-btn'); if (_wa) _wa.style.display = 'none';
-        coursePriceInput.value = '';
+        const typeDefault = getDefaultCoursePrice(orderType);
+        coursePriceInput.value = (typeDefault != null ? typeDefault : '');
         coursePriceInput.readOnly = false;
-        
+
         // Masquer le bouton historique pour les types non-MATA
         const historyButtonGroup = document.getElementById('client-history-button-group');
         if (historyButtonGroup) {
@@ -7257,7 +7552,8 @@ class App {
         supplementToggleGroup.style.display = 'block';
         mlcZoneGroup.style.display = 'none';
         document.getElementById('zone-info').style.display = 'none';
-        coursePriceInput.value = '1000';
+        const mlcDefault = getDefaultCoursePrice('MLC');
+        coursePriceInput.value = (mlcDefault != null ? mlcDefault : 1000);
         coursePriceInput.readOnly = true;
         
         // Charger les abonnements actifs
@@ -7320,12 +7616,13 @@ class App {
       const isHorsZone = e.target.checked;
       const coursePriceInput = document.getElementById('course-price');
       
+      const mataBaseVal = (getDefaultCoursePrice('MATA') != null ? getDefaultCoursePrice('MATA') : 1000);
       if (isHorsZone) {
-        // Ajouter 1000 FCFA au prix par défaut de 1000
-        coursePriceInput.value = '2000';
+        // Ajouter le supplément hors-zone au prix de base MATA
+        coursePriceInput.value = mataBaseVal + getMataHorsZoneSupplement();
       } else {
-        // Remettre le prix par défaut de MATA
-        coursePriceInput.value = '1000';
+        // Remettre le prix de base MATA
+        coursePriceInput.value = mataBaseVal;
       }
     });
 
@@ -8234,6 +8531,7 @@ class App {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadOrderTypesConfig();
   await loadPointsDeVenteConfig();
+  await loadOrderTypePricesConfig();
   populatePointsDeVenteSelects();
   App.init();
   
