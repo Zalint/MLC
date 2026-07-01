@@ -13,6 +13,10 @@ let currentFilters = {
 };
 let autoRefreshInterval = null; // Pour éviter les multiples intervalles
 let isLoadingCommandes = false; // Pour éviter les appels simultanés
+// Vue d'affichage: 'cards' | 'table' | null. null = aucune préférence explicite -> défaut selon le rôle.
+let currentView = (() => { try { return localStorage.getItem('cec_view'); } catch (e) { return null; } })();
+// Vue effective : tableau par défaut pour chef livreur / manager / admin ; cartes pour un livreur simple.
+function effectiveView() { return currentView || (canToggleView() ? 'table' : 'cards'); }
 
 /**
  * Récupérer le rôle de l'utilisateur courant
@@ -20,6 +24,33 @@ let isLoadingCommandes = false; // Pour éviter les appels simultanés
 function getUserRole() {
   const roleElement = document.getElementById('user-role');
   return roleElement ? roleElement.textContent.trim() : null;
+}
+
+/**
+ * Le chef livreur est un LIVREUR avec le flag is_chef_livreur (exposé via AppState.user).
+ */
+function isChefLivreur() {
+  return !!(window.AppState && window.AppState.user && window.AppState.user.is_chef_livreur);
+}
+
+/**
+ * Qui peut basculer entre vue Cartes et vue Tableau : manager, admin et chef livreur.
+ */
+function canToggleView() {
+  const role = getUserRole();
+  return role === 'MANAGER' || role === 'ADMIN' || isChefLivreur();
+}
+
+function setCommandesView(view) {
+  currentView = view;
+  try { localStorage.setItem('cec_view', view); } catch (e) {}
+  displayCommandesEnCours();
+}
+
+function attachViewToggleListeners() {
+  document.querySelectorAll('.cec-view-btn').forEach(btn => {
+    btn.addEventListener('click', () => setCommandesView(btn.dataset.view));
+  });
 }
 
 /**
@@ -147,7 +178,25 @@ function displayCommandesEnCours() {
     `;
     return;
   }
-  
+
+  // Barre de bascule Cartes / Tableau (chef livreur, manager, admin)
+  const showToggle = canToggleView();
+  const view = effectiveView();
+  const toggleBar = showToggle ? `
+    <div class="cec-view-toggle" style="display:flex; gap:8px; margin-bottom:1rem;">
+      <button type="button" class="btn btn-sm cec-view-btn ${view === 'cards' ? 'btn-primary' : 'btn-secondary'}" data-view="cards">🗂️ Cartes</button>
+      <button type="button" class="btn btn-sm cec-view-btn ${view === 'table' ? 'btn-primary' : 'btn-secondary'}" data-view="table">📋 Tableau</button>
+    </div>
+  ` : '';
+
+  // Vue tableau (réservée à ceux qui ont le toggle)
+  if (showToggle && view === 'table') {
+    container.innerHTML = toggleBar + renderCommandesTable(commandesEnCoursData);
+    attachViewToggleListeners();
+    addCommandeActionListeners();
+    return;
+  }
+
   // Grouper les commandes par statut
   const grouped = {
     en_livraison: [],
@@ -161,8 +210,8 @@ function displayCommandesEnCours() {
     }
   });
   
-  let html = '';
-  
+  let html = toggleBar;
+
   // Afficher les commandes en livraison
   if (grouped.en_livraison.length > 0) {
     html += `
@@ -200,8 +249,9 @@ function displayCommandesEnCours() {
   }
   
   container.innerHTML = html;
-  
-  // Ajouter les event listeners pour les boutons d'action
+
+  // Réactiver la bascule de vue + les actions
+  attachViewToggleListeners();
   addCommandeActionListeners();
 }
 
@@ -304,27 +354,82 @@ function renderCommandeCard(commande) {
       </div>
       
       <div class="commande-actions">
-        ${commande.statut === 'en_livraison' ? `
-          ${getUserRole() === 'LIVREUR' ? `
-            <button class="btn btn-primary btn-sm prendre-livraison" data-id="${commande.id}">
-              <span class="icon">📦</span> Prendre la livraison
-            </button>
-          ` : `
-            <button class="btn btn-warning btn-sm reassign-livreur" data-id="${commande.id}">
-              <span class="icon">🔄</span> Réassigner livreur
-            </button>
-          `}
-          <button class="btn btn-danger btn-sm mark-annulee" data-id="${commande.id}">
-            <span class="icon">❌</span> Annuler
-          </button>
-        ` : ''}
-        ${getUserRole() === 'MANAGER' || getUserRole() === 'ADMIN' ? `
-          <button class="btn btn-secondary btn-sm delete-commande" data-id="${commande.id}">
-            <span class="icon">🗑️</span> Supprimer
-          </button>
-        ` : ''}
+        ${renderCommandeActionButtons(commande)}
       </div>
     </div>
+  `;
+}
+
+/**
+ * Boutons d'action d'une commande, partagés entre la vue Cartes et la vue Tableau.
+ * - LIVREUR simple : Prendre la livraison
+ * - Chef livreur   : Prendre la livraison + Réassigner
+ * - MANAGER/ADMIN  : Réassigner (+ Supprimer)
+ * (Annuler visible par tous pour une commande en livraison — comportement existant conservé.)
+ */
+function renderCommandeActionButtons(commande) {
+  const role = getUserRole();
+  const chef = isChefLivreur();
+  let html = '';
+  if (commande.statut === 'en_livraison') {
+    if (role === 'LIVREUR') {
+      html += `<button class="btn btn-primary btn-sm prendre-livraison" data-id="${commande.id}"><span class="icon">📦</span> Prendre la livraison</button>`;
+    }
+    if (role !== 'LIVREUR' || chef) {
+      html += `<button class="btn btn-warning btn-sm reassign-livreur" data-id="${commande.id}"><span class="icon">🔄</span> Réassigner livreur</button>`;
+    }
+    html += `<button class="btn btn-danger btn-sm mark-annulee" data-id="${commande.id}"><span class="icon">❌</span> Annuler</button>`;
+  }
+  if (role === 'MANAGER' || role === 'ADMIN') {
+    html += `<button class="btn btn-secondary btn-sm delete-commande" data-id="${commande.id}"><span class="icon">🗑️</span> Supprimer</button>`;
+  }
+  return html;
+}
+
+/**
+ * Vue tableau des commandes en cours (colonnes enrichies). Réutilise les mêmes boutons
+ * d'action (mêmes classes/data-id) que les cartes, donc addCommandeActionListeners suffit.
+ */
+function renderCommandesTable(list) {
+  const statutLabels = { en_livraison: '🚚 En livraison', livree: '✅ Livrée', annulee: '❌ Annulée' };
+  const order = { en_livraison: 0, livree: 1, annulee: 2 };
+  const rows = [...list].sort((a, b) => (order[a.statut] ?? 9) - (order[b.statut] ?? 9));
+  return `
+    <div class="table-responsive" style="overflow-x:auto;">
+      <table class="commandes-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#2563eb; color:#fff; text-align:left;">
+            <th style="padding:10px;">Client</th>
+            <th style="padding:10px;">Téléphone</th>
+            <th style="padding:10px;">Adresse</th>
+            <th style="padding:10px;">Point de vente</th>
+            <th style="padding:10px;">Livreur</th>
+            <th style="padding:10px; text-align:right;">Total</th>
+            <th style="padding:10px;">Statut</th>
+            <th style="padding:10px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(cmd => renderCommandeRow(cmd, statutLabels)).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCommandeRow(commande, statutLabels) {
+  const total = Number(commande.total || 0).toLocaleString();
+  return `
+    <tr data-id="${commande.id}" data-statut="${commande.statut}" style="border-bottom:1px solid #e5e7eb;">
+      <td style="padding:10px;"><strong>${commande.client_nom || ''}</strong></td>
+      <td style="padding:10px;">${commande.client_telephone || ''}</td>
+      <td style="padding:10px;">${commande.client_adresse || ''}</td>
+      <td style="padding:10px;">${commande.point_vente || ''}</td>
+      <td style="padding:10px;">${commande.livreur_nom || ''}</td>
+      <td style="padding:10px; text-align:right; white-space:nowrap;">${total} FCFA</td>
+      <td style="padding:10px; white-space:nowrap;">${statutLabels[commande.statut] || commande.statut}</td>
+      <td style="padding:10px;"><div class="commande-actions" style="display:flex; gap:6px; flex-wrap:wrap;">${renderCommandeActionButtons(commande)}</div></td>
+    </tr>
   `;
 }
 
@@ -532,9 +637,10 @@ async function prendreLivraison(id) {
  */
 async function showReassignModal(id) {
   try {
-    // Récupérer la liste des livreurs actifs
-    const response = await ApiClient.request('/users?role=LIVREUR&active=true');
-    const livreurs = response.data || [];
+    // Récupérer la liste des livreurs actifs (endpoint dédié, accessible aux chefs livreurs).
+    // Corrige aussi un bug préexistant : l'ancien appel lisait response.data qui n'existe pas.
+    const response = await ApiClient.getActiveLivreurs();
+    const livreurs = response.livreurs || [];
 
     if (livreurs.length === 0) {
       if (window.ToastManager) {
@@ -544,7 +650,8 @@ async function showReassignModal(id) {
     }
 
     // Trouver la commande
-    const commande = commandesEnCoursData.find(c => c.id === id);
+    // c.id est un nombre, id vient de data-id (chaîne) -> comparaison souple (comme ligne ~529)
+    const commande = commandesEnCoursData.find(c => c.id == id);
 
     // Créer le contenu de la modal
     const modalContent = `

@@ -77,7 +77,7 @@ class UserController {
   // Créer un nouvel utilisateur
   static async createUser(req, res) {
     try {
-      const { username, password, role } = req.body;
+      const { username, password, role, is_chef_livreur } = req.body;
 
       // Vérifier que l'utilisateur actuel a les permissions
       if (req.user.role === 'MANAGER' && role === 'ADMIN') {
@@ -89,7 +89,8 @@ class UserController {
       const newUser = await User.create({
         username,
         password,
-        role
+        role,
+        is_chef_livreur: role === 'LIVREUR' ? (is_chef_livreur === true || is_chef_livreur === 'true') : false
       });
 
       res.status(201).json({
@@ -157,6 +158,12 @@ class UserController {
         } else if (!Array.isArray(updates.allowed_order_types)) {
           return res.status(400).json({ error: 'allowed_order_types doit être un tableau' });
         }
+      }
+
+      // Normaliser is_chef_livreur : booléen, et forcé à false si le rôle (effectif) n'est pas LIVREUR
+      if (updates.is_chef_livreur !== undefined) {
+        const effectiveRole = updates.role || existingUser.role;
+        updates.is_chef_livreur = (effectiveRole === 'LIVREUR') ? (updates.is_chef_livreur === true || updates.is_chef_livreur === 'true') : false;
       }
 
       const updatedUser = await User.update(id, updates);

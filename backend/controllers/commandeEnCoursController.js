@@ -254,8 +254,9 @@ const getCommandesEnCours = async (req, res) => {
     const params = [];
     let paramCounter = 1;
 
-    // Si l'utilisateur est un livreur, filtrer automatiquement par son ID
-    if (user && user.role === 'LIVREUR') {
+    // Si l'utilisateur est un livreur (mais PAS un chef livreur), filtrer sur ses propres commandes.
+    // Un chef livreur voit toutes les commandes en cours (comme un manager) pour pouvoir les réassigner.
+    if (user && user.role === 'LIVREUR' && !user.is_chef_livreur) {
       // Pour les livreurs, on filtre par leur username (qui est stocké dans livreur_id)
       query += ` AND livreur_id = $${paramCounter}`;
       params.push(user.username); // Utiliser username (plus simple)
@@ -385,8 +386,8 @@ const updateStatutCommande = async (req, res) => {
       });
     }
 
-    // Vérifier si l'utilisateur est un livreur
-    if (user.role === 'LIVREUR') {
+    // Vérifier si l'utilisateur est un livreur (un chef livreur peut agir sur toutes les commandes)
+    if (user.role === 'LIVREUR' && !user.is_chef_livreur) {
       // Vérifier que la commande appartient au livreur
       const checkQuery = `
         SELECT livreur_id FROM commandes_en_cours WHERE id = $1
@@ -450,13 +451,13 @@ const reassignCommande = async (req, res) => {
   try {
     const { id } = req.params;
     const { nouveau_livreur_id } = req.body;
-    const { role } = req.user;
+    const { role, is_chef_livreur } = req.user;
 
-    // Vérifier que l'utilisateur est MANAGER ou ADMIN
-    if (role !== 'MANAGER' && role !== 'ADMIN') {
+    // Autorisé pour MANAGER/ADMIN et pour les chefs livreurs (livreurs avec le flag is_chef_livreur)
+    if (role !== 'MANAGER' && role !== 'ADMIN' && !(role === 'LIVREUR' && is_chef_livreur)) {
       return res.status(403).json({
         success: false,
-        error: 'Seuls les managers et admins peuvent réassigner des commandes'
+        error: 'Seuls les managers, admins et chefs livreurs peuvent réassigner des commandes'
       });
     }
 

@@ -5335,7 +5335,14 @@ class UserManager {
             ${AppState.user.role === 'ADMIN' ? '<option value="ADMIN">ADMIN</option>' : ''}
           </select>
         </div>
-        
+
+        <div class="form-group" id="create-chef-livreur-group" style="display:none;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="create-is-chef-livreur" name="is_chef_livreur">
+            Chef livreur (peut voir et réassigner toutes les commandes en cours)
+          </label>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Créer</button>
           <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
@@ -5350,11 +5357,24 @@ class UserManager {
       ModalManager.hide();
     });
 
+    // Afficher la case "Chef livreur" uniquement pour le rôle LIVREUR
+    const createRoleSel = document.getElementById('create-role');
+    const createChefGroup = document.getElementById('create-chef-livreur-group');
+    const createChefBox = document.getElementById('create-is-chef-livreur');
+    const toggleCreateChef = () => {
+      const isLiv = createRoleSel.value === 'LIVREUR';
+      createChefGroup.style.display = isLiv ? 'block' : 'none';
+      if (!isLiv) createChefBox.checked = false;
+    };
+    createRoleSel.addEventListener('change', toggleCreateChef);
+    toggleCreateChef();
+
     document.getElementById('create-user-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const formData = new FormData(e.target);
       const userData = Object.fromEntries(formData.entries());
+      userData.is_chef_livreur = document.getElementById('create-is-chef-livreur').checked;
 
       try {
         await ApiClient.createUser(userData);
@@ -5391,7 +5411,14 @@ class UserManager {
               ${AppState.user.role === 'ADMIN' ? `<option value="ADMIN" ${user.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>` : ''}
             </select>
           </div>
-          
+
+          <div class="form-group" id="edit-chef-livreur-group" style="display:${user.role === 'LIVREUR' ? 'block' : 'none'};">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="edit-is-chef-livreur" name="is_chef_livreur" ${user.is_chef_livreur ? 'checked' : ''}>
+              Chef livreur (peut voir et réassigner toutes les commandes en cours)
+            </label>
+          </div>
+
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Sauvegarder</button>
             <button type="button" class="btn btn-secondary modal-cancel-btn">Annuler</button>
@@ -5429,6 +5456,18 @@ class UserManager {
       document.querySelector('.modal-cancel-btn').addEventListener('click', () => {
         ModalManager.hide();
       });
+
+      // Afficher la case "Chef livreur" uniquement pour le rôle LIVREUR
+      const editRoleSel = document.getElementById('edit-role');
+      const editChefGroup = document.getElementById('edit-chef-livreur-group');
+      const editChefBox = document.getElementById('edit-is-chef-livreur');
+      const toggleEditChef = () => {
+        const isLiv = editRoleSel.value === 'LIVREUR';
+        editChefGroup.style.display = isLiv ? 'block' : 'none';
+        if (!isLiv) editChefBox.checked = false;
+      };
+      editRoleSel.addEventListener('change', toggleEditChef);
+      toggleEditChef();
 
       // Toggle affichage du formulaire de reset
       document.getElementById('show-reset-password-btn').addEventListener('click', () => {
@@ -5473,6 +5512,7 @@ class UserManager {
 
         const formData = new FormData(e.target);
         const userData = Object.fromEntries(formData.entries());
+        userData.is_chef_livreur = document.getElementById('edit-is-chef-livreur').checked;
 
         try {
           await ApiClient.updateUser(userId, userData);
