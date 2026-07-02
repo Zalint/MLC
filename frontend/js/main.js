@@ -128,7 +128,19 @@ function populatePointsDeVenteSelects() {
       select.appendChild(opt);
     });
     const valueToApply = presetValue || previousValue;
-    if (valueToApply) select.value = valueToApply;
+    if (valueToApply) {
+      // Si la valeur courante (ex: commande existante dont le point de vente a été désactivé
+      // depuis) n'est pas dans la liste active, l'ajouter en option pour ne pas la perdre à
+      // l'édition — le backend accepte les valeurs existantes même inactives.
+      const exists = Array.from(select.options).some(o => o.value === valueToApply);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = valueToApply;
+        opt.textContent = valueToApply + ' (inactif)';
+        select.appendChild(opt);
+      }
+      select.value = valueToApply;
+    }
   });
 }
 
@@ -919,6 +931,23 @@ class ApiClient {
     return this.request(`/mlc-zones/${id}`, { method: 'DELETE' });
   }
 
+  // Points de vente (éditables via l'UI)
+  static async getAllPointsDeVente() {
+    return this.request('/points-de-vente/all');
+  }
+
+  static async createPointDeVente(data) {
+    return this.request('/points-de-vente', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  static async updatePointDeVente(id, data) {
+    return this.request(`/points-de-vente/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  static async deletePointDeVente(id) {
+    return this.request(`/points-de-vente/${id}`, { method: 'DELETE' });
+  }
+
   // Prix par défaut des types de commandes (avec historisation)
   static async getCurrentOrderTypePrices() {
     return this.request('/order-type-prices/current');
@@ -1382,6 +1411,11 @@ class PageManager {
             await MlcZonesManager.loadZones();
           }
           break;
+        case 'points-de-vente':
+          if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN' || AppState.user.role === 'READONLY')) {
+            await PointsDeVenteManager.loadPoints();
+          }
+          break;
         case 'order-type-prices':
           if (AppState.user && (AppState.user.role === 'MANAGER' || AppState.user.role === 'ADMIN')) {
             await OrderTypePricesManager.loadPrices();
@@ -1574,6 +1608,13 @@ class AuthManager {
       if (navMlcZones) {
         navMlcZones.classList.remove('hidden');
         navMlcZones.style.display = 'flex';
+      }
+
+      // Affichage du menu Points de vente pour managers/admins/viewers
+      const navPointsDeVente = document.getElementById('nav-points-de-vente');
+      if (navPointsDeVente) {
+        navPointsDeVente.classList.remove('hidden');
+        navPointsDeVente.style.display = 'flex';
       }
 
       // Affichage du menu Prix des commandes : Manager/Admin uniquement (pas READONLY)
@@ -7129,6 +7170,124 @@ class MlcZonesManager {
         }
       }
     );
+  }
+}
+
+// ===== GESTIONNAIRE DES POINTS DE VENTE (éditables via l'UI) =====
+class PointsDeVenteManager {
+  static async loadPoints() {
+    const container = document.getElementById('points-de-vente-list');
+    if (!container) return;
+    const addBtn = document.getElementById('add-pdv-btn');
+    if (addBtn) addBtn.onclick = () => PointsDeVenteManager.showPointForm(null);
+    try {
+      const response = await ApiClient.getAllPointsDeVente();
+      const points = response.points || [];
+      if (points.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#6c757d;">Aucun point de vente. Cliquez sur "Ajouter un point de vente".</div>';
+        return;
+      }
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;">
+          ${points.map((p, i) => {
+            const color = MlcZonesManager.getZoneColor(i);
+            return `
+            <div style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);overflow:hidden;${!p.is_active ? 'opacity:0.5;' : ''}">
+              <div style="background:${color.bg};color:${color.text};padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <h3 style="margin:0;font-size:18px;font-weight:700;">${Utils.escapeHtml(p.value)}</h3>
+                  <span style="background:rgba(255,255,255,0.25);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">#${p.sort_order}</span>
+                </div>
+                <div style="font-size:14px;opacity:0.9;margin-top:6px;">${Utils.escapeHtml(p.label)}</div>
+              </div>
+              <div style="padding:16px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;${p.is_active ? 'background:#d4edda;color:#155724;' : 'background:#f8d7da;color:#721c24;'}">${p.is_active ? 'Actif' : 'Inactif'}</span>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-sm btn-primary edit-pdv-btn" data-id="${p.id}" style="border-radius:8px;font-size:12px;padding:6px 14px;">Modifier</button>
+                  <button class="btn btn-sm btn-danger delete-pdv-btn" data-id="${p.id}" style="border-radius:8px;font-size:12px;padding:6px 14px;">Supprimer</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+          <div class="add-pdv-card" style="background:white;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;min-height:160px;cursor:pointer;border:3px dashed #dee2e6;">
+            <div style="text-align:center;color:#6c757d;"><div style="font-size:48px;line-height:1;margin-bottom:8px;color:#667eea;">+</div><div style="font-size:14px;font-weight:600;">Ajouter un point de vente</div></div>
+          </div>
+        </div>`;
+      const addCard = container.querySelector('.add-pdv-card');
+      if (addCard) addCard.addEventListener('click', () => PointsDeVenteManager.showPointForm(null));
+      container.querySelectorAll('.edit-pdv-btn').forEach(btn => btn.addEventListener('click', () => {
+        const p = points.find(x => x.id == btn.dataset.id);
+        if (p) PointsDeVenteManager.showPointForm(p);
+      }));
+      container.querySelectorAll('.delete-pdv-btn').forEach(btn => btn.addEventListener('click', () => PointsDeVenteManager.deletePoint(btn.dataset.id)));
+    } catch (err) {
+      console.error('Erreur chargement points de vente:', err);
+      container.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Erreur lors du chargement.</p>';
+    }
+  }
+
+  static showPointForm(point) {
+    const isEdit = !!point;
+    ModalManager.show(isEdit ? 'Modifier le point de vente' : 'Ajouter un point de vente', `
+      <form id="pdv-form">
+        <div class="form-group">
+          <label>Nom / valeur *</label>
+          <input type="text" id="pdv-value" value="${isEdit ? Utils.escapeHtml(point.value) : ''}" required placeholder="Ex: Ngor">
+          ${isEdit ? '<small style="color:#6c757d;">Renommer la valeur ne modifie pas les commandes déjà enregistrées. Préférez désactiver.</small>' : ''}
+        </div>
+        <div class="form-group">
+          <label>Label affiché</label>
+          <input type="text" id="pdv-label" value="${isEdit ? Utils.escapeHtml(point.label) : ''}" placeholder="Par défaut = la valeur">
+        </div>
+        <div class="form-group">
+          <label>Ordre d'affichage</label>
+          <input type="number" id="pdv-sort-order" value="${isEdit ? point.sort_order : 0}" min="0">
+        </div>
+        ${isEdit ? `<div class="form-group"><label><input type="checkbox" id="pdv-active" ${point.is_active ? 'checked' : ''}> Actif</label></div>` : ''}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
+          <button type="button" class="btn btn-secondary" onclick="ModalManager.hide()">Annuler</button>
+        </div>
+      </form>`);
+    document.getElementById('pdv-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const value = document.getElementById('pdv-value').value.trim();
+      const label = document.getElementById('pdv-label').value.trim();
+      const data = { value, label: label || value, sort_order: parseInt(document.getElementById('pdv-sort-order').value) || 0 };
+      if (isEdit) {
+        const a = document.getElementById('pdv-active');
+        data.is_active = a ? a.checked : true;
+      }
+      try {
+        if (isEdit) {
+          await ApiClient.updatePointDeVente(point.id, data);
+          ToastManager.success('Point de vente modifié');
+        } else {
+          await ApiClient.createPointDeVente(data);
+          ToastManager.success('Point de vente ajouté');
+        }
+        ModalManager.hide();
+        await PointsDeVenteManager.loadPoints();
+        await loadPointsDeVenteConfig();   // rafraîchit les dropdowns en direct
+        populatePointsDeVenteSelects();
+      } catch (err) {
+        ToastManager.error(err.message || 'Erreur lors de la sauvegarde');
+      }
+    });
+  }
+
+  static async deletePoint(id) {
+    ModalManager.confirm('Supprimer le point de vente', 'Êtes-vous sûr ? Préférez désactiver si des commandes l\'utilisent.', async () => {
+      try {
+        await ApiClient.deletePointDeVente(id);
+        ToastManager.success('Point de vente supprimé');
+        await PointsDeVenteManager.loadPoints();
+        await loadPointsDeVenteConfig();
+        populatePointsDeVenteSelects();
+      } catch (err) {
+        ToastManager.error(err.message || 'Erreur lors de la suppression');
+      }
+    });
   }
 }
 

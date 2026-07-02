@@ -106,6 +106,10 @@
                 <span class="icon">📍</span>
                 <span class="text">Zones MLC</span>
             </button>
+            <button class="nav-item hidden" id="nav-points-de-vente" data-page="points-de-vente">
+                <span class="icon">🏪</span>
+                <span class="text">Points de vente</span>
+            </button>
             <button class="nav-item hidden" id="nav-order-type-prices" data-page="order-type-prices">
                 <span class="icon">🏷️</span>
                 <span class="text">Prix des commandes</span>
@@ -1224,6 +1228,19 @@
             </div>
             <p style="color:#6c757d;margin:-20px 0 24px 4px;">Configurez les zones de livraison et leurs tarifs. Les livreurs verront ces zones lors de la creation d'une commande MLC.</p>
             <div id="mlc-zones-list">
+                <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
+            </div>
+        </div>
+
+        <div id="points-de-vente-page" class="page">
+            <div class="page-header">
+                <h2>Gestion des Points de vente</h2>
+                <button class="btn btn-primary" id="add-pdv-btn" style="border-radius:10px;padding:10px 24px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:18px;">+</span> Ajouter un point de vente
+                </button>
+            </div>
+            <p style="color:#6c757d;margin:-20px 0 24px 4px;">Configurez les points de vente MATA. Ils apparaissent dans les formulaires et filtres de commande. Désactiver masque un point de vente sans casser les commandes existantes ; renommer une valeur ne renomme PAS les commandes déjà enregistrées.</p>
+            <div id="points-de-vente-list">
                 <p style="text-align:center;padding:40px;color:#6c757d;">Chargement...</p>
             </div>
         </div>

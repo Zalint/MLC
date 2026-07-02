@@ -8,8 +8,24 @@ const validOrderTypes = [
   ...orderTypesConfig.extensions.map(e => e.value)
 ];
 
-// Build valid points de vente from config
-const validPointsDeVente = pointsDeVenteConfig.points.map(p => p.value);
+// Accès DB pour valider dynamiquement le point de vente (pas de dépendance circulaire :
+// database.js n'importe pas validation.js).
+const db = require('../models/database');
+
+// Validation dynamique du point de vente contre la table points_de_vente (éditable via l'UI).
+// Accepte toute valeur EXISTANTE (active ou inactive) pour ne pas casser l'édition d'anciennes
+// commandes dont le point de vente a été désactivé depuis. Repli sur le JSON seed si la table
+// est absente / la base est indisponible.
+const pointDeVenteExists = async (value) => {
+  if (value == null || value === '') return true; // géré par .notEmpty()/.optional() en amont
+  try {
+    const { rows } = await db.query('SELECT 1 FROM points_de_vente WHERE value = $1 LIMIT 1', [value]);
+    if (rows.length > 0) return true;
+  } catch (e) {
+    if (pointsDeVenteConfig.points.some(p => p.value === value)) return true;
+  }
+  throw new Error('Point de vente invalide');
+};
 
 // Middleware pour gérer les erreurs de validation
 const handleValidationErrors = (req, res, next) => {
@@ -232,7 +248,8 @@ const validateOrderCreation = [
   body('point_de_vente')
     .if(body('order_type').equals('MATA'))
     .notEmpty().withMessage('Le point de vente est obligatoire pour MATA')
-    .isIn(validPointsDeVente).withMessage('Point de vente invalide'),
+    .bail()
+    .custom(pointDeVenteExists),
 
   body('created_at')
     .optional({ values: 'falsy' })
@@ -299,7 +316,7 @@ const validateOrderUpdate = [
   body('point_de_vente')
     .optional({ values: 'falsy' })
     .trim()
-    .isIn(validPointsDeVente).withMessage('Point de vente invalide'),
+    .custom(pointDeVenteExists),
 
   body('commentaire')
     .optional()
