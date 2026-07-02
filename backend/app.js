@@ -334,6 +334,21 @@ async function runStartupMigrations() {
   } catch (err) {
     console.error('⚠️ Migration idx_orders_type_created_at:', err.message);
   }
+
+  // Normaliser les commandes en cours dont livreur_id est un UUID au lieu du username.
+  // Une ancienne réassignation stockait l'UUID -> la commande devenait invisible dans le
+  // dashboard du nouveau livreur (filtré par livreur_id = username). Idempotent.
+  try {
+    const r = await db.query(`
+      UPDATE commandes_en_cours c
+      SET livreur_id = u.username
+      FROM users u
+      WHERE c.livreur_id = u.id::text AND c.livreur_id <> u.username
+    `);
+    console.log(`✅ Migration: normalisation livreur_id commandes_en_cours OK (${r.rowCount} ligne(s))`);
+  } catch (err) {
+    console.error('⚠️ Migration normalisation livreur_id:', err.message);
+  }
 }
 
 // Démarrage du serveur

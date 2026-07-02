@@ -370,7 +370,8 @@ function renderCommandeCard(commande) {
 function renderCommandeActionButtons(commande) {
   const role = getUserRole();
   const chef = isChefLivreur();
-  let html = '';
+  // Bouton "Voir" (détail) disponible pour tous, quel que soit le statut.
+  let html = `<button class="btn btn-info btn-sm view-commande" data-id="${commande.id}"><span class="icon">👁️</span> Voir</button>`;
   if (commande.statut === 'en_livraison') {
     if (role === 'LIVREUR') {
       html += `<button class="btn btn-primary btn-sm prendre-livraison" data-id="${commande.id}"><span class="icon">📦</span> Prendre la livraison</button>`;
@@ -431,6 +432,44 @@ function renderCommandeRow(commande, statutLabels) {
       <td style="padding:10px;"><div class="commande-actions" style="display:flex; gap:6px; flex-wrap:wrap;">${renderCommandeActionButtons(commande)}</div></td>
     </tr>
   `;
+}
+
+/**
+ * Afficher le détail complet d'une commande dans une modale (bouton "Voir").
+ */
+function showCommandeDetail(id) {
+  var commande = commandesEnCoursData.find(c => c.id == id);
+  if (!commande) {
+    if (window.ToastManager) ToastManager.error('Commande introuvable');
+    return;
+  }
+  var statutLabels = { en_livraison: '🚚 En livraison', livree: '✅ Livrée', annulee: '❌ Annulée' };
+  var dd = new Date(commande.date_commande);
+  var dateStr = isNaN(dd.getTime()) ? (commande.date_commande || '') : dd.toLocaleString('fr-FR');
+  var articles = Array.isArray(commande.articles) ? commande.articles : [];
+  var nbArticles = articles.reduce((s, a) => s + (a.quantite || 0), 0);
+  var row = (label, value) => `<div style="display:flex; justify-content:space-between; gap:16px; padding:6px 0; border-bottom:1px solid #f0f0f0;"><span style="color:#666;">${label}</span><span style="font-weight:600; text-align:right;">${(value===0||value)?value:'—'}</span></div>`;
+  var content = `
+    <div class="commande-detail">
+      ${row('📦 Commande', commande.commande_id)}
+      ${row('Statut', statutLabels[commande.statut] || commande.statut)}
+      ${row('🚚 Livreur', commande.livreur_nom)}
+      ${row('👤 Client', commande.client_nom)}
+      ${row('📞 Téléphone', commande.client_telephone)}
+      ${row('📍 Adresse', commande.client_adresse)}
+      ${row('🏪 Point de vente', commande.point_vente)}
+      ${row('🏭 Point de vente exécutant', commande.point_vente_executant)}
+      ${row('📅 Date', dateStr)}
+      <div style="margin-top:12px;"><strong>📦 Articles (${nbArticles})</strong></div>
+      <ul style="list-style:none; padding:0; margin:8px 0;">
+        ${articles.map(a => `<li style="display:flex; justify-content:space-between; gap:12px; padding:4px 0; border-bottom:1px dashed #eee;"><span>${a.produit || ''}</span><span>x${a.quantite || 0}</span><span style="font-weight:600;">${Number(a.prix || 0).toLocaleString()} FCFA</span></li>`).join('') || '<li style="color:#999;">Aucun article</li>'}
+      </ul>
+      <div style="display:flex; justify-content:space-between; padding-top:10px; border-top:2px solid #2563eb; font-size:1.1em;"><strong>Total</strong><strong>${Number(commande.total || 0).toLocaleString()} FCFA</strong></div>
+    </div>
+  `;
+  if (window.ModalManager) {
+    window.ModalManager.show('Détail de la commande', content);
+  }
 }
 
 /**
@@ -514,6 +553,13 @@ function addCommandeActionListeners() {
           await deleteCommande(id);
         }
       }
+    });
+  });
+
+  // Voir le détail (bouton view)
+  document.querySelectorAll('.view-commande').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      showCommandeDetail(e.currentTarget.dataset.id);
     });
   });
 }
