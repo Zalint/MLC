@@ -502,7 +502,11 @@ const reassignCommande = async (req, res) => {
       RETURNING *
     `;
 
-    const result = await db.query(updateQuery, [livreur.id, livreur.username, id]);
+    // IMPORTANT: livreur_id stocke le USERNAME (pas l'UUID), comme à la création
+    // (createCommandeEnCours) et comme attendu par le filtre de getCommandesEnCours
+    // (livreur_id = user.username). Utiliser l'UUID ici rendait la commande invisible
+    // dans le dashboard du nouveau livreur.
+    const result = await db.query(updateQuery, [livreur.username, livreur.username, id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
