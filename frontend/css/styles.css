@@ -5902,3 +5902,12 @@ input[type="tel"]:focus {
 }
 
 /* ===== FIN STYLES VERSEMENTS ===== */
+
+/* Masquer les menus Suivi GPS, Analytics GPS et Mes Performances (demande client).
+   !important pour l'emporter sur le JS qui force display:flex sur ces items.
+   Réversible : supprimer ce bloc pour réafficher les menus. */
+#nav-gps-tracking,
+#nav-gps-analytics,
+#nav-my-performance {
+  display: none !important;
+}

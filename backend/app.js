@@ -32,6 +32,7 @@ const versementsRoutes = require('./routes/versements');
 const mlcZonesRoutes = require('./routes/mlcZones');
 const rankingRoutes = require('./routes/ranking');
 const orderTypePricesRoutes = require('./routes/orderTypePrices');
+const pointsDeVenteRoutes = require('./routes/pointsDeVente');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000; 
@@ -105,6 +106,28 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Route config PUBLIQUE : points de vente (table points_de_vente, éditable via l'UI).
+// Enregistrée AVANT les montages /api/v1 (dont attachmentRoutes applique authenticateToken à tout /api/v1),
+// afin de rester accessible sans authentification comme prévu pour une config publique — sinon les
+// dropdowns (chargés par un fetch non authentifié) ne verraient jamais les points ajoutés depuis l'UI.
+// Repli sur le JSON si la base est indisponible / la table absente.
+app.get('/api/v1/config/points-de-vente', async (req, res) => {
+  try {
+    const db = require('./models/database');
+    const { rows } = await db.query(
+      'SELECT value, label FROM points_de_vente WHERE is_active = true ORDER BY sort_order ASC, label ASC'
+    );
+    res.json({ points: rows });
+  } catch (err) {
+    console.error('Erreur config points-de-vente:', err);
+    try {
+      res.json(require('./config/points-de-vente.json'));
+    } catch (_) {
+      res.status(500).json({ error: 'Impossible de charger la configuration des points de vente' });
+    }
+  }
+});
+
 // Routes API
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -121,6 +144,7 @@ app.use('/api/v1/timesheets', timesheetRoutes);
 app.use('/api/v1/versements', versementsRoutes);
 app.use('/api/v1/mlc-zones', mlcZonesRoutes);
 app.use('/api/v1/order-type-prices', orderTypePricesRoutes);
+app.use('/api/v1/points-de-vente', pointsDeVenteRoutes);
 app.use('/api/v1/ranking', rankingRoutes);
 app.use('/api/v1', attachmentRoutes);
 app.use('/api/external', externalRoutes);
@@ -134,16 +158,6 @@ app.get('/api/v1/config/order-types', (req, res) => {
     res.json(config);
   } catch (err) {
     res.status(500).json({ error: 'Impossible de charger la configuration des types de commandes' });
-  }
-});
-
-// Route config : points de vente (public, lu depuis points-de-vente.json)
-app.get('/api/v1/config/points-de-vente', (req, res) => {
-  try {
-    const config = require('./config/points-de-vente.json');
-    res.json(config);
-  } catch (err) {
-    res.status(500).json({ error: 'Impossible de charger la configuration des points de vente' });
   }
 });
 
@@ -315,6 +329,38 @@ async function runStartupMigrations() {
     console.log('✅ Migration: order_type_prices OK');
   } catch (err) {
     console.error('⚠️ Migration order_type_prices:', err.message);
+  }
+
+  // Table points_de_vente : points de vente MATA éditables depuis l'UI
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS points_de_vente (
+        id SERIAL PRIMARY KEY,
+        value VARCHAR(200) NOT NULL UNIQUE,
+        label VARCHAR(200) NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    // Seed depuis points-de-vente.json si la table est vide (préserve l'ordre actuel)
+    const { rows } = await db.query('SELECT COUNT(*) FROM points_de_vente');
+    if (parseInt(rows[0].count) === 0) {
+      const pdvConfig = require('./config/points-de-vente.json');
+      let i = 1;
+      for (const p of pdvConfig.points) {
+        await db.query(
+          `INSERT INTO points_de_vente (value, label, sort_order) VALUES ($1, $2, $3)
+           ON CONFLICT (value) DO NOTHING`,
+          [p.value, p.label || p.value, i++]
+        );
+      }
+      console.log('✅ Migration: points_de_vente seeded');
+    }
+    console.log('✅ Migration: points_de_vente OK');
+  } catch (err) {
+    console.error('⚠️ Migration points_de_vente:', err.message);
   }
 
   // Mise à jour contrainte users_role_check pour inclure READONLY
