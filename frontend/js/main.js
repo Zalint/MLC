@@ -206,6 +206,7 @@ class Utils {
   static formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
+      timeZone: 'Africa/Dakar', // afficher les horodatages en heure de Dakar (UTC+0)
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -335,7 +336,9 @@ class Utils {
 
   static formatDisplayDate(dateString) { // YYYY-MM-DD to DD/MM/YYYY
     if (!dateString) return '';
-    const [year, month, day] = dateString.split('-');
+    // slice(0,10): tolère un timestamp ISO complet (ex: purchase_date/expiry_date
+    // renvoyés en timestamptz) — on prend la date UTC = date Dakar (UTC+0).
+    const [year, month, day] = String(dateString).slice(0, 10).split('-');
     return `${day}/${month}/${year}`;
   }
 }
@@ -2226,7 +2229,7 @@ class DashboardManager {
                 <tbody>
                   ${orders.map(order => `
                     <tr>
-                      <td>${new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td>${new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Dakar' })}</td>
                       <td>${Utils.escapeHtml(order.client_name)}
                         ${order.interne ? '<span class="badge-internal" style="background:#dc2626;color:#fff;padding:2px 6px;border-radius:6px;font-size:0.7em;margin-left:4px;">🏢</span>' : ''}
                       </td>
@@ -4165,6 +4168,20 @@ class OrderManager {
     }
   }
 
+  // Recharger la liste en conservant les filtres actifs (date/livreur/type).
+  // Utilisé après une modification/suppression pour éviter que la vue ne
+  // "saute" vers les commandes récentes (la date affichée ne doit pas changer).
+  static async refreshOrdersView() {
+    const dateFilter = document.getElementById('orders-date-filter')?.value;
+    const livreurFilter = document.getElementById('orders-livreur-filter')?.value;
+    const typeFilter = document.getElementById('orders-type-filter')?.value;
+    if (dateFilter || livreurFilter || typeFilter) {
+      await this.loadOrdersWithFilters();
+    } else {
+      await this.loadOrders(AppState.currentOrdersPage);
+    }
+  }
+
   static async loadOrdersByDate(date) {
     try {
       const response = await ApiClient.getOrdersByDate(date);
@@ -4936,7 +4953,7 @@ class OrderManager {
           await ApiClient.updateOrder(orderId, orderData);
           ModalManager.hide();
           ToastManager.success('Commande modifiée avec succès');
-          await this.loadOrders(AppState.currentOrdersPage);
+          await this.refreshOrdersView();
         } catch (error) {
           ToastManager.error(error.message || 'Erreur lors de la modification');
         }
@@ -4951,7 +4968,7 @@ class OrderManager {
     try {
       await ApiClient.deleteOrder(orderId);
       ToastManager.success('Commande supprimée avec succès');
-      await this.loadOrders(AppState.currentOrdersPage);
+      await this.refreshOrdersView();
       // Rafraîchir la liste des abonnements si la page active est 'subscriptions'
       if (AppState.currentPage === 'subscriptions') {
         await SubscriptionManager.loadSubscriptions();
@@ -9117,8 +9134,8 @@ class ContactManager {
     }
 
     container.innerHTML = clients.map(client => {
-      const lastOrderDate = client.last_order_date ? 
-        new Date(client.last_order_date).toLocaleDateString('fr-FR') : 'Jamais';
+      const lastOrderDate = client.last_order_date ?
+        new Date(client.last_order_date).toLocaleDateString('fr-FR', { timeZone: 'Africa/Dakar' }) : 'Jamais';
       
       return `
         <div class="client-item" data-phone="${client.phone_number}" data-name="${client.client_name}">

@@ -168,7 +168,7 @@ class SubscriptionController {
   // Créer une commande MLC avec déduction automatique
   static async createMLCOrderWithSubscription(req, res) {
     try {
-      const { client_name, phone_number, address, description, course_price, card_number, created_by } = req.body;
+      const { client_name, phone_number, address, description, course_price, card_number, created_by, created_at } = req.body;
       
       // Déterminer qui est le créateur de la commande
       let actualCreatedBy = req.user.id; // Par défaut, l'utilisateur connecté
@@ -232,6 +232,9 @@ class SubscriptionController {
         }
       }
 
+      // Seuls les managers/admins peuvent antidater (même règle que OrderController.createOrder)
+      const finalCreatedAt = (req.user.role === 'MANAGER' || req.user.role === 'ADMIN') && created_at ? created_at : undefined;
+
       // Créer la commande
       const order = await Order.create({
         client_name,
@@ -242,7 +245,8 @@ class SubscriptionController {
         course_price: course_price || 0,
         order_type: 'MLC',
         created_by: actualCreatedBy, // ✅ Utiliser le livreur assigné
-        subscription_id: subscription ? subscription.id : null
+        subscription_id: subscription ? subscription.id : null,
+        created_at: finalCreatedAt // ✅ Respecter la date de commande choisie (antidatage)
       });
 
       // Si une carte est trouvée, utiliser une livraison

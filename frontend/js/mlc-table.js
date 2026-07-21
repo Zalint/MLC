@@ -555,7 +555,7 @@ class MlcTableManager {
     // Créer une ligne de détail de commande
     static createOrderDetailRow(order) {
         const orderDate = new Date(order.created_at);
-        const dateTime = `${Utils.formatDisplayDate(orderDate.toISOString().split('T')[0])} ${orderDate.toLocaleTimeString()}`;
+        const dateTime = `${Utils.formatDisplayDate(orderDate.toISOString().split('T')[0])} ${orderDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Dakar' })}`;
         
         const orderType = order.subscription_id ? 'MLC Abonnement' : 'MLC Simple';
         const hasSupplement = order.has_supplement ? 'Oui' : 'Non';

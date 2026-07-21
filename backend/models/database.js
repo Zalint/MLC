@@ -8,6 +8,10 @@ if (process.env.DATABASE_URL) {
   // Use connection string (common for Render)
   poolConfig = {
     connectionString: process.env.DATABASE_URL,
+    // Fuseau horaire métier: toute la logique de "jour" (DATE(created_at), TO_CHAR,
+    // CURRENT_DATE, backdate...) est calculée en Africa/Dakar (UTC+0, sans DST),
+    // indépendamment du fuseau du PC/serveur. Voir aussi frontend Utils.formatDate.
+    options: '-c timezone=Africa/Dakar',
     ssl: process.env.NODE_ENV === 'production' ? {
       rejectUnauthorized: false
     } : false,
@@ -23,6 +27,9 @@ if (process.env.DATABASE_URL) {
     database: process.env.DB_NAME || 'matix_livreur',
     user: process.env.DB_USER || 'matix_user',
     password: process.env.DB_PASSWORD || 'mlc2024',
+    // Fuseau horaire métier: le "jour" est calculé en Africa/Dakar (UTC+0),
+    // pas dans le fuseau local du PC (ex: Asia/Dubai) — corrige le filtrage par date.
+    options: '-c timezone=Africa/Dakar',
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
