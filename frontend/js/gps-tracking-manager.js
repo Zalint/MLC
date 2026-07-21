@@ -909,7 +909,7 @@ class GpsTrackingManager {
         `;
 
         locationResponse.data.slice(0, 10).forEach(pos => {
-          const time = new Date(pos.timestamp).toLocaleTimeString();
+          const time = new Date(pos.timestamp).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Dakar' });
           content += `
             <div style="margin-bottom: 5px; padding: 5px; background: #f5f5f5; border-radius: 3px;">
               ${time} - Lat: ${pos.latitude.toFixed(6)}, Lng: ${pos.longitude.toFixed(6)}
@@ -1107,7 +1107,7 @@ class GpsTrackingManager {
     startMarker.bindPopup(`
       <div>
         <strong>🏁 Départ</strong><br>
-        <small>${new Date(startPoint.timestamp).toLocaleTimeString()}</small><br>
+        <small>${new Date(startPoint.timestamp).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Dakar' })}</small><br>
         <small>Précision: ${startPoint.accuracy}m</small>
       </div>
     `);
@@ -1129,7 +1129,7 @@ class GpsTrackingManager {
       endMarker.bindPopup(`
         <div>
           <strong>🏁 Arrivée</strong><br>
-          <small>${new Date(endPoint.timestamp).toLocaleTimeString()}</small><br>
+          <small>${new Date(endPoint.timestamp).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Dakar' })}</small><br>
           <small>Précision: ${endPoint.accuracy}m</small>
         </div>
       `);
@@ -1155,7 +1155,7 @@ class GpsTrackingManager {
     document.getElementById('trace-avg-speed').textContent = `${summary.average_speed_kmh} km/h`;
     document.getElementById('trace-points-count').textContent = summary.total_points;
     
-    const timeRange = `${new Date(summary.start_time).toLocaleTimeString()} - ${new Date(summary.end_time).toLocaleTimeString()}`;
+    const timeRange = `${new Date(summary.start_time).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Dakar' })} - ${new Date(summary.end_time).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Dakar' })}`;
     document.getElementById('trace-time-range').textContent = timeRange;
     
     // Afficher le résumé

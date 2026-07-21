@@ -628,7 +628,7 @@ class OrderController {
       orders.forEach(order => {
         worksheet.addRow({
           id: order.id,
-          created_at: new Date(order.created_at).toLocaleString('fr-FR'),
+          created_at: new Date(order.created_at).toLocaleString('fr-FR', { timeZone: 'Africa/Dakar', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           creator_username: order.creator_username || 'N/A',
           client_name: order.client_name,
           phone_number: order.phone_number,
@@ -890,7 +890,7 @@ class OrderController {
       // Ajouter les données
       orders.forEach(order => {
         worksheet.addRow({
-          time: new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          time: new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Dakar' }),
           client_name: order.client_name,
           phone_number: order.phone_number,
           address: order.address || '',
@@ -3172,7 +3172,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown.`;
       // Ajouter les données
       orders.forEach(order => {
         worksheet.addRow({
-          created_at: new Date(order.created_at).toLocaleString('fr-FR'),
+          created_at: new Date(order.created_at).toLocaleString('fr-FR', { timeZone: 'Africa/Dakar', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           creator_username: order.creator_username || 'N/A',
           client_name: order.client_name,
           phone_number: order.phone_number,
