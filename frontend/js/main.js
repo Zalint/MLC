@@ -8069,14 +8069,14 @@ class App {
           const coursePrice = Math.round(price / totalDeliveries);
           document.getElementById('course-price').value = coursePrice;
         }
-        // Afficher le bouton WhatsApp
+        // Afficher le bouton WhatsApp (envoi facultatif)
         if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
-        // Desactiver le bouton Creer la commande tant que WhatsApp n'est pas envoye
+        // WhatsApp facultatif : ne PAS bloquer la creation de la commande
         if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.style.opacity = '0.5';
-          submitBtn.style.cursor = 'not-allowed';
-          submitBtn.title = 'Envoyez d\'abord le WhatsApp au client';
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '';
+          submitBtn.style.cursor = '';
+          submitBtn.title = '';
         }
       } else {
         if (whatsappBtn) whatsappBtn.style.display = 'none';
