@@ -8069,19 +8069,21 @@ class App {
           const coursePrice = Math.round(price / totalDeliveries);
           document.getElementById('course-price').value = coursePrice;
         }
-        // Afficher le bouton WhatsApp
+        // Afficher le bouton WhatsApp (envoi facultatif)
         if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
-        // Desactiver le bouton Creer la commande tant que WhatsApp n'est pas envoye
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.style.opacity = '0.5';
-          submitBtn.style.cursor = 'not-allowed';
-          submitBtn.title = 'Envoyez d\'abord le WhatsApp au client';
+        // WhatsApp facultatif : ne PAS bloquer la creation de la commande.
+        // Ne pas réactiver si une soumission est déjà en cours (évite le double envoi).
+        if (submitBtn && submitBtn.dataset.submitting !== 'true') {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '';
+          submitBtn.style.cursor = '';
+          submitBtn.title = '';
         }
       } else {
         if (whatsappBtn) whatsappBtn.style.display = 'none';
         // Reactiver le bouton si l'abonnement est deselectionne
-        if (submitBtn) {
+        // (sauf si une soumission est en cours).
+        if (submitBtn && submitBtn.dataset.submitting !== 'true') {
           submitBtn.disabled = false;
           submitBtn.style.opacity = '';
           submitBtn.style.cursor = '';
@@ -8132,8 +8134,9 @@ class App {
           window.open(whatsappUrl, '_blank');
           ModalManager.hide();
           // Reactiver le bouton Creer la commande apres envoi WhatsApp
+          // (sauf si une soumission est deja en cours).
           const submitBtn = document.getElementById('submit-order-btn');
-          if (submitBtn) {
+          if (submitBtn && submitBtn.dataset.submitting !== 'true') {
             submitBtn.disabled = false;
             submitBtn.style.opacity = '';
             submitBtn.style.cursor = '';
@@ -8220,6 +8223,9 @@ class App {
       }
       
       // Désactiver le bouton et afficher le spinner
+      // Marqueur de soumission: empêche les autres handlers (sélection d'abonnement,
+      // envoi WhatsApp) de réactiver le bouton tant que la requête est en cours.
+      submitBtn.dataset.submitting = 'true';
       submitBtn.disabled = true;
       submitBtn.style.opacity = '0.6';
       submitBtn.style.cursor = 'not-allowed';
@@ -8230,6 +8236,7 @@ class App {
       
       // Fonction pour réactiver le bouton
       const resetButton = () => {
+        delete submitBtn.dataset.submitting;
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
         submitBtn.style.cursor = 'pointer';
