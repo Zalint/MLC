@@ -34,6 +34,14 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    // Refuser l'accès aux comptes désactivés, même avec un token encore valide
+    // (révocation immédiate dès qu'un admin désactive le compte)
+    if (!user.is_active) {
+      return res.status(403).json({
+        error: 'Compte désactivé'
+      });
+    }
+
     console.log('🔍 Auth middleware - User loaded:', {
       id: user.id,
       username: user.username,
