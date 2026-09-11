@@ -47,6 +47,14 @@ class AuthController {
         });
       }
 
+      // Refuser la connexion aux comptes désactivés
+      if (!user.is_active) {
+        console.log('❌ Compte désactivé, connexion refusée:', username);
+        return res.status(403).json({
+          error: 'Votre compte a été désactivé. Veuillez contacter un administrateur.'
+        });
+      }
+
       // Générer le token JWT
       console.log('🎫 Generating JWT token...');
       const token = generateToken(user.id);
